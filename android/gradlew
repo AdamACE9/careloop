@@ -1,0 +1,40 @@
+#!/bin/sh
+#
+# CareLoop Gradle wrapper (POSIX).
+#
+# This is a deliberately compact wrapper rather than Gradle's stock 250-line script.
+# The wrapper's entire job is: locate a JVM, then hand control to GradleWrapperMain,
+# which downloads the Gradle distribution named in gradle-wrapper.properties and runs
+# the build. Everything else in the stock script is edge-case handling (Cygwin path
+# translation, Darwin app-name plumbing) that this project does not need.
+#
+# NOTE (see CLAUDE.md §9): on the original development machine, forked Gradle daemons
+# could not open their internal loopback pipe under JDK 17. If you hit
+# "Unable to establish loopback connection", set JAVA_HOME to a JDK 21 — for example
+# the one bundled with Android Studio — and/or just build from Android Studio directly.
+
+set -e
+
+APP_HOME=$(cd "$(dirname "$0")" && pwd -P)
+WRAPPER_JAR="$APP_HOME/gradle/wrapper/gradle-wrapper.jar"
+
+if [ ! -f "$WRAPPER_JAR" ]; then
+    echo "ERROR: $WRAPPER_JAR not found." >&2
+    exit 1
+fi
+
+# Prefer JAVA_HOME, fall back to whatever `java` is on PATH.
+if [ -n "$JAVA_HOME" ] && [ -x "$JAVA_HOME/bin/java" ]; then
+    JAVACMD="$JAVA_HOME/bin/java"
+else
+    JAVACMD=$(command -v java || true)
+    if [ -z "$JAVACMD" ]; then
+        echo "ERROR: No Java found. Set JAVA_HOME or put java on your PATH." >&2
+        echo "       Android Studio ships one at: <studio>/jbr" >&2
+        exit 1
+    fi
+fi
+
+exec "$JAVACMD" $JAVA_OPTS $GRADLE_OPTS \
+    -classpath "$WRAPPER_JAR" \
+    org.gradle.wrapper.GradleWrapperMain "$@"

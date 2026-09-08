@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Compose owns all real styling (see ui/theme/CareLoopTheme.kt).
+        This XML theme exists only so the system has something to draw during
+        cold start, before Compose takes over. Matching the navy here prevents
+        the white flash that otherwise appears on launch.
+    -->
+    <style name="Theme.CareLoop" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/careloop_navy</item>
+        <item name="android:statusBarColor">@color/careloop_navy</item>
+        <item name="android:navigationBarColor">@color/careloop_navy</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    "The Loop" — CareLoop's mark.
+
+    A single continuous gold ring. Deliberately unbroken: the loop never breaks,
+    the care never stops. This same mark is the app icon, the in-call listening
+    indicator (where it breathes), and the avatar in call history.
+
+    Sized for an adaptive icon: 108dp viewport, artwork kept inside the 72dp
+    safe zone (outer diameter 61dp) so no launcher mask can clip it.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <path
+        android:pathData="M54,28 A26,26 0 1,1 53.99,28 Z"
+        android:strokeColor="#C9A227"
+        android:strokeWidth="9"
+        android:strokeLineCap="round" />
+
+</vector>

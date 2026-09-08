@@ -1,0 +1,28 @@
+# ---- Android ----
+android/local.properties
+android/.gradle/
+android/build/
+android/app/build/
+android/.idea/
+android/.kotlin/
+*.apk
+*.aab
+*.iml
+.cxx/
+
+# ---- Node / Next.js ----
+web/node_modules/
+web/.next/
+web/out/
+web/build/
+web/.vercel/
+web/next-env.d.ts
+web/.env*.local
+
+# ---- OS / editor ----
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+npm-debug.log*

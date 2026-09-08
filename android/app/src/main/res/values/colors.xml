@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mirrors ui/theme/Color.kt. Only needed where XML must resolve a colour
+         (cold-start window background, notification accent). -->
+    <color name="careloop_navy">#16264D</color>
+    <color name="careloop_navy_deep">#0F1A38</color>
+    <color name="careloop_gold">#C9A227</color>
+    <color name="careloop_white">#FFFFFF</color>
+</resources>
