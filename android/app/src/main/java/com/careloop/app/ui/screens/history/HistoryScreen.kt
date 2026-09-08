@@ -298,7 +298,7 @@ private fun groupCheckInsByDate(checkIns: List<CheckIn>, today: LocalDate): List
     return checkIns
         .sortedByDescending { it.startedAt }
         .groupBy { it.date }
-        .toSortedMap(compareByDescending { it })
+        .toSortedMap(compareByDescending<LocalDate> { it })
         .map { (date, itemsForDate) ->
             val label = when {
                 date == today -> "Today"

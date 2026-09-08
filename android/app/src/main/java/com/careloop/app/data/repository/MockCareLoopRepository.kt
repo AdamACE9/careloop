@@ -30,16 +30,29 @@ class MockCareLoopRepository : CareLoopRepository {
     private val sharingPrefsState = MutableStateFlow(MockData.sharingPreferences)
     private val sharedItemsState = MutableStateFlow(MockData.sharedItems)
 
+    /**
+     * Vitals are stored in their own right, not derived from check-ins.
+     *
+     * They were originally derived by flat-mapping `checkIns.vitals`, which was wrong: only
+     * 7 of the 14 blood-sugar readings are attached to a check-in, so a chart would render
+     * 14 points on its first frame and then visibly snap down to 7 when the flow emitted.
+     *
+     * It is also the more accurate model. A reading is a fact about the person, not a
+     * property of a phone call — Firestore will store these in their own collection, and
+     * readings taken outside a check-in still need somewhere to live.
+     */
+    private val vitalsState = MutableStateFlow(
+        MockData.bloodSugarReadings + MockData.bloodPressureReadings
+    )
+
     override fun observeElder(): Flow<ElderProfile> = elderState.asStateFlow()
     override fun observeMedications(): Flow<List<Medication>> = medicationsState.asStateFlow()
     override fun observeCheckIns(): Flow<List<CheckIn>> = checkInsState.asStateFlow()
     override fun observeEscalations(): Flow<List<Escalation>> = escalationsState.asStateFlow()
 
     override fun observeVitals(type: VitalType): Flow<List<VitalReading>> =
-        checkInsState.map { checkIns ->
-            checkIns.flatMap { it.vitals }
-                .filter { it.type == type }
-                .sortedBy { it.recordedAt }
+        vitalsState.map { readings ->
+            readings.filter { it.type == type }.sortedBy { it.recordedAt }
         }
 
     override fun observeSharingPreferences(): Flow<SharingPreferences> =

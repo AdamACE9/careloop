@@ -1,26 +1,130 @@
 @import "tailwindcss";
 
+/*
+  CareLoop design tokens.
+
+  Palette note: bright gold (#C9A227) measures ~2.4:1 on white, so it is never used for
+  text on light backgrounds — only as a fill, rule, or accent on navy. `--color-gold-ink`
+  is the darkened variant (~5.1:1 on white) for the rare case gold text is needed on light.
+  This mirrors the same rule enforced in the Android app.
+*/
+
+@theme {
+  --color-navy: #16264d;
+  --color-navy-deep: #0f1a38;
+  --color-navy-soft: #243766;
+  --color-navy-mist: #35497d;
+
+  --color-gold: #c9a227;
+  --color-gold-ink: #8a6a00;
+  --color-gold-glow: #e8c65a;
+  --color-yellow: #ffd166;
+
+  --color-bone: #faf9f6;
+  --color-cloud: #efede8;
+  --color-slate-ink: #5a6173;
+  --color-ink: #1a1f2e;
+
+  --color-good: #1e7a5a;
+  --color-good-surface: #e6f4ef;
+  --color-concern: #b4690e;
+  --color-concern-surface: #fdf0e0;
+  --color-urgent: #b3261e;
+  --color-urgent-surface: #fceeee;
+
+  --font-display: var(--font-instrument-serif), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: var(--color-bone);
+  --foreground: var(--color-ink);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  border-color: color-mix(in srgb, var(--color-ink) 10%, transparent);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+}
+
+/* Display type wants tighter tracking than a serif's defaults at large sizes. */
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
+  font-weight: 400;
+}
+
+/*
+  Scroll-reveal.
+
+  Elements start hidden and are revealed by an IntersectionObserver adding `.is-visible`.
+  The no-JS and reduced-motion fallbacks below matter: without them, a visitor who has
+  asked their OS to reduce motion — or whose JS fails — would get a page of invisible
+  content, which is a far worse failure than missing an animation.
+*/
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 0.7s var(--ease-out-soft),
+    transform 0.7s var(--ease-out-soft);
+  will-change: opacity, transform;
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Grain: breaks up large flat navy fields so they read as printed rather than digital. */
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+::selection {
+  background: var(--color-gold);
+  color: var(--color-navy-deep);
+}
+
+/* Visible focus for keyboard users. Never remove this. */
+:focus-visible {
+  outline: 3px solid var(--color-gold);
+  outline-offset: 3px;
+  border-radius: 4px;
 }

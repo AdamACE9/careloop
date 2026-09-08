@@ -1,6 +1,7 @@
 package com.careloop.app.ui.screens.vitals
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,6 +36,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
@@ -141,7 +143,7 @@ private fun VitalsScreenContent(
                 readings = sortedBloodSugar,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(220.dp),
+                    .height(240.dp),
             )
 
             Spacer(Modifier.height(CareDimens.SpaceMd))
@@ -371,8 +373,12 @@ private fun BloodSugarTrendChart(
     // Styles and colours must be read from MaterialTheme/CareColors here, in composable
     // scope — the Canvas draw block below is a plain (non-composable) lambda and cannot
     // call MaterialTheme.* itself.
-    val axisLabelStyle = MaterialTheme.typography.labelMedium.copy(color = CareColors.Slate)
-    val bandLabelStyle = MaterialTheme.typography.labelMedium.copy(color = CareColors.Good)
+    //
+    // bodyMedium (17sp), not the smaller labelMedium, deliberately — these axis labels are
+    // how Margaret checks whether a reading is normal, not decorative metadata, so they get
+    // the same "large and legible" treatment as everything else on this screen.
+    val axisLabelStyle = MaterialTheme.typography.bodyMedium.copy(color = CareColors.Slate)
+    val bandLabelStyle = MaterialTheme.typography.bodyMedium.copy(color = CareColors.Good)
     val textMeasurer = rememberTextMeasurer()
 
     val lineColor = CareColors.Navy
@@ -388,8 +394,10 @@ private fun BloodSugarTrendChart(
 
     Canvas(modifier = modifier) {
         // ---- 1. Reserve space for axis labels around a smaller inner "plot" rectangle ----
-        val leftAxisWidth = 46.dp.toPx()
-        val bottomAxisHeight = 26.dp.toPx()
+        // Generous margins because the labels are set at bodyMedium (17sp), not a tiny
+        // caption size — see the comment above on why.
+        val leftAxisWidth = 54.dp.toPx()
+        val bottomAxisHeight = 34.dp.toPx()
         val topPadding = 14.dp.toPx()
         val rightPadding = 6.dp.toPx()
 
@@ -431,10 +439,8 @@ private fun BloodSugarTrendChart(
             size = Size(plotWidth, bandBottom - bandTop),
         )
         drawText(
-            textMeasurer = textMeasurer,
-            text = "Normal range",
+            textLayoutResult = textMeasurer.measure(AnnotatedString("Normal range"), bandLabelStyle),
             topLeft = Offset(plotLeft + 6.dp.toPx(), bandTop + 4.dp.toPx()),
-            style = bandLabelStyle,
         )
 
         // ---- 4. Y-axis gridlines and labels ----
@@ -450,15 +456,13 @@ private fun BloodSugarTrendChart(
                 strokeWidth = 1.5.dp.toPx(),
             )
             val label = "%.1f".format(gridValue)
-            val measured = textMeasurer.measure(label, axisLabelStyle)
+            val measured = textMeasurer.measure(AnnotatedString(label), axisLabelStyle)
             drawText(
-                textMeasurer = textMeasurer,
-                text = label,
+                textLayoutResult = measured,
                 topLeft = Offset(
                     x = plotLeft - 8.dp.toPx() - measured.size.width,
                     y = y - measured.size.height / 2f,
                 ),
-                style = axisLabelStyle,
             )
         }
 
@@ -467,17 +471,20 @@ private fun BloodSugarTrendChart(
         // control points sit directly above/below the midpoint x. This turns sharp zig-zags
         // into gentle S-curves without ever overshooting past a point's own y-value, so the
         // curve can't visually imply a reading that was never taken.
-        val linePath = Path().apply {
-            moveTo(points.first().x, points.first().y)
-            for (i in 0 until points.size - 1) {
-                val start = points[i]
-                val end = points[i + 1]
+        //
+        // The line and the area share the same curve, so it's built once here and reused —
+        // the area path just continues on down to the baseline and closes the shape.
+        fun smoothCurve(pts: List<Offset>): Path = Path().apply {
+            moveTo(pts.first().x, pts.first().y)
+            for (i in 0 until pts.size - 1) {
+                val start = pts[i]
+                val end = pts[i + 1]
                 val midX = (start.x + end.x) / 2f
                 cubicTo(midX, start.y, midX, end.y, end.x, end.y)
             }
         }
-        val areaPath = Path().apply {
-            addPath(linePath)
+        val linePath = smoothCurve(points)
+        val areaPath = smoothCurve(points).apply {
             lineTo(points.last().x, plotBottom)
             lineTo(points.first().x, plotBottom)
             close()
@@ -525,27 +532,23 @@ private fun BloodSugarTrendChart(
         // ---- 7. X-axis: just the start and end dates, to keep this legible at a glance ----
         val startLabel = readings.first().recordedAt.toLocalDate().format(dateFormatter)
         val endLabel = readings.last().recordedAt.toLocalDate().format(dateFormatter)
-        val startMeasured = textMeasurer.measure(startLabel, axisLabelStyle)
-        val endMeasured = textMeasurer.measure(endLabel, axisLabelStyle)
+        val startMeasured = textMeasurer.measure(AnnotatedString(startLabel), axisLabelStyle)
+        val endMeasured = textMeasurer.measure(AnnotatedString(endLabel), axisLabelStyle)
 
         drawText(
-            textMeasurer = textMeasurer,
-            text = startLabel,
+            textLayoutResult = startMeasured,
             topLeft = Offset(
                 x = (points.first().x - startMeasured.size.width / 2f).coerceAtLeast(0f),
                 y = plotBottom + 6.dp.toPx(),
             ),
-            style = axisLabelStyle,
         )
         drawText(
-            textMeasurer = textMeasurer,
-            text = endLabel,
+            textLayoutResult = endMeasured,
             topLeft = Offset(
                 x = (points.last().x - endMeasured.size.width / 2f)
                     .coerceAtMost(size.width - endMeasured.size.width),
                 y = plotBottom + 6.dp.toPx(),
             ),
-            style = axisLabelStyle,
         )
     }
 }
@@ -556,16 +559,14 @@ private fun ChartLegend(modifier: Modifier = Modifier) {
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(CareDimens.SpaceLg),
     ) {
-        LegendItem {
-            Box(
-                modifier = Modifier
-                    .size(14.dp)
-                    .background(CareColors.Good.copy(alpha = 0.35f), androidx.compose.foundation.shape.CircleShape),
-            )
-        }.let { /* no-op: keeps composition simple, see LegendItem below */ }
-
         LegendRow(
-            swatch = { Box(Modifier.size(14.dp).background(CareColors.Good.copy(alpha = 0.35f))) },
+            swatch = {
+                Box(
+                    modifier = Modifier
+                        .size(14.dp)
+                        .background(CareColors.Good.copy(alpha = 0.35f)),
+                )
+            },
             label = "Your normal range",
         )
         LegendRow(
@@ -573,12 +574,6 @@ private fun ChartLegend(modifier: Modifier = Modifier) {
             label = "Outside your normal range",
         )
     }
-}
-
-/** Unused helper retained only to satisfy an earlier composition shape; intentionally inert. */
-@Composable
-private fun LegendItem(content: @Composable () -> Unit) {
-    content()
 }
 
 @Composable
@@ -690,7 +685,7 @@ private fun VitalsScreenDarkPreview() {
     }
 }
 
-@Preview(showBackground = true, widthDp = 400, heightDp = 340, name = "Chart only")
+@Preview(showBackground = true, widthDp = 400, heightDp = 360, name = "Chart only")
 @Composable
 private fun BloodSugarTrendChartPreview() {
     CareLoopTheme(darkTheme = false) {
@@ -699,7 +694,7 @@ private fun BloodSugarTrendChartPreview() {
                 readings = MockData.bloodSugarReadings.sortedBy { it.recordedAt },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(220.dp),
+                    .height(240.dp),
             )
         }
     }
