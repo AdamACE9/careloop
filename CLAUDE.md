@@ -201,7 +201,15 @@ Legend: ✅ done · 🔨 in progress · ⬜ not started · ⚠️ blocked/flagge
 - ✅ Dashboard: vitals trend (Recharts, validated palette)
 - ✅ Dashboard: escalation reasoning view
 - ✅ Dashboard: manual "check on them now"
-- 🔨 `npm run build` verification
+- ✅ **Verified**: `next build` compiles, `tsc --noEmit` clean (0 errors), all four
+  routes return HTTP 200 with correct content server-rendered.
+
+**Visual verification was partial.** The in-app browser pane ran with
+`document.visibilityState === "hidden"`, which suspends painting, so only the hero could
+be screenshotted. Everything else was verified through the DOM (computed styles, rendered
+HTML) rather than pixels. **Open the site in a real browser and look at it** before
+relying on it on stage — particularly the 3D hero's inner ring, which I could only see
+once.
 
 ### Known gaps / next session
 - The download page has **no APK to link** — blocked on the Gradle issue. It says so
