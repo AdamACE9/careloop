@@ -11,6 +11,13 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+
+  /*
+   * Next 16 auto-generates AGENTS.md and CLAUDE.md inside web/ on dev runs. The real
+   * project guide lives at the repo root, and a second, machine-written CLAUDE.md one
+   * directory down competes with it and misleads future sessions. Off.
+   */
+  agentRules: false,
 };
 
 export default nextConfig;

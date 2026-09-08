@@ -26,3 +26,7 @@ Thumbs.db
 .vscode/
 *.log
 npm-debug.log*
+
+# Next.js regenerates these; the real guide is at the repo root
+web/AGENTS.md
+web/CLAUDE.md

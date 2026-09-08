@@ -22,12 +22,17 @@ export default function PhoneCallMock() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Start only when seen, so a visitor who scrolls down later still catches it from the top.
+  //
+  // Carries the same failsafe as Reveal: Chrome suspends IntersectionObserver callbacks on
+  // pages it is not painting, and without a fallback this mock would sit frozen on its
+  // first frame forever. Playing unseen is a far cheaper failure than never playing.
   useEffect(() => {
     const node = containerRef.current;
     if (!node || typeof IntersectionObserver === "undefined") {
       setStarted(true);
       return;
     }
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
@@ -35,10 +40,16 @@ export default function PhoneCallMock() {
           observer.disconnect();
         }
       },
-      { threshold: 0.3 },
+      { threshold: 0 },
     );
     observer.observe(node);
-    return () => observer.disconnect();
+
+    const failsafe = window.setTimeout(() => setStarted(true), 2500);
+
+    return () => {
+      observer.disconnect();
+      clearTimeout(failsafe);
+    };
   }, []);
 
   useEffect(() => {
