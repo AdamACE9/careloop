@@ -20,7 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Person
@@ -641,7 +641,9 @@ private fun OnboardingProgress(
         )
         Spacer(Modifier.height(CareDimens.SpaceSm))
         LinearProgressIndicator(
-            progress = (step + 1f) / total,
+            // Lambda form, not the `progress: Float` overload. That overload was
+            // deprecated in Material3 1.2 and is error-level in current versions.
+            progress = { (step + 1f) / total },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(8.dp)
@@ -666,7 +668,7 @@ private fun BackAffordance(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            imageVector = Icons.Rounded.ArrowBack,
+            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )

@@ -293,8 +293,20 @@ export const liveInteraction = {
   source: "openFDA / DrugBank",
 };
 
-/** The scripted call, used by the phone mock on the landing page. */
-export const callScript = [
+/**
+ * The scripted call, used by the phone mock on the landing page.
+ *
+ * Explicitly typed rather than `as const`. With `as const`, TypeScript narrows each entry
+ * to its own literal type, so `flag` only exists on the two objects that declare it and
+ * reading `line.flag` across the array fails to compile.
+ */
+export interface CallScriptLine {
+  speaker: "cara" | "elder";
+  text: string;
+  flag?: "checking" | "observation";
+}
+
+export const callScript: CallScriptLine[] = [
   { speaker: "cara", text: "Good morning, Margaret. It's Cara. How are you feeling today?" },
   { speaker: "elder", text: "Oh, morning. I'm alright. A bit stiff, but alright." },
   { speaker: "cara", text: "Stiff where, if you don't mind me asking?" },
@@ -312,4 +324,4 @@ export const callScript = [
     text: "The warfarin... I think so. I'm not sure if I took it or not, love.",
     flag: "observation",
   },
-] as const;
+];

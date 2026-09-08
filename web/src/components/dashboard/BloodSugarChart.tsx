@@ -96,7 +96,11 @@ export default function BloodSugarChart() {
               boxShadow: "0 8px 24px rgba(16,38,77,0.10)",
               fontSize: 13,
             }}
-            formatter={(value: number) => [`${value} mmol/L`, "Blood sugar"]}
+            // Recharts types the formatter value as ValueType (possibly undefined), so
+            // annotating it as `number` does not type-check. Format defensively instead.
+            formatter={(value) =>
+              [`${value ?? "—"} mmol/L`, "Blood sugar"] as [string, string]
+            }
           />
 
           <Area

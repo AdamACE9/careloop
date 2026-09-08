@@ -178,28 +178,37 @@ Legend: ✅ done · 🔨 in progress · ⬜ not started · ⚠️ blocked/flagge
 - ⬜ Shared design tokens
 - ⬜ Mock data layer (persona, meds, check-ins, escalation)
 
-### Android app
-- ⬜ Theme / design system (Compose)
-- ⬜ Data models + `MockRepository`
-- ⬜ Navigation graph
-- ⬜ **Incoming-call notification + full-screen activity** ← signature, build myself
-- ⬜ **Live call screen** ← signature, build myself
-- ⬜ Onboarding flow *(agent)*
-- ⬜ Medication list + detail *(agent)*
-- ⬜ Vitals / conditions *(agent)*
-- ⬜ Call history + "What I shared" *(agent)*
-- ⬜ Settings + permission education *(agent)*
-- ⬜ Emulator verification + screenshots
+### Android app — code complete, **UNCOMPILED** (see §9 blocker)
+- ✅ Theme / design system (Compose)
+- ✅ Domain model + `MockCareLoopRepository` + `AppContainer`
+- ✅ Navigation graph (flat, 5 tabs, always-visible labels)
+- ✅ **Incoming-call notification + full-screen activity**
+- ✅ **Live call screen** (scripted call, live interaction catch)
+- ✅ Home screen + demo call trigger
+- ✅ Onboarding flow *(agent)*
+- ✅ Medication list + refill planning *(agent)*
+- ✅ Vitals + hand-drawn Canvas chart *(agent)*
+- ✅ Call history + "What I shared" *(agent)*
+- ✅ Settings + permission education *(agent)*
+- ⚠️ Emulator verification + screenshots — **BLOCKED**, Gradle cannot build here
 
 ### Website
-- ⬜ Design tokens / Tailwind theme
-- ⬜ Landing page + WebGL hero
-- ⬜ APK download + unknown-sources explainer
-- ⬜ Caretaker login (UI only)
-- ⬜ Dashboard: today's status
-- ⬜ Dashboard: vitals trends (Recharts)
-- ⬜ Dashboard: escalation reasoning view
-- ⬜ Dashboard: manual "check on them now"
+- ✅ Design tokens / Tailwind 4 theme + editorial serif display type
+- ✅ Landing page + WebGL hero (lazy, with designed static fallback)
+- ✅ APK download + unknown-sources explainer
+- ✅ Caretaker login (UI only, honestly labelled as a demo)
+- ✅ Dashboard: today's status + stat tiles
+- ✅ Dashboard: vitals trend (Recharts, validated palette)
+- ✅ Dashboard: escalation reasoning view
+- ✅ Dashboard: manual "check on them now"
+- 🔨 `npm run build` verification
+
+### Known gaps / next session
+- The download page has **no APK to link** — blocked on the Gradle issue. It says so
+  plainly rather than faking a download.
+- Onboarding completion is not persisted (deliberate — re-runnable on stage).
+- No medication *detail* screen; `onMedicationClick` is wired but lands nowhere.
+- Android code has never been compiled. Expect a real debugging pass on first build.
 
 ---
 
@@ -289,6 +298,21 @@ versions, because those could not be generated or verified here.
   non-existent `PERMISSION_INLINE` manifest flag and claimed we auto-qualify for
   full-screen intent — the opposite of the truth (§4). Another gave bundle sizes off by
   ~30×. Cross-check anything load-bearing against primary sources.
+- **Compose APIs that bite when you cannot compile.** Fixed already, but they recur:
+  - `LinearProgressIndicator(progress = someFloat)` — that overload is deprecated since
+    Material3 1.2 and error-level now. Use `progress = { someFloat }`.
+  - `Icons.Rounded.ArrowForward` / `ArrowBack` — use
+    `Icons.AutoMirrored.Rounded.*`. Not only a deprecation: the manifest sets
+    `supportsRtl="true"`, and only the AutoMirrored variants flip in RTL.
+  - `Divider` was renamed `HorizontalDivider`. Avoided entirely rather than guessed.
+- **`npm run build` is very slow here (10 min+).** The project lives in a
+  OneDrive-synced folder, so every file write is intercepted. Not a code problem. If it
+  matters, move the repo outside OneDrive.
+- **Brand colours are not chart colours.** Validated, not eyeballed: navy `#16264D`
+  fails the lightness band *and* chroma floor as a data mark (it reads grey), and gold
+  `#C9A227` is 2.36:1 against a light surface, under the 3:1 mark floor. Charts use
+  brand-adjacent `#2E56B0` / `#B07D0C`, which pass every check. Re-run the validator if
+  you add a series; do not pick by eye.
 
 ---
 
