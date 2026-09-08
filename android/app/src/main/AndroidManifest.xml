@@ -1,22 +1,79 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!--
+        POST_NOTIFICATIONS  (API 33+) - runtime permission. Requested in-context during
+                            onboarding rather than at first launch, which measurably
+                            improves grant rates.
+
+        USE_FULL_SCREEN_INTENT - declared here, but declaring it is NOT sufficient on
+                            Android 14+. It became a special-access permission, auto-granted
+                            only to apps whose core function is calling or alarms. A health
+                            app may not qualify, so CallNotifier always checks
+                            canUseFullScreenIntent() at runtime and degrades gracefully.
+                            See CLAUDE.md section 4.
+
+        Deliberately NOT declared: android.permission.TURN_SCREEN_ON. It is signature-level
+        and does nothing for a normal app. Waking the screen is done with the activity flags
+        setTurnScreenOn()/android:turnScreenOn instead.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- TODO(backend): add RECORD_AUDIO and INTERNET when the Gemini Live session lands.
+         RECORD_AUDIO must be requested in-context, on the first real call, never at launch. -->
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.CareLoop">
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.CareLoop">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+            The incoming-call screen.
+
+            showWhenLocked  - draws over the keyguard so Margaret can see Cara calling
+                              without unlocking. It does NOT dismiss the keyguard; that is
+                              only requested once she actually answers.
+            turnScreenOn    - wakes the display when the call arrives.
+            singleTop       - a second FCM push while ringing updates the existing screen
+                              rather than stacking another one.
+            excludeFromRecents + noHistory
+                            - a finished call should not linger in recents as something to
+                              reopen by accident.
+            exported=false  - only our own notification PendingIntents launch this.
+        -->
+        <activity
+            android:name=".call.IncomingCallActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.CareLoop.Call" />
+
+        <receiver
+            android:name=".call.CallActionReceiver"
+            android:exported="false" />
+
+        <!-- TODO(backend): register CareLoopMessagingService here with the
+             com.google.firebase.MESSAGING_EVENT intent filter. See CallNotifier.kt. -->
 
     </application>
 

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Status-bar icon for Cara's calls.
+
+    Android renders notification small icons as a silhouette: every non-transparent pixel
+    is painted a single system-chosen colour. So this must be a solid white shape on
+    transparency — a gold ring here would come out as a filled white blob.
+
+    Drawn as two concentric filled circles with an even-odd fill so the centre stays
+    genuinely transparent, rather than as a stroked path, because strokes can render
+    inconsistently once the system re-tints and downscales the icon.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#FFFFFF">
+
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M12,2.5 A9.5,9.5 0 1,1 11.99,2.5 Z M12,7 A5,5 0 1,0 12.01,7 Z" />
+
+</vector>

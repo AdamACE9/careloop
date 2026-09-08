@@ -44,6 +44,9 @@ android {
 
     buildFeatures {
         compose = true
+        // AGP 8 defaults this to false. HomeScreen gates the demo call trigger on
+        // BuildConfig.DEBUG, so without this the class does not exist and the build fails.
+        buildConfig = true
     }
 
     packaging {

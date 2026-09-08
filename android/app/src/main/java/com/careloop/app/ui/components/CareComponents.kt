@@ -101,6 +101,41 @@ fun CareCard(
 }
 
 /**
+ * Tappable variant of [CareCard].
+ *
+ * Exists so that selectable and navigable cards share exactly the same chrome as static
+ * ones instead of each screen re-deriving it against raw `Card`. Enforces the minimum
+ * touch height centrally, which is the sort of thing that quietly drifts when every screen
+ * rolls its own.
+ */
+@Composable
+fun CareCard(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    selected: Boolean = false,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Card(
+        onClick = onClick,
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = CareDimens.TouchTarget),
+        shape = RoundedCornerShape(CareDimens.CardRadius),
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) {
+                MaterialTheme.colorScheme.secondaryContainer
+            } else {
+                MaterialTheme.colorScheme.surface
+            },
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = CareDimens.CardElevation),
+        border = if (selected) BorderStroke(2.dp, CareColors.Navy) else null,
+    ) {
+        Column(Modifier.padding(CareDimens.SpaceLg), content = content)
+    }
+}
+
+/**
  * Status indicator.
  *
  * [icon] is intentionally **not** optional. Colour alone is not an accessible signal for
