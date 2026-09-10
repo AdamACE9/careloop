@@ -13,8 +13,8 @@ export const metadata: Metadata = {
  * The install flow.
  *
  * The explainer *precedes* the download deliberately. Android will show a genuine
- * "unknown sources" security warning that we cannot skin, and for a non-technical user —
- * or an anxious adult child installing this on their parent's phone — that warning is the
+ * "unknown sources" security warning that we cannot skin. For a non-technical user, or
+ * an anxious adult child installing this on their parent's phone, that warning is the
  * single most likely point of abandonment in the entire product.
  *
  * Priming it first turns a scary interruption into an expected step. The warning still

@@ -8,7 +8,7 @@ import Link from "next/link";
  *
  * Step one is not a formality. Android's "unknown sources" prompt is unskinnable and
  * alarming, and it is the highest-risk drop-off point in the product for this audience.
- * Showing exactly what is about to appear — including a mock of the real dialog — converts
+ * Showing exactly what is about to appear, including a mock of the real dialog, converts
  * it from a warning into a step someone expects.
  *
  * The copy avoids two failure modes:
@@ -81,7 +81,7 @@ export default function DownloadFlow() {
             <p className="font-display text-xl">Doing this for a parent?</p>
             <p className="mt-3 leading-relaxed text-white/70">
               Most people set CareLoop up sitting next to the person it is for. It is
-              worth doing it together — the app will ask a few questions that only they
+              worth doing it together, the app will ask a few questions that only they
               can answer, like what time they want to be called.
             </p>
           </div>
@@ -90,7 +90,7 @@ export default function DownloadFlow() {
             onClick={() => setStep("download")}
             className="mt-10 w-full rounded-2xl bg-gold px-8 py-5 text-lg font-semibold text-navy-deep transition hover:bg-gold-glow"
           >
-            I understand — continue
+            I understand, continue
           </button>
         </div>
       ) : (
@@ -110,7 +110,7 @@ export default function DownloadFlow() {
             TODO(backend): point this at the signed release APK once there is a build.
             Blocked tonight: Gradle cannot execute builds on the development machine
             (see CLAUDE.md section 9), so no APK exists to link yet. Deliberately not
-            faking a download — a button that pretends to work is worse than one that
+            faking a download, a button that pretends to work is worse than one that
             says what it is waiting for.
           */}
           <div className="mt-10 rounded-3xl border border-dashed border-ink/25 bg-white p-8 text-center">
@@ -162,7 +162,7 @@ export default function DownloadFlow() {
               href="/dashboard"
               className="flex-1 rounded-2xl bg-navy px-7 py-4 text-center font-semibold text-white transition hover:bg-navy-soft"
             >
-              I&apos;m the family member — show me the dashboard
+              I&apos;m the family member, show me the dashboard
             </Link>
           </div>
         </div>

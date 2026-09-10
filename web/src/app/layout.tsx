@@ -14,7 +14,7 @@ const inter = Inter({
  *
  * A deliberate departure from the sans-everywhere convention: a warm serif reads as
  * human and considered, which is the register a care product needs. It also makes the
- * site look hand-built rather than generated from a SaaS template — the specific failure
+ * site look hand-built rather than generated from a SaaS template, the specific failure
  * mode the brief calls out.
  */
 const instrumentSerif = Instrument_Serif({
@@ -25,11 +25,11 @@ const instrumentSerif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "CareLoop — the companion that actually checks in",
+  title: "CareLoop: the companion that actually checks in",
   description:
     "CareLoop calls your parent, listens to how they answer, checks their medications for dangerous interactions, and tells you when something is genuinely wrong.",
   openGraph: {
-    title: "CareLoop — the companion that actually checks in",
+    title: "CareLoop: the companion that actually checks in",
     description:
       "An AI companion that phones your parent, listens, and reasons across days to decide when family needs to know.",
     type: "website",

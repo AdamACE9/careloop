@@ -7,7 +7,7 @@ import { callScript, liveInteraction } from "@/lib/demo-data";
  * An in-browser replay of the actual call.
  *
  * Shows, rather than claims, the product's key beat: Margaret mentions ibuprofen, and the
- * ring picks up a second counter-rotating arc while Cara checks it against her warfarin —
+ * ring picks up a second counter-rotating arc while Cara checks it against her warfarin,
  * with the conversation continuing underneath. That concurrency is the whole argument for
  * calling this agentic rather than scripted.
  *
@@ -169,7 +169,7 @@ export default function PhoneCallMock() {
       </div>
 
       <p className="mt-5 text-center text-xs leading-relaxed text-white/45">
-        A real check-in. Cara checks the interaction in the background — the
+        A real check-in. Cara checks the interaction in the background, the
         conversation never stops.
       </p>
     </div>

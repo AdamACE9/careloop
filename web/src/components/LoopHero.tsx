@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 /**
  * Wrapper that decides whether the visitor should get the WebGL ring at all.
  *
- * The 3D bundle is only fetched when we have decided to render it — `dynamic` with
+ * The 3D bundle is only fetched when we have decided to render it, `dynamic` with
  * `ssr: false` means three.js never reaches a visitor who will not see it. That keeps the
  * cost off mobile, off reduced-motion users, and off the first paint.
  *

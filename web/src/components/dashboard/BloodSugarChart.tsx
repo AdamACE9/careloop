@@ -18,7 +18,7 @@ import { bloodSugar, bloodSugarNormalRange } from "@/lib/demo-data";
  * ## Colour is computed, not chosen
  *
  * The brand navy (#16264D) and gold (#C9A227) both **fail** as data marks on a light
- * surface — navy sits outside the lightness band and below the chroma floor (it reads
+ * surface, navy sits outside the lightness band and below the chroma floor (it reads
  * grey as a mark), and gold measures 2.36:1 against the surface, under the 3:1 minimum.
  * Both were verified with a palette validator rather than judged by eye.
  *
@@ -32,7 +32,7 @@ import { bloodSugar, bloodSugarNormalRange } from "@/lib/demo-data";
  *   noise.
  * - **The normal range is drawn, not implied.** A reader should not have to already know
  *   that 4.0–7.8 is normal to interpret the line.
- * - **2px line, 8px active dot, recessive grid** — marks carry the data, chrome recedes.
+ * - **2px line, 8px active dot, recessive grid**, marks carry the data, chrome recedes.
  * - **No dual axis, ever.** Blood pressure gets its own section rather than a second
  *   y-scale on this chart.
  */
@@ -99,7 +99,7 @@ export default function BloodSugarChart() {
             // Recharts types the formatter value as ValueType (possibly undefined), so
             // annotating it as `number` does not type-check. Format defensively instead.
             formatter={(value) =>
-              [`${value ?? "—"} mmol/L`, "Blood sugar"] as [string, string]
+              [`${value ?? "-"} mmol/L`, "Blood sugar"] as [string, string]
             }
           />
 

@@ -9,7 +9,7 @@ import { primaryEscalation, confidencePhrase } from "@/lib/demo-data";
  *   overwhelms a lay reader. Three, each tied to specific evidence, reads as reasoning.
  * - **Confidence in words, not percentages.** "I'm quite sure" is trusted; "78.3%
  *   confident" reads as false precision and lowers trust.
- * - **Each step names its evidence** — a date, a call, a direct quote. A reasoning trace
+ * - **Each step names its evidence**, a date, a call, a direct quote. A reasoning trace
  *   that cannot be traced back to something that actually happened is just a plausible
  *   story.
  * - **What it decided *against* is shown too.** Rejected alternatives are the clearest

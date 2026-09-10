@@ -15,12 +15,12 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
  *
  * 1. **Already-in-view check on mount.** Anything on screen at first paint reveals
  *    immediately, without waiting for an observer callback.
- * 2. **IntersectionObserver** for everything below the fold — the normal path.
+ * 2. **IntersectionObserver** for everything below the fold, the normal path.
  * 3. **A failsafe timer.** If neither of the above has fired within
  *    [FAILSAFE_MS], reveal anyway.
  *
  * Path 3 is not paranoia. Chrome suspends IntersectionObserver callbacks for pages that
- * are not being painted — an occluded window, some headless and preview contexts, certain
+ * are not being painted, an occluded window, some headless and preview contexts, certain
  * background tabs. This was observed directly while building this page: a freshly
  * constructed observer on an element sitting in the viewport received no callback at all.
  * Without the failsafe, that renders the entire site blank below the hero.
@@ -29,7 +29,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
  * re-renders (including Fast Refresh in development, which otherwise resets an
  * imperatively-added class and makes content vanish mid-session).
  *
- * `prefers-reduced-motion` is handled in CSS — `.reveal` resets to fully visible — so a
+ * `prefers-reduced-motion` is handled in CSS, `.reveal` resets to fully visible, so a
  * reduced-motion visitor never depends on any of this running.
  */
 
@@ -86,7 +86,7 @@ export default function Reveal({
       observer.observe(node);
     }
 
-    // 3. Failsafe — content must never stay hidden.
+    // 3. Failsafe, content must never stay hidden.
     timers.push(window.setTimeout(reveal, FAILSAFE_MS));
 
     return () => {

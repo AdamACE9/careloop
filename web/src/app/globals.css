@@ -4,7 +4,7 @@
   CareLoop design tokens.
 
   Palette note: bright gold (#C9A227) measures ~2.4:1 on white, so it is never used for
-  text on light backgrounds — only as a fill, rule, or accent on navy. `--color-gold-ink`
+  text on light backgrounds, only as a fill, rule, or accent on navy. `--color-gold-ink`
   is the darkened variant (~5.1:1 on white) for the rare case gold text is needed on light.
   This mirrors the same rule enforced in the Android app.
 */
@@ -71,7 +71,7 @@ body {
 
   Elements start hidden and are revealed by an IntersectionObserver adding `.is-visible`.
   The no-JS and reduced-motion fallbacks below matter: without them, a visitor who has
-  asked their OS to reduce motion — or whose JS fails — would get a page of invisible
+  asked their OS to reduce motion, or whose JS fails, would get a page of invisible
   content, which is a far worse failure than missing an animation.
 */
 .reveal {
@@ -127,4 +127,142 @@ body {
   outline: 3px solid var(--color-gold);
   outline-offset: 3px;
   border-radius: 4px;
+}
+
+/* ---------------------------------------------------------------------------
+   Motion primitives
+
+   All of these are disabled by the prefers-reduced-motion block above, which
+   sets every animation and transition to effectively zero. That block appears
+   earlier in the file but wins on specificity because of !important, which is
+   one of the few places !important is the right tool: a motion preference is a
+   user's accessibility setting and must not be overridable by a later rule.
+   --------------------------------------------------------------------------- */
+
+/* Reading-progress bar. Width is driven from JS via a custom property so the
+   browser can composite it without layout. */
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 100%;
+  transform-origin: 0 50%;
+  transform: scaleX(var(--progress, 0));
+  background: linear-gradient(
+    90deg,
+    var(--color-gold) 0%,
+    var(--color-gold-glow) 60%,
+    var(--color-yellow) 100%
+  );
+  z-index: 100;
+  will-change: transform;
+}
+
+/* Word-by-word headline entrance. Each word carries its own delay via an
+   inline custom property, which keeps the stagger out of JS entirely. */
+@keyframes word-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.7em) rotate(1.5deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.word-rise > span {
+  display: inline-block;
+  opacity: 0;
+  animation: word-rise 0.9s var(--ease-out-soft) forwards;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+
+/* Slow sheen across gold text. Deliberately long-cycle so it registers as
+   material rather than as a loading shimmer. */
+@keyframes sheen {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.text-sheen {
+  background: linear-gradient(
+    100deg,
+    var(--color-gold) 20%,
+    var(--color-gold-glow) 40%,
+    var(--color-yellow) 50%,
+    var(--color-gold-glow) 60%,
+    var(--color-gold) 80%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: sheen 7s linear infinite;
+}
+
+/* A slow float, for cards that should feel alive without demanding attention. */
+@keyframes drift {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.drift {
+  animation: drift 7s ease-in-out infinite;
+}
+
+/* The Loop breathing, matched to the in-app listening state so the mark behaves
+   consistently across the website and the phone. */
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.04);
+    opacity: 1;
+  }
+}
+
+.breathe {
+  animation: breathe 2.6s ease-in-out infinite;
+}
+
+/* Hairline that draws itself in as a section arrives. */
+@keyframes rule-draw {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.reveal.is-visible .rule-draw {
+  transform-origin: 0 50%;
+  animation: rule-draw 1.1s var(--ease-out-soft) forwards;
+}
+
+/* Lift on hover for interactive cards. Transform and opacity only, so this
+   never triggers layout or paint. */
+.lift {
+  transition:
+    transform 0.35s var(--ease-out-soft),
+    box-shadow 0.35s var(--ease-out-soft);
+}
+
+.lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 40px -18px rgba(16, 38, 77, 0.35);
 }

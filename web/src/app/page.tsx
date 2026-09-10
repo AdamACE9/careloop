@@ -5,6 +5,7 @@ import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import ReasoningCard from "@/components/ReasoningCard";
 import PhoneCallMock from "@/components/PhoneCallMock";
+import ScrollProgress, { WordRise } from "@/components/motion/ScrollProgress";
 
 /**
  * The landing page.
@@ -13,7 +14,7 @@ import PhoneCallMock from "@/components/PhoneCallMock";
  *   1. the emotional problem (you cannot be there every day)
  *   2. why existing tools fail (a tap is not evidence)
  *   3. what CareLoop does differently (it listens, and it reasons across days)
- *   4. proof — the real reasoning trace, not a claim about one
+ *   4. proof, the real reasoning trace, not a claim about one
  *   5. the dignity position (the part nobody else has built)
  *   6. download
  *
@@ -24,6 +25,7 @@ import PhoneCallMock from "@/components/PhoneCallMock";
 export default function Home() {
   return (
     <main className="min-h-screen bg-bone">
+      <ScrollProgress />
       <SiteHeader />
 
       {/* ---------------------------------------------------------------- Hero */}
@@ -44,13 +46,15 @@ export default function Home() {
             </p>
 
             <h1 className="font-display text-5xl leading-[1.05] text-white md:text-7xl">
-              Someone checks on your mother
-              <span className="text-gold"> every morning.</span>
+              <WordRise
+                text="Someone checks on your mother every morning."
+                highlight={["every", "morning"]}
+              />
             </h1>
 
             <p className="mt-8 max-w-xl text-lg leading-relaxed text-white/70 md:text-xl">
               CareLoop phones her, listens to how she answers, and tells you when
-              something is genuinely wrong — not every time she is five minutes late.
+              something is genuinely wrong, not every time she is five minutes late.
             </p>
 
             <div className="mt-10 flex flex-col gap-4 sm:flex-row">
@@ -134,7 +138,7 @@ export default function Home() {
                 {
                   n: "01",
                   title: "It calls, properly",
-                  body: "At a time she chooses, her phone rings like a real call — full screen, on the lock screen. Not a notification she will scroll past.",
+                  body: "At a time she chooses, her phone rings like a real call, full screen, on the lock screen. Not a notification she will scroll past.",
                 },
                 {
                   n: "02",
@@ -144,7 +148,7 @@ export default function Home() {
                 {
                   n: "03",
                   title: "It checks while it talks",
-                  body: "Mention a new painkiller mid-sentence and Cara checks it against everything else she takes — without the call going quiet.",
+                  body: "Mention a new painkiller mid-sentence and Cara checks it against everything else she takes, without the call going quiet.",
                 },
                 {
                   n: "04",
@@ -185,7 +189,7 @@ export default function Home() {
             Most AI tells you what it decided. Cara shows you the working.
           </h2>
           <p className="mt-6 max-w-2xl text-lg leading-relaxed text-slate-ink">
-            This is a real escalation from the demo data — the reasoning, the evidence
+            This is a real escalation from the demo data, the reasoning, the evidence
             behind each step, and the options Cara weighed and rejected.
           </p>
         </Reveal>
@@ -209,13 +213,13 @@ export default function Home() {
                 She sees everything you see.
               </h2>
               <p className="mt-6 text-lg leading-relaxed text-slate-ink">
-                Nearly half of older adults are uncomfortable being monitored — even
+                Nearly half of older adults are uncomfortable being monitored, even
                 when the safety benefit is obvious. What resolves that discomfort is not
                 a better privacy policy. It is genuine control.
               </p>
               <p className="mt-4 text-lg leading-relaxed text-slate-ink">
                 So CareLoop is symmetrical. Every time Cara tells you something, she
-                tells your mother she told you — and gives her the chance to correct the
+                tells your mother she told you, and gives her the chance to correct the
                 record. She can mute routine categories. Emergencies always reach you,
                 and she knows that too, because hiding it would be the exact
                 condescension we are trying to avoid.
@@ -240,8 +244,7 @@ export default function Home() {
                   </span>
                 </div>
                 <p className="mt-6 text-sm leading-relaxed text-slate-ink">
-                  If she disputes it, her words appear on your dashboard beside Cara&apos;s
-                  — not buried in a log.
+                  If she disputes it, her words appear on your dashboard beside Cara&apos;s, not buried in a log.
                 </p>
               </div>
             </Reveal>

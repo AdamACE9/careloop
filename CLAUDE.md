@@ -25,6 +25,18 @@ escalation to family → caretaker dashboard.
 
 ---
 
+## 1b. Session log
+
+**Day 4 (frontend):** both surfaces built on mock data, integration points stubbed.
+
+**Day 6 (backend):** the full backend, wired into that frontend. Firestore schema
+and security rules, Cloud Functions v2, real Gemini Live integration, real FCM
+push-calls, real interaction checking, the reasoning and escalation engine, refill
+planning. Web dashboard rebuilt with real auth and tabs. Website motion upgraded.
+See §12 for what changed and §13 for what is still open.
+
+---
+
 ## 2. Tonight's Goal & Scope Boundary
 
 **Goal:** frontend-complete for both the Android app and the website/dashboard, running
@@ -359,3 +371,102 @@ mid-turn WebSocket disconnect rates on a preview model. Single-source and months
 - Foundations (design system, data models, call flow) are built directly, not delegated.
 - If stuck: try two approaches, then flag it in §9 and move on. Do not burn the session
   on one blocker.
+
+---
+
+## 12. Backend (Day 6)
+
+The backend is built and wired. `docs/API_CONTRACT.md` is the full surface;
+`docs/MORNING_CHECKLIST.md` is what Adam has to do personally.
+
+### Shape
+
+```
+functions/src/
+  types.ts              contract, mirrors Android Models.kt field for field
+  lib/config.ts         secrets (defineSecret) + tunable constants
+  lib/logging.ts        redacting logger, see below
+  lib/validate.ts       input guards, auth guards, rate limiting
+  calls/deliver.ts      FCM data-only high-priority push
+  gemini/cara.ts        the persona and tool declarations
+  gemini/liveToken.ts   ephemeral token minting
+  interactions/         curated food ruleset + layered drug checking
+  reasoning/engine.ts   pattern detection, weighting, escalation text
+  index.ts              callables + schedulers
+firestore.rules         two-sided access model
+```
+
+### Decisions worth not relitigating
+
+- **D8 — Ephemeral tokens, not a relay and not a shipped key.** The app opens its
+  own Live WebSocket with a single-use token minted server-side. Shipping the API
+  key in an APK is a non-starter (an APK is a zip). Relaying audio through a
+  function would double latency on a real-time call and turn one flaky connection
+  into two.
+- **D9 — Drug-drug checking is layered, not a lookup.** There is no free pairwise
+  DDI API any more: NLM retired RxNav's `/interaction/` endpoints in January 2024
+  and DrugBank's free checker goes in March 2026. So: curated rules first
+  (deterministic, offline, never missed on a timeout), then openFDA label prose
+  searched against the patient's real medication list, with RxNorm approximate
+  matching for names said imprecisely aloud. Anything claiming a single free DDI
+  endpoint is describing something dead.
+- **D10 — `check_interaction` is NON_BLOCKING.** With blocking behaviour the model
+  goes silent mid-sentence while the lookup runs, and a silent gap on a phone call
+  reads as the line dropping. Tool responses are scheduled `WHEN_IDLE` so a result
+  lands between sentences rather than cutting Cara off.
+- **D11 — Escalation explanations are templated, not model-generated.** This text
+  is the audit trail for an autonomous decision about someone's health and must
+  state what the engine actually weighed. A model paraphrasing could produce
+  something fluent that misstates the reasoning, which is the exact failure this
+  product claims to avoid. (A model *is* used for conversational summaries; the
+  difference is description versus justification.)
+- **D12 — Escalation and the elder's "what I shared" entry are one batch write.**
+  If an escalation could exist without the elder being told, the dignity position
+  collapses. Keep them together.
+- **D13 — Logging redacts by construction.** No medication, vitals, transcript,
+  name or uid ever reaches Cloud Logging. `lib/logging.ts` rejects suspicious field
+  names and over-long values, and `logError` deliberately does not log the error
+  message or stack, because a Firestore or HTTP error routinely contains the
+  document path or response body.
+- **D14 — Both clients degrade to demo data rather than erroring.** No Firebase
+  config, or an empty account, shows the example household. A freshly deployed
+  dashboard showing a blank page looks broken; showing Margaret communicates the
+  product instantly. Real data replaces it the moment any exists.
+
+### The reasoning engine, briefly
+
+Concern score, not a counter. Criticality is a multiplier; repetition is weighted
+super-linearly (two misses is not twice one miss, it is where "forgot" stops being
+the best explanation); uncertainty scores higher than a clean miss; evidence decays
+by recency. Retry aggressiveness scales with what is at stake, so a possibly-missed
+anticoagulant is chased sooner than a statin, and past four attempts it escalates
+rather than continuing to call, because more calls become harassment.
+
+---
+
+## 13. Status after Day 6
+
+### Verified
+- `functions` typechecks clean (`tsc --noEmit`, 0 errors)
+- `web` typechecks clean and builds
+- All four public routes plus five dashboard routes render
+
+### NOT verified, and why
+- **The Android app has still never been compiled.** The Gradle blocker in §9
+  persists. Retried this session including a new hypothesis (that the daemon's
+  temp directory was being blocked); disproven, it is not the temp dir. Two real
+  bugs were found by reading and fixed (`Flow.map` called as a non-extension, and
+  a non-local `return@` from inside an inline function). **Assume more remain.
+  Treat the first compile as a debugging session.**
+- The Gemini Live wire format is written from documentation, not from a successful
+  handshake. The setup frame, tool-call and tool-response shapes are the most
+  likely places to need adjustment.
+
+### Open
+- No medication detail screen; `onMedicationClick` is wired but lands nowhere.
+- Elder-side onboarding does not yet include the linking-code entry step. The
+  backend endpoint exists and works; the screen does not.
+- Escalations are not yet pushed to the caretaker (no email or web push). They
+  appear on the dashboard when it is open.
+- No rules unit tests. `@firebase/rules-unit-testing` is in devDependencies and
+  the emulator is configured in `firebase.json`, so the setup cost is small.

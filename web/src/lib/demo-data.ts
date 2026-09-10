@@ -1,7 +1,7 @@
 /**
  * Demo data for the caretaker dashboard.
  *
- * Deliberately mirrors the Android app's `MockData.kt` — same people, same medications,
+ * Deliberately mirrors the Android app's `MockData.kt`, same people, same medications,
  * same week, same escalation. The app and the dashboard are two views of one story, and a
  * judge who looks at both should find them consistent down to the wording of what Cara said.
  *
@@ -180,7 +180,7 @@ export const checkIns: CheckIn[] = [
     confirmed: ["Metformin", "Ramipril", "Ferrous sulfate"],
     missed: ["Warfarin"],
     caraSummary:
-      "Warfarin missed again, and Margaret was unsure whether she'd taken it — the same uncertainty as Tuesday. She also mentioned taking ibuprofen for her knee, which doesn't mix well with warfarin. I let Sarah know.",
+      "Warfarin missed again, and Margaret was unsure whether she'd taken it, the same uncertainty as Tuesday. She also mentioned taking ibuprofen for her knee, which doesn't mix well with warfarin. I let Sarah know.",
   },
   {
     id: "ci-3",
@@ -203,7 +203,7 @@ export const checkIns: CheckIn[] = [
     confirmed: ["Metformin", "Ramipril", "Ferrous sulfate"],
     missed: ["Warfarin"],
     caraSummary:
-      "Warfarin missed last night. Margaret wasn't sure whether she'd taken it. I've made a note to watch this — it's the first time.",
+      "Warfarin missed last night. Margaret wasn't sure whether she'd taken it. I've made a note to watch this, it's the first time.",
   },
   {
     id: "ci-5",
@@ -225,15 +225,15 @@ export const primaryEscalation: Escalation = {
   severity: "concern",
   headline: "Margaret has missed her warfarin twice this week",
   explanation:
-    "I'm reaching out because your mother missed her warfarin on Tuesday evening and again on Thursday, and on both calls she wasn't sure whether she'd taken it. One missed dose wouldn't have worried me. Two, with the same uncertainty each time, on the medication that matters most for her heart rhythm, is a pattern I didn't want to sit on.\n\nShe also mentioned she's been taking ibuprofen for her knee. That doesn't mix well with warfarin — together they make bleeding more likely — so I asked her to speak to her GP before taking any more. She said she would.\n\nShe knows I'm telling you. I asked her on the call and she was happy for me to.",
+    "I'm reaching out because your mother missed her warfarin on Tuesday evening and again on Thursday, and on both calls she wasn't sure whether she'd taken it. One missed dose wouldn't have worried me. Two, with the same uncertainty each time, on the medication that matters most for her heart rhythm, is a pattern I didn't want to sit on.\n\nShe also mentioned she's been taking ibuprofen for her knee. That doesn't mix well with warfarin, together they make bleeding more likely, so I asked her to speak to her GP before taking any more. She said she would.\n\nShe knows I'm telling you. I asked her on the call and she was happy for me to.",
   reasoning: [
     {
       observation: "Warfarin missed on two of the last five evenings",
       evidence: "Tuesday and Thursday check-ins",
     },
     {
-      observation: "She was unsure whether she'd taken it — both times, unprompted",
-      evidence: '"I\'m not sure if I took it or not, love" — Thursday, 9:01 am',
+      observation: "She was unsure whether she'd taken it, both times, unprompted",
+      evidence: '"I\'m not sure if I took it or not, love", Thursday, 9:01 am',
     },
     {
       observation:
@@ -243,9 +243,9 @@ export const primaryEscalation: Escalation = {
   ],
   confidence: "high",
   alternativesConsidered: [
-    "Waiting another day — I decided against it because warfarin is the one medication where a wait carries real risk.",
-    "Treating it as forgetfulness only — but the same uncertainty twice, rather than simply forgetting, is what changed my mind.",
-    "Calling her again in the evening instead — I'll still do this, but it didn't feel like a reason to delay telling you.",
+    "Waiting another day, I decided against it because warfarin is the one medication where a wait carries real risk.",
+    "Treating it as forgetfulness only, but the same uncertainty twice, rather than simply forgetting, is what changed my mind.",
+    "Calling her again in the evening instead, I'll still do this, but it didn't feel like a reason to delay telling you.",
   ],
   relatedMedication: "Warfarin",
   elderResponse: "confirmed",
@@ -258,7 +258,7 @@ export const refillEscalation: Escalation = {
   severity: "fyi",
   headline: "Warfarin runs out in about nine days",
   explanation:
-    "Not urgent, but worth starting now — repeat prescriptions for warfarin usually take a few days, and it's not one I'd want her to run out of. She has nine days left.",
+    "Not urgent, but worth starting now, repeat prescriptions for warfarin usually take a few days, and it's not one I'd want her to run out of. She has nine days left.",
   reasoning: [
     { observation: "9 doses remaining, one per day", evidence: "Counted from her last refill" },
     {
@@ -287,7 +287,7 @@ export const liveInteraction = {
   drugB: "Ibuprofen",
   severity: "Serious",
   whatItMeans:
-    "Taken together, these make bleeding much more likely — including bleeding in the stomach that can be hard to notice at first.",
+    "Taken together, these make bleeding much more likely, including bleeding in the stomach that can be hard to notice at first.",
   mechanism:
     "Ibuprofen irritates the stomach lining and also stops platelets clumping properly. Warfarin is already slowing her clotting. The two effects stack.",
   source: "openFDA / DrugBank",
@@ -317,7 +317,7 @@ export const callScript: CallScriptLine[] = [
   },
   {
     speaker: "cara",
-    text: "Thank you for telling me — let me just look at that alongside your other tablets while we talk.",
+    text: "Thank you for telling me, let me just look at that alongside your other tablets while we talk.",
   },
   {
     speaker: "elder",
