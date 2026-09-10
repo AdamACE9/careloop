@@ -30,3 +30,16 @@ npm-debug.log*
 # Next.js regenerates these; the real guide is at the repo root
 web/AGENTS.md
 web/CLAUDE.md
+
+# ---- Firebase / Functions ----
+functions/node_modules/
+functions/lib/
+functions/.env
+functions/.env.local
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+.runtimeconfig.json
+google-services.json
+android/app/google-services.json

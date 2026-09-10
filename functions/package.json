@@ -1,0 +1,29 @@
+{
+  "name": "careloop-functions",
+  "version": "1.0.0",
+  "description": "CareLoop backend — Cloud Functions v2 (TypeScript)",
+  "private": true,
+  "main": "lib/index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "serve": "npm run build && firebase emulators:start --only functions,firestore,auth",
+    "shell": "npm run build && firebase functions:shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log",
+    "test:rules": "node --test --experimental-strip-types src/**/*.test.ts"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.2",
+    "firebase-functions": "^6.3.0"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "@types/node": "^22.10.5",
+    "typescript": "^5.7.3"
+  }
+}

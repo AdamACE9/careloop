@@ -1,0 +1,263 @@
+rules_version = '2';
+
+// =============================================================================
+// CareLoop Firestore Security Rules
+// =============================================================================
+//
+// This file is the single enforcement point for a two-sided access model:
+//
+//   * An ELDER's device may read and write ONLY that elder's own data.
+//   * A CARETAKER may READ data only for elders they are EXPLICITLY linked to,
+//     and may write almost nothing.
+//   * Nothing is globally readable. There is no rule anywhere that grants access
+//     without checking request.auth.uid against a specific document.
+//
+// This is health-adjacent personal data. The default posture is deny.
+//
+// -----------------------------------------------------------------------------
+// Design notes that matter if you edit this file
+// -----------------------------------------------------------------------------
+//
+// 1. RULES DO NOT INHERIT. A rule on /patients/{id} does NOT apply to
+//    /patients/{id}/checkIns/{cid}. Every path is spelled out below. If you add
+//    a subcollection and forget to add rules for it, it is DENIED by default —
+//    which is the safe failure, but it will look like a bug. Add the rules.
+//
+// 2. RULES ARE NOT FILTERS. A query that could return a document the caller
+//    cannot read fails entirely; it does not silently return a subset. So every
+//    client query must be shaped to match these rules. The dashboard always
+//    scopes queries by a specific patientId it already has access to.
+//
+// 3. get()/exists() COST A DOCUMENT READ EACH, and are capped (10 per
+//    single-document request, 20 per query). The caretaker check below does one
+//    get() of the patient doc. Firestore caches that read within a single
+//    request, so checking several subcollection docs in one batch does not
+//    multiply the cost.
+//
+// 4. THE SERVER BYPASSES ALL OF THIS. Cloud Functions use the Admin SDK, which
+//    ignores rules entirely. Anything the server writes is trusted by definition,
+//    so validation of server-written data lives in the functions, not here.
+//    Fields that only the agent may set (escalation reasoning, adherence
+//    results, call outcomes) are therefore made read-only to ALL clients below.
+//
+// 5. Device FCM tokens are deliberately NOT stored on the patient document.
+//    A token is a device identifier and a caretaker has no business reading it.
+//    They live in /deviceTokens/{uid}, writable by the owner and readable by
+//    nobody but the server.
+// =============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function patientDoc(patientId) {
+      return get(/databases/$(database)/documents/patients/$(patientId)).data;
+    }
+
+    function patientExists(patientId) {
+      return exists(/databases/$(database)/documents/patients/$(patientId));
+    }
+
+    // The elder themselves. patientId is always the elder's own auth uid.
+    function isPatient(patientId) {
+      return isSelf(patientId);
+    }
+
+    // A caretaker explicitly linked to this patient. The link is written ONLY by
+    // the server (see the linking Cloud Function) after validating a one-time
+    // code — a client can never add itself to this array, because the patient
+    // document's update rule below freezes caretakerIds.
+    function isLinkedCaretaker(patientId) {
+      return isSignedIn()
+        && patientExists(patientId)
+        && request.auth.uid in patientDoc(patientId).caretakerIds;
+    }
+
+    function canRead(patientId) {
+      return isPatient(patientId) || isLinkedCaretaker(patientId);
+    }
+
+    // True when a write changes only the named fields and nothing else.
+    function onlyChanges(allowedFields) {
+      return request.resource.data.diff(resource.data)
+        .affectedKeys().hasOnly(allowedFields);
+    }
+
+    // -------------------------------------------------------------------------
+    // /users/{uid} — minimal account record for both roles
+    // -------------------------------------------------------------------------
+    match /users/{uid} {
+      allow read: if isSelf(uid);
+
+      // A user may create their own record, but may not choose privileges.
+      allow create: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(
+             ['role', 'displayName', 'email', 'createdAt']
+           )
+        && request.resource.data.role in ['elder', 'caretaker'];
+
+      allow update: if isSelf(uid) && onlyChanges(['displayName']);
+
+      // Account deletion goes through a Cloud Function so linked data is cleaned
+      // up atomically. A client deleting this doc directly would orphan records.
+      allow delete: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // /patients/{patientId} — the elder's profile. patientId == elder's uid.
+    // -------------------------------------------------------------------------
+    match /patients/{patientId} {
+
+      allow read: if canRead(patientId);
+
+      // Created by the elder's own device during onboarding, with no caretakers
+      // attached. Links are added later, by the server only.
+      allow create: if isPatient(patientId)
+        && request.resource.data.caretakerIds.size() == 0;
+
+      // The elder owns their profile and their sharing preferences.
+      //
+      // caretakerIds is deliberately NOT in this list: if a client could edit it,
+      // anyone could grant themselves read access to anyone's health record by
+      // writing their own uid into it. Only the server may change it.
+      allow update: if isPatient(patientId)
+        && onlyChanges([
+             'profile',
+             'sharingPreferences',
+             'dailyCheckInTime',
+             'timezone',
+             'updatedAt'
+           ]);
+
+      allow delete: if false;
+
+      // ---- Medications -----------------------------------------------------
+      // The elder manages their own list. A caretaker can see it but must not be
+      // able to change someone else's medication regimen from a web dashboard.
+      match /medications/{medicationId} {
+        allow read: if canRead(patientId);
+        allow create, update, delete: if isPatient(patientId);
+      }
+
+      // ---- Check-ins -------------------------------------------------------
+      // Written by the server after a call completes. The transcript summary,
+      // adherence result and tone signal are agent output; a client editing them
+      // would corrupt the evidence the escalation reasoning is built on.
+      match /checkIns/{checkInId} {
+        allow read: if canRead(patientId);
+        allow write: if false; // server only
+      }
+
+      // ---- Vitals ----------------------------------------------------------
+      // Normally captured during a call (server-written), but the elder may also
+      // enter a reading by hand, so their own device may create one.
+      match /vitals/{vitalId} {
+        allow read: if canRead(patientId);
+        allow create: if isPatient(patientId)
+          && request.resource.data.keys().hasOnly(
+               ['type', 'value', 'secondaryValue', 'recordedAt', 'source']
+             )
+          && request.resource.data.source == 'manual'
+          && request.resource.data.value is number;
+        allow update, delete: if false;
+      }
+
+      // ---- Escalations -----------------------------------------------------
+      // Created by the reasoning engine, server-side. Two narrow client writes
+      // are permitted, and nothing else:
+      //   * the caretaker may acknowledge one
+      //   * the elder may respond to one (confirm or add context) — the dignity
+      //     loop, which requires the elder to be able to answer back
+      match /escalations/{escalationId} {
+        allow read: if canRead(patientId);
+        allow create, delete: if false; // server only
+
+        allow update: if
+          (isLinkedCaretaker(patientId) && onlyChanges(['acknowledged', 'acknowledgedAt']))
+          ||
+          (isPatient(patientId) && onlyChanges(['elderResponse', 'elderNote', 'elderRespondedAt']));
+      }
+
+      // ---- Shared items (what Cara told the family) -------------------------
+      // Server-written. The elder may confirm or dispute; the caretaker may only
+      // read. A caretaker must never be able to edit the elder's own response.
+      match /sharedItems/{itemId} {
+        allow read: if canRead(patientId);
+        allow create, delete: if false; // server only
+        allow update: if isPatient(patientId)
+          && onlyChanges(['elderResponse', 'elderNote', 'elderRespondedAt']);
+      }
+
+      // ---- Call attempts ---------------------------------------------------
+      // The retry/escalation ledger. Server creates each attempt; the elder's
+      // device reports the outcome (answered / declined) and nothing else.
+      match /callAttempts/{attemptId} {
+        allow read: if canRead(patientId);
+        allow create, delete: if false; // server only
+        allow update: if isPatient(patientId)
+          && onlyChanges(['outcome', 'outcomeReportedAt', 'durationSeconds'])
+          && request.resource.data.outcome in ['answered', 'declined', 'missed'];
+      }
+
+      // ---- Refill state ----------------------------------------------------
+      match /refills/{medicationId} {
+        allow read: if canRead(patientId);
+        allow write: if false; // server only — derived from dose tracking
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // /deviceTokens/{uid} — FCM registration tokens
+    //
+    // Separate from the patient document on purpose. A token identifies a
+    // physical device; a caretaker has no reason to see it, and putting it on the
+    // patient doc would expose it to every linked caretaker automatically.
+    //
+    // Write-only from the client's perspective: the device registers its token,
+    // and only the server (Admin SDK) ever reads it to send a call.
+    // -------------------------------------------------------------------------
+    match /deviceTokens/{uid} {
+      allow read: if false;
+      allow create, update: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(['token', 'platform', 'updatedAt'])
+        && request.resource.data.token is string
+        && request.resource.data.token.size() > 0
+        && request.resource.data.token.size() < 4096;
+      allow delete: if isSelf(uid);
+    }
+
+    // -------------------------------------------------------------------------
+    // /linkingCodes/{code} — one-time caretaker linking codes
+    //
+    // Completely opaque to clients. If a client could read this collection it
+    // could enumerate valid codes and link itself to arbitrary patients, which is
+    // a total compromise of the access model. Both generation and redemption go
+    // through Cloud Functions.
+    // -------------------------------------------------------------------------
+    match /linkingCodes/{code} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // Explicit catch-all.
+    //
+    // Firestore already denies unmatched paths, but stating it makes the intent
+    // unmissable and stops a future edit from accidentally introducing a broad
+    // match that silently opens up health data.
+    // -------------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
