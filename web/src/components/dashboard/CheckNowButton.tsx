@@ -1,53 +1,84 @@
-"use client";
+'use client';
 
-import { useState } from "react";
+import { useState } from 'react';
+import { requestCheckInCall } from '@/lib/careloop-service';
 
-type State = "idle" | "sending" | "sent";
+type State =
+  | { kind: 'idle' }
+  | { kind: 'sending' }
+  | { kind: 'sent'; demo: boolean }
+  | { kind: 'failed'; reason: string };
 
 /**
  * Manual "check on her now".
  *
- * Fires the same push-call flow a scheduled check-in uses. The confirmation copy is
- * deliberately about *Margaret's* experience — "her phone will ring" — rather than about
- * the system's ("request queued"). The caretaker is picturing their mother's kitchen, not
- * a message bus.
+ * Hits the same Cloud Function the scheduler uses, so this exercises the real
+ * delivery path rather than a demo shortcut. If the button worked and the
+ * scheduled path did not, we would not find out until it mattered.
  *
- * It also sets an honest expectation: she may not answer immediately, and Cara will decide
- * whether to retry. Promising an instant answer would make a normal outcome feel like a
- * failure.
+ * ## Why the copy is about her phone, not our system
  *
- * TODO(backend): POST to a Cloud Function that sends a high-priority FCM data message to
- * the elder's device, which triggers the CallStyle notification. Handle the failure case
- * visibly — a silent failure here is worse than an error, because the caretaker will
- * believe a call is coming.
+ * Confirmation says "her phone is ringing", not "request queued". The person
+ * pressing this is picturing their mother's kitchen, not a message bus.
+ *
+ * It also sets an honest expectation that she may not answer straight away, and
+ * that Cara decides whether to try again. Promising an instant answer would make
+ * a completely normal outcome feel like a failure, and would misrepresent what
+ * the agent actually does next.
+ *
+ * Failures say what happened in human terms. "Her phone appears to be off" is
+ * actionable; a Firebase error code is not.
  */
-export default function CheckNowButton() {
-  const [state, setState] = useState<State>("idle");
+export default function CheckNowButton({
+  patientId,
+  patientName,
+}: {
+  patientId: string;
+  patientName: string;
+}) {
+  const [state, setState] = useState<State>({ kind: 'idle' });
 
   async function handleClick() {
-    setState("sending");
-    // Stand-in for the network round trip.
-    await new Promise((resolve) => setTimeout(resolve, 1100));
-    setState("sent");
-    window.setTimeout(() => setState("idle"), 6000);
+    setState({ kind: 'sending' });
+    const result = await requestCheckInCall(patientId);
+
+    if (result.ok) {
+      setState({ kind: 'sent', demo: result.demo });
+      window.setTimeout(() => setState({ kind: 'idle' }), 8000);
+    } else {
+      setState({ kind: 'failed', reason: result.reason });
+      window.setTimeout(() => setState({ kind: 'idle' }), 8000);
+    }
   }
 
+  const label =
+    state.kind === 'sending'
+      ? 'Calling…'
+      : state.kind === 'sent'
+        ? `Cara is calling ${patientName}`
+        : 'Check on her now';
+
   return (
-    <div className="flex flex-col items-start gap-3 sm:items-end">
+    <div className="flex flex-col items-start gap-2 sm:items-end">
       <button
         onClick={handleClick}
-        disabled={state !== "idle"}
-        className="w-full rounded-2xl bg-gold px-7 py-4 font-semibold text-navy-deep transition hover:bg-gold-glow disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+        disabled={state.kind === 'sending' || state.kind === 'sent'}
+        className="w-full rounded-2xl bg-navy px-7 py-3.5 font-semibold text-white transition hover:bg-navy-soft disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
       >
-        {state === "idle" && "Check on her now"}
-        {state === "sending" && "Calling…"}
-        {state === "sent" && "Cara is calling Margaret"}
+        {label}
       </button>
 
-      {state === "sent" && (
-        <p className="max-w-xs text-sm leading-relaxed text-white/60 sm:text-right">
-          Her phone is ringing now. If she doesn&apos;t pick up, Cara will decide
-          whether to try again shortly.
+      {state.kind === 'sent' && (
+        <p className="max-w-xs text-sm leading-relaxed text-slate-ink sm:text-right">
+          {state.demo
+            ? 'Demo mode, so no real call was sent. With a linked phone this rings within seconds.'
+            : `Her phone is ringing now. If she does not pick up, Cara decides whether to try again shortly.`}
+        </p>
+      )}
+
+      {state.kind === 'failed' && (
+        <p className="max-w-xs text-sm leading-relaxed text-urgent sm:text-right">
+          {state.reason}
         </p>
       )}
     </div>

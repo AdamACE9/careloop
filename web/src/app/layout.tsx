@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Instrument_Serif } from "next/font/google";
+import { AuthProvider } from "@/lib/auth-context";
 import "./globals.css";
 
 const inter = Inter({
@@ -45,7 +46,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} ${instrumentSerif.variable} antialiased`}>
-        {children}
+        {/*
+          AuthProvider wraps everything, not just the dashboard, so the marketing
+          header can reflect signed-in state and "Dashboard" can go straight there
+          rather than bouncing a signed-in user through the sign-in page.
+        */}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );
