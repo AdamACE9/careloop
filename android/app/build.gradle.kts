@@ -4,6 +4,30 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+/**
+ * Firebase is wired in only when the project has actually been configured.
+ *
+ * The Google Services plugin fails the whole build if google-services.json is
+ * missing, which would mean nobody can compile CareLoop until they have created
+ * a Firebase project. That is a bad first experience for anyone cloning this, and
+ * it also blocks work on pure-UI changes.
+ *
+ * So: drop the file in and Firebase turns on; leave it out and the app builds and
+ * runs on local demo data. `BuildConfig.FIREBASE_ENABLED` lets the Kotlin side
+ * make the same distinction at runtime.
+ */
+val googleServicesFile = project.file("google-services.json")
+val firebaseEnabled = googleServicesFile.exists()
+
+if (firebaseEnabled) {
+    apply(plugin = "com.google.gms.google-services")
+} else {
+    logger.lifecycle(
+        "CareLoop: google-services.json not found, building without Firebase. " +
+            "See docs/MORNING_CHECKLIST.md step 5.",
+    )
+}
+
 android {
     namespace = "com.careloop.app"
     compileSdk = 36
@@ -13,12 +37,13 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "0.2.0"
+
+        buildConfigField("boolean", "FIREBASE_ENABLED", firebaseEnabled.toString())
     }
 
     buildTypes {
         debug {
-            // Keeps the demo build obviously distinct from a future release build.
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
         }
@@ -44,8 +69,6 @@ android {
 
     buildFeatures {
         compose = true
-        // AGP 8 defaults this to false. HomeScreen gates the demo call trigger on
-        // BuildConfig.DEBUG, so without this the class does not exist and the build fails.
         buildConfig = true
     }
 
@@ -63,7 +86,9 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.datastore.preferences)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.kotlinx.coroutines.play.services)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
@@ -71,6 +96,17 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
+
+    // Firebase is compiled in regardless of whether google-services.json exists.
+    // The classes must resolve for the code to build; what changes is whether
+    // they are initialised at runtime. See CareLoopApplication.
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+    implementation(libs.firebase.messaging)
+    implementation(libs.firebase.functions)
+
+    implementation(libs.okhttp)
 
     debugImplementation(libs.androidx.ui.tooling)
 }

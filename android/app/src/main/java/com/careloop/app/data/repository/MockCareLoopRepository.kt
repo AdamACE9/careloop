@@ -126,6 +126,74 @@ class MockCareLoopRepository : CareLoopRepository {
         return Result.success(Unit)
     }
 
+    // -----------------------------------------------------------------------
+    // Backend operations, simulated
+    //
+    // These succeed locally so every screen behaves identically with or without
+    // a backend. A demo build that silently no-ops is fine; one that throws
+    // would make the UI look broken when it is not.
+    // -----------------------------------------------------------------------
+
+    override suspend fun checkInteraction(
+        substance: String,
+        kind: String,
+    ): Result<InteractionCheckResult> {
+        delay(600)
+        val drug = MockData.drugInteractions.firstOrNull {
+            substance.contains(it.drugB, ignoreCase = true) ||
+                substance.contains(it.drugA, ignoreCase = true)
+        }
+        val food = MockData.foodInteractions.filter {
+            substance.contains(it.food.substringBefore(',').trim(), ignoreCase = true)
+        }
+        return Result.success(
+            InteractionCheckResult(
+                found = drug != null || food.isNotEmpty(),
+                resolvedName = substance,
+                drugInteractions = listOfNotNull(drug),
+                foodInteractions = food,
+                spokenSummary = drug?.let { "${it.whatItMeans} ${it.mechanism}" }
+                    ?: food.firstOrNull()?.let { "${it.whatItMeans} ${it.mechanism}" }
+                    ?: "",
+            ),
+        )
+    }
+
+    override suspend fun registerDeviceToken(token: String): Result<Unit> {
+        return Result.success(Unit)
+    }
+
+    override suspend fun reportCallOutcome(
+        callAttemptId: String,
+        outcome: String,
+        durationSeconds: Int,
+    ): Result<Unit> {
+        delay(200)
+        return Result.success(Unit)
+    }
+
+    override suspend fun submitCheckIn(submission: CheckInSubmission): Result<CheckInResult> {
+        delay(500)
+        return Result.success(
+            CheckInResult(
+                checkInId = "demo-${System.currentTimeMillis()}",
+                action = if (submission.medicationsMissed.isEmpty()) "no_action" else "escalate",
+                escalationId = null,
+            ),
+        )
+    }
+
+    /**
+     * No token in demo mode.
+     *
+     * Returns a failure rather than a fake token so the call screen takes its
+     * scripted path deliberately, instead of attempting a real WebSocket with a
+     * bogus credential and failing in a confusing way.
+     */
+    override suspend fun mintLiveSessionToken(): Result<LiveSessionToken> {
+        return Result.failure(IllegalStateException("DEMO_MODE"))
+    }
+
     /** Demo helper: appends a completed check-in so the history visibly grows on stage. */
     fun appendDemoCheckIn(checkIn: CheckIn) {
         checkInsState.value = (listOf(checkIn) + checkInsState.value)

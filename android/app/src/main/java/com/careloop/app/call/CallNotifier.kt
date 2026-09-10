@@ -106,11 +106,11 @@ object CallNotifier {
      * The caller may use this to decide whether to nudge the user about the permission
      * afterwards — never before, and never mid-call.
      */
-    fun postIncomingCall(context: Context): Boolean {
+    fun postIncomingCall(context: Context, callerName: String = "Cara"): Boolean {
         ensureChannel(context)
 
         val cara = Person.Builder()
-            .setName("Cara")
+            .setName(callerName)
             .setImportant(true)
             // Marked as a bot deliberately. Being transparent that Cara is an AI is a
             // trust decision, not a legal one — research is consistent that hiding it
@@ -151,7 +151,7 @@ object CallNotifier {
             .setStyle(
                 NotificationCompat.CallStyle.forIncomingCall(cara, declineIntent, answerIntent)
             )
-            .setContentTitle("Cara")
+            .setContentTitle(callerName)
             .setContentText("Your daily check-in")
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setPriority(NotificationCompat.PRIORITY_MAX)

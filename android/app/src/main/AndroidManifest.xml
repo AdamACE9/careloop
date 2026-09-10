@@ -21,8 +21,16 @@
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.VIBRATE" />
 
-    <!-- TODO(backend): add RECORD_AUDIO and INTERNET when the Gemini Live session lands.
-         RECORD_AUDIO must be requested in-context, on the first real call, never at launch. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!--
+        RECORD_AUDIO is requested in-context, when the user answers their first
+        call, and never at launch. Asking for a microphone the moment an app opens
+        is the single most reliable way to get it denied, and in-context requests
+        measurably outperform up-front ones.
+    -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application
         android:allowBackup="true"
@@ -72,8 +80,36 @@
             android:name=".call.CallActionReceiver"
             android:exported="false" />
 
-        <!-- TODO(backend): register CareLoopMessagingService here with the
-             com.google.firebase.MESSAGING_EVENT intent filter. See CallNotifier.kt. -->
+        <!--
+            Receives the high-priority data message that makes the phone ring.
+
+            exported="false" plus the MESSAGING_EVENT filter is the standard, and
+            required, shape: Play Services binds to this directly, so it must not
+            be exported to other apps.
+        -->
+        <service
+            android:name=".call.CareLoopMessagingService"
+            android:exported="false"
+            android:directBootAware="true">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!--
+            The notification icon and accent used when Android renders our call.
+            Without these the system falls back to a grey app icon, which makes a
+            call from Cara look like a generic notification.
+        -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_call_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/careloop_gold" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="careloop_calls" />
 
     </application>
 

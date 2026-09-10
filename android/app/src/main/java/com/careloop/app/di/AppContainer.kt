@@ -1,39 +1,76 @@
 package com.careloop.app.di
 
+import android.util.Log
+import com.careloop.app.BuildConfig
 import com.careloop.app.data.repository.CareLoopRepository
+import com.careloop.app.data.repository.FirebaseCareLoopRepository
 import com.careloop.app.data.repository.MockCareLoopRepository
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.functions.FirebaseFunctions
 
 /**
  * Manual dependency container.
  *
  * ## Why not Hilt
  *
- * Hilt is the conventional answer, and for a large team it is the right one. It was
- * deliberately not used here: it requires KSP and a Hilt Gradle plugin whose versions must
- * align with the Kotlin version, and version drift between those three is one of the most
- * common ways an Android build breaks. For a frontend running entirely on mock data, that
- * risk buys nothing — the only thing we actually need is one swappable binding.
+ * Hilt is the conventional answer and for a large team it is the right one. It
+ * was deliberately not used here: it requires KSP and a Gradle plugin whose
+ * versions must track the Kotlin version, and drift between those three is one of
+ * the most common ways an Android build breaks. What this app actually needs is
+ * one swappable binding, and that does not justify the machinery. Google's own
+ * architecture guidance treats manual DI as legitimate at this scale.
  *
- * Google's own architecture guidance treats manual DI as legitimate at this scale.
+ * ## The swap
  *
- * ## Swapping in the real backend
+ * [repository] resolves to Firestore when the app has been configured with a
+ * Firebase project, and to in-memory demo data when it has not. Nothing above
+ * this line knows which one it got.
  *
- * Change one line:
- * ```
- * val repository: CareLoopRepository = FirebaseCareLoopRepository(Firebase.firestore)
- * ```
- * No screen, ViewModel, or navigation code should need to change. If it does, something
- * has leaked through the repository interface and should be pushed back behind it.
- *
- * If DI needs grow (multiple scopes, real tests, per-user instances), migrating this to
- * Hilt later is mechanical — the interface boundary is already in the right place.
+ * That fallback is not a development convenience left in by accident. It means
+ * the app is installable and fully explorable before any backend exists, which
+ * matters for demonstrating it, and it means a transient Firebase
+ * misconfiguration degrades to something usable rather than a crash on launch.
  */
 object AppContainer {
 
-    /** The one line that changes when the backend lands. */
-    val repository: CareLoopRepository by lazy { MockCareLoopRepository() }
+    /**
+     * True when google-services.json was present at build time.
+     *
+     * Set by the Gradle build (see app/build.gradle.kts). Checking a build flag
+     * rather than catching an exception at runtime means the decision is made once,
+     * visibly, rather than being inferred from a failure.
+     */
+    val isBackendConfigured: Boolean get() = BuildConfig.FIREBASE_ENABLED
 
-    /** Typed access for demo-only helpers that don't belong on the interface. */
+    val repository: CareLoopRepository by lazy { createRepository() }
+
+    /** Typed access for demo-only helpers that do not belong on the interface. */
     val mockRepository: MockCareLoopRepository?
         get() = repository as? MockCareLoopRepository
+
+    private fun createRepository(): CareLoopRepository {
+        if (!isBackendConfigured) {
+            Log.i(TAG, "No Firebase configuration; running on demo data.")
+            return MockCareLoopRepository()
+        }
+
+        // Guarded because Firebase initialisation can still fail at runtime even
+        // when the config file was present at build time, for example if the
+        // project was deleted. Falling back keeps the app usable instead of
+        // crashing on launch, which for a medication reminder is the difference
+        // between degraded and useless.
+        return runCatching {
+            FirebaseCareLoopRepository(
+                db = FirebaseFirestore.getInstance(),
+                auth = FirebaseAuth.getInstance(),
+                functions = FirebaseFunctions.getInstance(),
+            ) as CareLoopRepository
+        }.getOrElse { error ->
+            Log.e(TAG, "Firebase failed to initialise; falling back to demo data.", error)
+            MockCareLoopRepository()
+        }
+    }
+
+    private const val TAG = "AppContainer"
 }
