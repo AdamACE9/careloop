@@ -13,6 +13,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -79,11 +80,10 @@ class FirebaseCareLoopRepository(
         path = patientPath()?.let { "$it/vitals" },
         fallback = MockData.bloodSugarReadings,
         orderBy = "recordedAt" to Query.Direction.ASCENDING,
-    ) { it.toVitalReading() }.let { flow ->
-        // Filter client-side rather than adding a where() clause, to avoid
-        // requiring a composite index for what is a very small collection.
-        kotlinx.coroutines.flow.map(flow) { readings -> readings.filter { it.type == type } }
-    }
+    ) { it.toVitalReading() }
+        // Filtered client-side rather than with a where() clause, to avoid needing
+        // a composite index for what is a very small per-patient collection.
+        .map { readings -> readings.filter { reading -> reading.type == type } }
 
     override fun observeSharingPreferences(): Flow<SharingPreferences> = documentFlow(
         path = patientPath(),
@@ -134,7 +134,7 @@ class FirebaseCareLoopRepository(
         kind: String,
     ): Result<InteractionCheckResult> = callFunction("checkInteraction") {
         mapOf(
-            "patientId" to (uid ?: return@callFunction Result.failure(NotSignedIn())),
+            "patientId" to requireUid(),
             "substance" to substance,
             "kind" to kind,
         )
@@ -204,7 +204,7 @@ class FirebaseCareLoopRepository(
     override suspend fun requestManualCheckIn(): Result<Unit> =
         callFunction("triggerCall") {
             mapOf(
-                "patientId" to (uid ?: return@callFunction Result.failure(NotSignedIn())),
+                "patientId" to requireUid(),
                 "trigger" to "manual",
             )
         }.map { }
@@ -220,7 +220,7 @@ class FirebaseCareLoopRepository(
         durationSeconds: Int,
     ): Result<Unit> = callFunction("reportCallOutcome") {
         mapOf(
-            "patientId" to (uid ?: return@callFunction Result.failure(NotSignedIn())),
+            "patientId" to requireUid(),
             "callAttemptId" to callAttemptId,
             "outcome" to outcome,
             "durationSeconds" to durationSeconds,
@@ -231,7 +231,7 @@ class FirebaseCareLoopRepository(
         submission: CheckInSubmission,
     ): Result<CheckInResult> = callFunction("submitCheckIn") {
         mapOf(
-            "patientId" to (uid ?: return@callFunction Result.failure(NotSignedIn())),
+            "patientId" to requireUid(),
             "callAttemptId" to submission.callAttemptId,
             "durationSeconds" to submission.durationSeconds,
             "medicationsConfirmed" to submission.medicationsConfirmed,
@@ -267,7 +267,7 @@ class FirebaseCareLoopRepository(
 
     override suspend fun mintLiveSessionToken(): Result<LiveSessionToken> =
         callFunction("mintLiveSessionToken") {
-            mapOf("patientId" to (uid ?: return@callFunction Result.failure(NotSignedIn())))
+            mapOf("patientId" to requireUid())
         }.mapCatching { data ->
             LiveSessionToken(
                 token = data["token"] as? String ?: error("missing token"),
@@ -289,29 +289,30 @@ class FirebaseCareLoopRepository(
     /**
      * Invokes a callable function and unwraps its result map.
      *
-     * Errors are returned rather than thrown. Every caller of this is on a path
-     * where failure is a normal outcome that the UI must describe honestly, not
-     * an exceptional one that should crash a call in progress.
+     * Errors are returned rather than thrown. Every caller is on a path where
+     * failure is a normal outcome the UI must describe honestly, not an
+     * exceptional one that should crash a call in progress.
+     *
+     * The payload is built lazily inside `runCatching` so that a missing uid
+     * throws [NotSignedIn] and lands in the same Result as a network failure,
+     * rather than needing a separate branch at every call site.
      */
     @Suppress("UNCHECKED_CAST")
-    private suspend inline fun callFunction(
+    private suspend fun callFunction(
         name: String,
-        payload: () -> Any,
-    ): Result<Map<String, Any?>> {
-        val body = payload()
-        if (body is Result<*>) {
-            @Suppress("UNCHECKED_CAST")
-            return body as Result<Map<String, Any?>>
-        }
-        return runCatching {
-            val result = functions.getHttpsCallable(name).call(body).await()
-            (result.data as? Map<String, Any?>) ?: emptyMap()
-        }.onFailure {
-            // Deliberately does not log the payload: it can contain medication
-            // names and transcript text.
-            Log.w(TAG, "Callable $name failed")
-        }
+        buildPayload: () -> Map<String, Any?>,
+    ): Result<Map<String, Any?>> = runCatching {
+        val body = buildPayload()
+        val result = functions.getHttpsCallable(name).call(body).await()
+        (result.data as? Map<String, Any?>) ?: emptyMap()
+    }.onFailure {
+        // Deliberately does not log the payload or the exception message: both
+        // can contain medication names and transcript text.
+        Log.w(TAG, "Callable $name failed")
     }
+
+    /** The signed-in uid, or throws so the failure lands in the caller's Result. */
+    private fun requireUid(): String = uid ?: throw NotSignedIn()
 
     /** A single document as a flow, falling back to demo data on empty or error. */
     private fun <T> documentFlow(
