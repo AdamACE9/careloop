@@ -7,7 +7,11 @@
     "outDir": "lib",
     "rootDir": "src",
     "sourceMap": true,
-    "declaration": true,
+    // Deliberately off. Functions are deployed, never consumed as a library, so
+    // .d.ts output buys nothing — and emitting declarations forces every exported
+    // firebase-functions param to carry an explicit type annotation (TS2742)
+    // purely to satisfy a portability check that does not apply here.
+    "declaration": false,
 
     "strict": true,
     "noImplicitOverride": true,
