@@ -190,6 +190,8 @@ data class LiveSessionToken(
     val expiresAtEpochMillis: Long,
     val model: String,
     val wsHost: String,
+    /** Socket path, server-supplied. See GeminiLiveClient.connect. */
+    val wsPath: String,
     /**
      * Cara's persona, built server-side from this person's real medication list
      * and whatever she left open on earlier calls.

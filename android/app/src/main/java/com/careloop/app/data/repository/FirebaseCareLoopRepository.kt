@@ -278,6 +278,8 @@ class FirebaseCareLoopRepository(
                     ?: (System.currentTimeMillis() + 10 * 60_000),
                 model = data["model"] as? String ?: "",
                 wsHost = data["wsHost"] as? String ?: "generativelanguage.googleapis.com",
+                wsPath = data["wsPath"] as? String
+                    ?: "/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained",
                 systemInstruction = data["systemInstruction"] as? String ?: "",
                 // Re-serialised rather than re-modelled. The callable hands back
                 // decoded maps and lists; Gemini wants the original JSON shape,

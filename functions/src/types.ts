@@ -378,6 +378,8 @@ export interface MintLiveTokenResponse {
   model: string;
   /** The Live API host the client should connect to. */
   wsHost: string;
+  /** The socket path. Server-owned so a preview rename needs no app release. */
+  wsPath: string;
   /**
    * Cara's persona and this person's context, built server-side.
    *

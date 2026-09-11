@@ -119,8 +119,12 @@ class GeminiLiveClient(
         // Ephemeral tokens authenticate as an access_token query parameter. It is
         // single-use and short-lived, so a token in a URL is an acceptable
         // exposure in a way an API key never would be.
-        val url = "wss://${token.wsHost}/ws/google.ai.generativelanguage." +
-            "v1alpha.GenerativeService.BidiGenerateContent?access_token=${token.token}"
+        // Path supplied by the server rather than hardcoded here. The Live API
+        // is still preview: the version prefix and the method name have both
+        // moved, and ephemeral tokens use a different method from raw API keys.
+        // A wrong path fails at connect time, and fixing it in the app means
+        // shipping a new APK, which is the wrong place for a value that moves.
+        val url = "wss://${token.wsHost}${token.wsPath}?access_token=${token.token}"
 
         val request = Request.Builder().url(url).build()
 
@@ -397,6 +401,15 @@ class GeminiLiveClient(
         content.optJSONObject("modelTurn")?.optJSONArray("parts")?.let { parts ->
             for (i in 0 until parts.length()) {
                 val part = parts.optJSONObject(i) ?: continue
+                // A tool call can arrive EITHER as a top-level `toolCall`
+                // message or inline as a part of the model's turn. This client
+                // only ever looked for the first, so on a model that uses the
+                // second the tools simply never fired and Cara talked about
+                // checking an interaction without ever checking one.
+                part.optJSONObject("functionCall")?.let { call ->
+                    handleFunctionCalls(JSONArray().put(call))
+                }
+
                 part.optJSONObject("inlineData")?.let { inline ->
                     val data = inline.optString("data")
                     if (data.isNotEmpty()) {
@@ -421,6 +434,10 @@ class GeminiLiveClient(
      */
     private fun handleToolCall(toolCall: JSONObject) {
         val calls = toolCall.optJSONArray("functionCalls") ?: return
+        handleFunctionCalls(calls)
+    }
+
+    private fun handleFunctionCalls(calls: JSONArray) {
 
         for (i in 0 until calls.length()) {
             val call = calls.optJSONObject(i) ?: continue
@@ -440,12 +457,21 @@ class GeminiLiveClient(
                             JSONObject().apply {
                                 put("id", id)
                                 put("name", name)
-                                put("response", result)
+                                // `scheduling` belongs INSIDE the response object,
+                                // alongside the result, not as a sibling of it.
+                                // As a sibling it is an unknown field: at best
+                                // ignored, which silently reverts the tool to
+                                // blocking behaviour and puts a dead pause in the
+                                // middle of a phone call.
+                                //
                                 // WHEN_IDLE rather than INTERRUPT: the result should
                                 // land when Cara finishes her current sentence, not
                                 // cut her off mid-word. Interrupting yourself sounds
                                 // glitchy; waiting a beat sounds like thinking.
-                                put("scheduling", "WHEN_IDLE")
+                                put(
+                                    "response",
+                                    result.put("scheduling", "WHEN_IDLE"),
+                                )
                             },
                         ))
                     })
@@ -514,9 +540,16 @@ class GeminiLiveClient(
                     val read = recorder.read(buffer, 0, buffer.size)
                     if (read <= 0) continue
 
+                    // realtimeInput.audio, NOT realtimeInput.mediaChunks.
+                    //
+                    // mediaChunks is the older shape and is what this client was
+                    // written against. The current Live API takes a single `audio`
+                    // blob per frame. Sending the wrong one is silent: the socket
+                    // stays open, Cara simply never hears anything, which is
+                    // indistinguishable from a muted microphone.
                     val payload = JSONObject().apply {
                         put("realtimeInput", JSONObject().apply {
-                            put("mediaChunks", JSONArray().put(JSONObject().apply {
+                            put("audio", JSONObject().apply {
                                 put("mimeType", "audio/pcm;rate=$INPUT_SAMPLE_RATE")
                                 put(
                                     "data",
@@ -525,7 +558,7 @@ class GeminiLiveClient(
                                         Base64.NO_WRAP,
                                     ),
                                 )
-                            }))
+                            })
                         })
                     }
                     socket.send(payload.toString())

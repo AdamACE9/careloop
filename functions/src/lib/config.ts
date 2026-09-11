@@ -67,6 +67,19 @@ export const GEMINI_TEXT_MODEL = defineString('GEMINI_TEXT_MODEL', {
 
 export const GEMINI_API_HOST = 'generativelanguage.googleapis.com';
 
+/**
+ * The Live socket path, sent to the client rather than compiled into the app.
+ *
+ * Ephemeral tokens connect to the *Constrained* method; raw API keys use
+ * BidiGenerateContent. The version prefix has also moved during preview. Both
+ * are exactly the sort of value that should not require an APK release to
+ * change, which is why the client asks for it instead of knowing it.
+ */
+export const GEMINI_LIVE_WS_PATH = defineString('GEMINI_LIVE_WS_PATH', {
+  default:
+    '/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained',
+});
+
 // -----------------------------------------------------------------------------
 // Operational constants
 // -----------------------------------------------------------------------------

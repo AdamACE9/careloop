@@ -10,6 +10,7 @@ import {
   OPENFDA_API_KEY,
   GEMINI_LIVE_MODEL,
   GEMINI_API_HOST,
+  GEMINI_LIVE_WS_PATH,
   REGION,
   CALL_OUTCOME_TIMEOUT_SECONDS,
   MAX_CALL_ATTEMPTS_PER_DAY,
@@ -130,6 +131,7 @@ export const mintLiveSessionToken = onCall(
         expiresAt: expiresAt.toISOString(),
         model,
         wsHost: GEMINI_API_HOST,
+        wsPath: GEMINI_LIVE_WS_PATH.value(),
         systemInstruction: buildCaraSystemInstruction({
           patient,
           medications,
