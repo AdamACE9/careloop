@@ -42,8 +42,32 @@ android {
         buildConfigField("boolean", "FIREBASE_ENABLED", firebaseEnabled.toString())
     }
 
+    signingConfigs {
+        getByName("debug") {
+            // A committed debug keystore, not the per-machine one Gradle
+            // generates by default.
+            //
+            // CI generates a fresh debug key on every run, so consecutive builds
+            // were signed by different keys and Android refused to install one
+            // over another: INSTALL_FAILED_UPDATE_INCOMPATIBLE. Every update
+            // meant uninstalling first, which wipes the account and the linking
+            // code with it. Found by actually installing two builds in a row.
+            //
+            // Committing this is safe and is the standard practice: a debug
+            // keystore is not a credential. Android's own default one ships with
+            // the SDK using the password "android" and the alias
+            // "androiddebugkey", which is exactly what this uses. It signs
+            // nothing that can reach the Play Store.
+            storeFile = rootProject.file("keystore/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         debug {
+            signingConfig = signingConfigs.getByName("debug")
             // No applicationIdSuffix.
             //
             // The suffix made the debug package com.careloop.app.debug, which

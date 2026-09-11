@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -249,7 +250,14 @@ private fun NameStep(
     onConfirm: () -> Unit,
 ) {
     Column(
-        modifier = Modifier.fillMaxSize(),
+        // imePadding, because on a real device the keyboard opens over the
+        // bottom of the screen and hid "That's me" entirely. The Done key on the
+        // keyboard also confirms, but relying on that alone assumes the person
+        // knows to look for it, and this audience is exactly the one that will
+        // instead sit staring at a screen with no visible way forward.
+        modifier = Modifier
+            .fillMaxSize()
+            .imePadding(),
         verticalArrangement = Arrangement.Center,
     ) {
         Text(

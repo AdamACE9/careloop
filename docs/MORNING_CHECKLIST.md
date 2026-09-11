@@ -72,7 +72,18 @@ Production mode matters: test mode leaves the database world-readable for 30
 days, which for health data is not acceptable even briefly. The real rules are
 already written in `firestore.rules` and get deployed in step 7.
 
-**b) Authentication** → Get started → **Email/Password** → Enable.
+**b) Authentication** → Get started → enable **BOTH**:
+
+- **Email/Password** - the caretaker's dashboard sign-in.
+- **Anonymous** - the elder's phone.
+
+Anonymous is not optional and it is easy to miss. The phone signs in anonymously
+so that a 78-year-old never has to invent or remember a password in order to
+receive a phone call, and that anonymous uid *is* their patient id. Without this
+provider enabled every single backend call from the phone fails with
+`ADMIN_ONLY_OPERATION`: no linking code, no voice session, no interaction check,
+no check-in. The app degrades quietly to demo data, so it looks like it is
+working when it is not.
 
 That is the caretaker sign-in. The elder never uses it; their device links with a
 one-time code instead.
