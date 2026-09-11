@@ -82,14 +82,19 @@ function Scene() {
     [],
   );
 
+  // Emissive rather than merely transparent. A transparent gold over a navy
+  // background desaturates toward grey, which made the inner rings read as a
+  // washer rather than as gold. Emission keeps them chromatic at low opacity.
   const faintMaterial = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
         color: new THREE.Color(GOLD_BRIGHT),
-        metalness: 0.7,
-        roughness: 0.45,
+        metalness: 0.85,
+        roughness: 0.3,
+        emissive: new THREE.Color(GOLD),
+        emissiveIntensity: 0.5,
         transparent: true,
-        opacity: 0.38,
+        opacity: 0.62,
       }),
     [],
   );
@@ -126,10 +131,14 @@ function Scene() {
     () =>
       new THREE.PointsMaterial({
         color: new THREE.Color(GOLD_BRIGHT),
-        size: 0.035,
+        // Was 0.035, which was invisible at this camera distance. Additive
+        // blending makes them read as motes of light rather than grey specks.
+        size: 0.075,
         transparent: true,
-        opacity: 0.6,
+        opacity: 0.85,
         sizeAttenuation: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
       }),
     [],
   );
@@ -146,24 +155,35 @@ function Scene() {
       group.current.rotation.x += (targetX - group.current.rotation.x) * 0.04;
     }
 
+    // The three rings sit on genuinely different axes, like an armillary sphere,
+    // rather than being concentric and coplanar. Coplanar rings viewed head-on
+    // read as a flat washer no matter how they are lit; crossing axes read as
+    // three dimensions instantly, and the mark still resolves to a single ring
+    // from the front.
     if (core.current) {
-      core.current.rotation.z += delta * 0.16;
-      // A slow breath on the tilt, so it never reads as a rigid turntable spin.
-      core.current.rotation.x = -0.42 + Math.sin(t * 0.32) * 0.07;
+      core.current.rotation.x = -0.55 + Math.sin(t * 0.3) * 0.08;
+      core.current.rotation.y += delta * 0.18;
     }
 
     if (innerA.current) {
-      innerA.current.rotation.z -= delta * 0.26;
-      innerA.current.rotation.x = 0.55 + Math.cos(t * 0.24) * 0.05;
+      // Near-perpendicular to the core, counter-rotating.
+      innerA.current.rotation.x = 1.15;
+      innerA.current.rotation.z -= delta * 0.3;
     }
 
     if (innerB.current) {
-      innerB.current.rotation.z += delta * 0.4;
-      innerB.current.rotation.y = 0.7;
+      innerB.current.rotation.y = 0.95;
+      innerB.current.rotation.z += delta * 0.44;
+      innerB.current.rotation.x = 0.2 + Math.cos(t * 0.26) * 0.1;
     }
 
     if (particles.current) {
       particles.current.rotation.y += delta * 0.05;
+      // Tilted onto the same plane as the core ring so the motes read as
+      // orbiting the loop. Left flat, they formed a horizontal band that looked
+      // like a separate stripe crossing the composition.
+      particles.current.rotation.x = -0.55;
+      particles.current.rotation.z = 0.18;
     }
 
     // The pulse: expands and fades over a five second cycle, the rhythm of a
@@ -186,12 +206,14 @@ function Scene() {
         <torusGeometry args={[2.1, 0.15, 32, 180]} />
       </mesh>
 
-      <mesh ref={innerA} material={faintMaterial} scale={0.66}>
-        <torusGeometry args={[2.1, 0.06, 20, 120]} />
+      {/* Thicker than before. At 0.06 these were hairlines that antialiased into
+          the background instead of reading as rings crossing the main one. */}
+      <mesh ref={innerA} material={faintMaterial} scale={0.78}>
+        <torusGeometry args={[2.1, 0.085, 20, 140]} />
       </mesh>
 
-      <mesh ref={innerB} material={faintMaterial} scale={0.4}>
-        <torusGeometry args={[2.1, 0.05, 16, 100]} />
+      <mesh ref={innerB} material={faintMaterial} scale={0.52}>
+        <torusGeometry args={[2.1, 0.07, 18, 120]} />
       </mesh>
 
       <mesh ref={pulse} material={pulseMaterial}>

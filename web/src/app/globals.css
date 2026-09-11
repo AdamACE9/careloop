@@ -43,8 +43,19 @@
   --foreground: var(--color-ink);
 }
 
-* {
-  border-color: color-mix(in srgb, var(--color-ink) 10%, transparent);
+/*
+  Default border colour, so a bare `border` utility has a sensible tint.
+
+  MUST stay inside @layer base. Tailwind v4 puts its utilities in a cascade
+  layer, and unlayered CSS beats layered CSS regardless of specificity, so an
+  unlayered `*` rule here silently overrides EVERY `border-<colour>` utility in
+  the project. That is not hypothetical: it shipped, and it made every custom
+  border colour on the site render as faint grey.
+*/
+@layer base {
+  * {
+    border-color: color-mix(in srgb, var(--color-ink) 10%, transparent);
+  }
 }
 
 html {

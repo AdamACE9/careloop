@@ -71,13 +71,17 @@ export function WordRise({
   highlight?: string[];
 }) {
   const words = text.split(" ");
-  const highlightSet = new Set((highlight ?? []).map((w) => w.toLowerCase()));
+
+  // Punctuation is stripped from BOTH sides before comparing. Stripping only the
+  // word meant `highlight={["morning."]}` silently never matched, and a caller
+  // has no way to tell whether to include the full stop or not.
+  const normalise = (w: string) => w.replace(/[.,;:!?]/g, "").toLowerCase();
+  const highlightSet = new Set((highlight ?? []).map(normalise));
 
   return (
     <span className={`word-rise ${className}`} aria-label={text}>
       {words.map((word, i) => {
-        const bare = word.replace(/[.,]/g, "").toLowerCase();
-        const isGold = highlightSet.has(bare);
+        const isGold = highlightSet.has(normalise(word));
         return (
           <span
             key={`${word}-${i}`}
