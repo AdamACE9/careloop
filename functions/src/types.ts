@@ -360,6 +360,27 @@ export interface MintLiveTokenResponse {
   model: string;
   /** The Live API host the client should connect to. */
   wsHost: string;
+  /**
+   * Cara's persona and this person's context, built server-side.
+   *
+   * This travels with the token rather than being baked into the app for two
+   * reasons. It contains the patient's medications and Cara's open threads, so
+   * it is per-session data, not a constant. And the prompt is the product's
+   * actual behaviour: shipping it inside an APK would mean every wording change
+   * waits on a store release.
+   */
+  systemInstruction: string;
+  /**
+   * Tool declarations, verbatim, for the client's setup frame.
+   *
+   * Also server-owned, and for a sharper reason: the tools and the backend
+   * handlers that service them have to agree exactly. When the client carried
+   * its own copy they silently drifted, which is a class of bug that shows up
+   * only mid-call.
+   */
+  tools: unknown[];
+  /** Voice and language for the session. */
+  voice: { voiceName: string; languageCode: string };
 }
 
 export interface TriggerCallRequest {

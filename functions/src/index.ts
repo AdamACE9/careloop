@@ -27,6 +27,7 @@ import {
 } from './lib/validate.js';
 import { createAndDeliverCall, registerDeviceToken } from './calls/deliver.js';
 import { mintLiveToken, GeminiTokenError, reserveLiveSessionSlot } from './gemini/liveToken.js';
+import { buildCaraSystemInstruction, CARA_TOOLS, CARA_VOICE_CONFIG } from './gemini/cara.js';
 import { checkDrugInteractions } from './interactions/drugs.js';
 import { findFoodInteractionsByFood, findFoodInteractionsForList } from './interactions/foodRules.js';
 import { reason, type ReasoningInput } from './reasoning/engine.js';
@@ -40,6 +41,7 @@ import type {
   TranscriptLine,
   SharedItemDoc,
   VitalType,
+  AgentThreadDoc,
 } from './types.js';
 
 initializeApp();
@@ -111,11 +113,32 @@ export const mintLiveSessionToken = onCall(
 
     try {
       const { token, expiresAt } = await mintLiveToken(GEMINI_API_KEY.value(), model);
+
+      // Built here rather than shipped in the app. Until this existed, cara.ts
+      // was dead code and the model ran with no persona at all: the whole
+      // character, every research-backed rule in it, and the tool declarations
+      // reached nothing. The call worked and Cara was a stranger.
+      const [patient, medications, recentContext, openThreads] = await Promise.all([
+        loadPatient(patientId),
+        loadMedications(patientId),
+        loadRecentContext(patientId),
+        loadOpenThreads(patientId),
+      ]);
+
       return {
         token,
         expiresAt: expiresAt.toISOString(),
         model,
         wsHost: GEMINI_API_HOST,
+        systemInstruction: buildCaraSystemInstruction({
+          patient,
+          medications,
+          recentContext,
+          openThreads,
+          caretakerFirstName: null,
+        }),
+        tools: CARA_TOOLS,
+        voice: CARA_VOICE_CONFIG,
       };
     } catch (error) {
       if (error instanceof GeminiTokenError) {
@@ -145,6 +168,38 @@ async function loadPatient(patientId: string): Promise<PatientDoc> {
 async function loadMedications(patientId: string): Promise<MedicationDoc[]> {
   const snap = await db().collection(`patients/${patientId}/medications`).get();
   return snap.docs.map((d) => ({ ...(d.data() as MedicationDoc), id: d.id })) as MedicationDoc[];
+}
+
+/**
+ * Short factual notes from recent calls, for continuity.
+ *
+ * Deliberately Cara's own summaries rather than transcripts. A transcript would
+ * blow the context budget, and more importantly it would put the person's exact
+ * words back into a prompt days later, which is a different and worse privacy
+ * bargain than a one-line summary they can read on their own screen.
+ */
+async function loadRecentContext(patientId: string): Promise<string[]> {
+  const snap = await db()
+    .collection(`patients/${patientId}/checkIns`)
+    .orderBy('startedAt', 'desc')
+    .limit(4)
+    .get();
+
+  return snap.docs
+    .map((d) => (d.data() as CheckInDoc).caraSummary)
+    .filter((summary): summary is string => Boolean(summary && summary.trim()));
+}
+
+/** Threads Cara opened herself and has not closed. */
+async function loadOpenThreads(patientId: string): Promise<AgentThreadDoc[]> {
+  const snap = await db()
+    .collection(`patients/${patientId}/agentThreads`)
+    .where('status', '==', 'open')
+    .orderBy('raisedAt', 'desc')
+    .limit(8)
+    .get();
+
+  return snap.docs.map((d) => ({ ...(d.data() as AgentThreadDoc), id: d.id }));
 }
 
 async function countAttemptsToday(patientId: string): Promise<number> {
@@ -255,6 +310,104 @@ export const reportCallOutcome = onCall(async (request: CallableRequest) => {
  * openFDA response degrades to "what we know offline" rather than a silent gap
  * in the conversation.
  */
+/**
+ * Cara opening a thread on herself.
+ *
+ * Rate limited, because the failure mode of a model with a memory tool is
+ * writing one every time anything is mentioned, which turns the next call's
+ * prompt into a wall of stale trivia and the dashboard into noise.
+ *
+ * The follow-up interval is clamped rather than trusted. A model that picks 0
+ * would make Cara raise the same topic on the very next call, which is exactly
+ * the nagging behaviour the prompt tells her to avoid, and 365 would mean the
+ * thread is never seen again.
+ */
+export const rememberForNextTime = onCall(async (request: CallableRequest) => {
+  const caller = requireAuth(request);
+  const patientId = requireString(request.data?.patientId, 'patientId', { max: 128 });
+  const topic = requireString(request.data?.topic, 'topic', { max: 160 });
+  const why = requireString(request.data?.why, 'why', { max: 400 });
+  const rawDays = requireNumber(request.data?.followUpInDays ?? 2, 'followUpInDays');
+
+  requirePatientSelf(caller, patientId);
+  await enforceRateLimit(`thread:${caller.uid}`, { limit: 8, windowSeconds: 3600 });
+
+  const days = Math.min(30, Math.max(1, Math.round(rawDays)));
+  const now = new Date();
+  const followUpAfter = new Date(now.getTime() + days * 86_400_000);
+
+  const existing = await db()
+    .collection(`patients/${patientId}/agentThreads`)
+    .where('status', '==', 'open')
+    .get();
+
+  // Cheap de-duplication. The model will not reliably remember it already
+  // opened a thread for the same thing, and two near-identical entries read as
+  // a bug to anyone looking at the dashboard.
+  const normalised = topic.trim().toLowerCase();
+  const duplicate = existing.docs.find(
+    (d) => (d.data() as AgentThreadDoc).topic.trim().toLowerCase() === normalised,
+  );
+  if (duplicate) {
+    return { threadId: duplicate.id, created: false };
+  }
+
+  const doc: AgentThreadDoc = {
+    topic,
+    why,
+    status: 'open',
+    raisedAt: now.toISOString(),
+    raisedOnCheckInId: null,
+    followUpAfter: followUpAfter.toISOString(),
+    timesRaised: 0,
+    lastRaisedAt: null,
+    resolution: null,
+    resolvedAt: null,
+  };
+
+  const ref = await db().collection(`patients/${patientId}/agentThreads`).add(doc);
+  logEvent('agent.thread_opened', { patientHash: hashId(patientId), days });
+  return { threadId: ref.id, created: true };
+});
+
+/** Cara deciding something is finished. */
+export const closeOpenThread = onCall(async (request: CallableRequest) => {
+  const caller = requireAuth(request);
+  const patientId = requireString(request.data?.patientId, 'patientId', { max: 128 });
+  const topic = requireString(request.data?.topic, 'topic', { max: 160 });
+  const whatHappened = requireString(request.data?.whatHappened, 'whatHappened', { max: 400 });
+
+  requirePatientSelf(caller, patientId);
+
+  const open = await db()
+    .collection(`patients/${patientId}/agentThreads`)
+    .where('status', '==', 'open')
+    .get();
+
+  // Matched on the topic text rather than an id: the model is given topics, not
+  // document ids, and asking it to echo an opaque id back correctly mid-call is
+  // a needless failure point.
+  const normalised = topic.trim().toLowerCase();
+  const match = open.docs.find(
+    (d) => (d.data() as AgentThreadDoc).topic.trim().toLowerCase() === normalised,
+  );
+
+  if (!match) {
+    // Not an error. Cara closing something already closed is harmless, and
+    // throwing would surface as a tool failure mid-conversation.
+    return { closed: false, reason: 'NO_MATCHING_THREAD' };
+  }
+
+  await match.ref.update({
+    status: 'resolved',
+    resolution: whatHappened,
+    resolvedAt: new Date().toISOString(),
+  });
+
+  logEvent('agent.thread_closed', { patientHash: hashId(patientId) });
+  return { closed: true };
+});
+
 export const checkInteraction = onCall(
   { secrets: [OPENFDA_API_KEY] },
   async (request: CallableRequest) => {

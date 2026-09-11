@@ -159,6 +159,16 @@ service cloud.firestore {
         allow write: if false; // server only
       }
 
+      // ---- Agent threads (what Cara decided to come back to) ---------------
+      // Written only by the agent, through a callable, so no client write path
+      // exists at all. Readable by BOTH sides on purpose: this is the agent's
+      // memory of a person, and a memory they cannot see is surveillance. The
+      // elder seeing the same list as their family is the whole position.
+      match /agentThreads/{threadId} {
+        allow read: if canRead(patientId);
+        allow write: if false; // server only
+      }
+
       // ---- Vitals ----------------------------------------------------------
       // Normally captured during a call (server-written), but the elder may also
       // enter a reading by hand, so their own device may create one.
