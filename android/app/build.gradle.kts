@@ -44,7 +44,19 @@ android {
 
     buildTypes {
         debug {
-            applicationIdSuffix = ".debug"
+            // No applicationIdSuffix.
+            //
+            // The suffix made the debug package com.careloop.app.debug, which
+            // the Google Services plugin rejects outright: google-services.json
+            // registers com.careloop.app and nothing else. The alternative is
+            // registering a second Android app in the Firebase console purely so
+            // debug builds can exist, which also means a second FCM registration
+            // and a second place for push to silently go to the wrong one.
+            //
+            // The debug build IS the build that gets installed and demonstrated
+            // here, so it should carry the real application id. The cost is that
+            // debug and release cannot sit side by side on one device, which
+            // this project never needs.
             versionNameSuffix = "-debug"
         }
         release {
