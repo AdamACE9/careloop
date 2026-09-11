@@ -22,4 +22,21 @@
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowContentOverlay">@null</item>
     </style>
+
+    <!--
+        The launch theme.
+
+        The system draws this before any of our code runs, so it is the first
+        thing anyone ever sees of CareLoop. It shows the Loop on navy, which is
+        the same mark that then breathes on the call screen, so the app opens
+        with its own identity rather than a white rectangle.
+
+        postSplashScreenTheme is what the activity switches to once Compose is
+        ready. Without it the splash background would stay behind the whole app.
+    -->
+    <style name="Theme.CareLoop.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/careloop_navy_deep</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.CareLoop</item>
+    </style>
 </resources>

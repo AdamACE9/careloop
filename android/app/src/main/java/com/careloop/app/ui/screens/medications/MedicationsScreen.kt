@@ -347,7 +347,7 @@ private fun criticalityPresentation(criticality: Criticality): CriticalityPresen
         containerColor = CareColors.Cloud,
     )
     Criticality.LOW -> CriticalityPresentation(
-        text = "Routine — nothing to watch for",
+        text = "Routine, nothing to watch for",
         icon = Icons.Rounded.Check,
         contentColor = CareColors.Slate,
         containerColor = CareColors.Cloud,
@@ -372,7 +372,7 @@ private fun scheduleText(times: List<LocalTime>): String {
 // Previews
 // ---------------------------------------------------------------------------
 
-@Preview(showBackground = true, name = "Medications — light")
+@Preview(showBackground = true, name = "Medications, light")
 @Composable
 private fun MedicationsScreenPreview() {
     CareLoopTheme(darkTheme = false) {
@@ -380,7 +380,7 @@ private fun MedicationsScreenPreview() {
     }
 }
 
-@Preview(showBackground = true, name = "Medications — dark")
+@Preview(showBackground = true, name = "Medications, dark")
 @Composable
 private fun MedicationsScreenDarkPreview() {
     CareLoopTheme(darkTheme = true) {

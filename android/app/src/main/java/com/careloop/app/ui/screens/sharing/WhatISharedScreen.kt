@@ -180,7 +180,7 @@ private fun WhatISharedScreenContent(
                 Text("What I've told Sarah", style = MaterialTheme.typography.headlineLarge)
                 Spacer(Modifier.height(CareDimens.SpaceSm))
                 Text(
-                    "Sarah only ever sees what's written here — the same words, at the " +
+                    "Sarah only ever sees what's written here, the same words, at the " +
                         "same time as you. If something's not quite right, you can say so.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -202,7 +202,7 @@ private fun WhatISharedScreenContent(
             Column {
                 SectionHeader(
                     title = "What you share automatically",
-                    subtitle = "Turn any of these off whenever you like — Cara will simply " +
+                    subtitle = "Turn any of these off whenever you like, Cara will simply " +
                         "stay quiet about it with Sarah.",
                 )
                 SharingPreferencesCard(
@@ -525,8 +525,8 @@ private fun SafetyFloorCard() {
                 Text("Emergencies always reach Sarah", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(CareDimens.SpaceSm))
                 Text(
-                    "Even with everything above switched off, a genuine emergency — Cara " +
-                        "not being able to reach you, or something seriously wrong — still " +
+                    "Even with everything above switched off, a genuine emergency, Cara " +
+                        "not being able to reach you, or something seriously wrong, still " +
                         "reaches Sarah. That's not a setting you can turn off, and we'd " +
                         "rather tell you plainly than have you find out by surprise.",
                     style = MaterialTheme.typography.bodyLarge,

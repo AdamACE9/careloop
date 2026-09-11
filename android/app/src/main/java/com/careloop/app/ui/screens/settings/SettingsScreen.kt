@@ -372,9 +372,9 @@ private fun RingPermissionCard(
                 Spacer(Modifier.height(CareDimens.SpaceXs))
                 Text(
                     text = if (granted) {
-                        "On — her calls ring and fill the screen"
+                        "On, her calls ring and fill the screen"
                     } else {
-                        "Off — her calls show as a small banner"
+                        "Off, her calls show as a small banner"
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (granted) CareColors.Good else CareColors.Concern,
@@ -397,14 +397,14 @@ private fun RingPermissionCard(
         if (granted) {
             ExplainerRow(
                 icon = Icons.Rounded.Phone,
-                text = "When Cara calls, your phone will ring and fill the screen — the " +
+                text = "When Cara calls, your phone will ring and fill the screen, the " +
                     "same as a call from family. It's hard to miss by accident.",
             )
         } else {
             ExplainerRow(
                 icon = Icons.Rounded.Notifications,
                 text = "Right now, when Cara calls, it may only show as a small banner at " +
-                    "the top of the screen. That's easy to miss — especially if the phone " +
+                    "the top of the screen. That's easy to miss, especially if the phone " +
                     "is face-down or in another room.",
             )
 
@@ -528,7 +528,7 @@ private fun WhoCaraCallsCard(
         CardHeader(icon = Icons.Rounded.Person, title = "Who Cara calls if she's worried")
         Spacer(Modifier.height(CareDimens.SpaceXs))
         Text(
-            "The person you've chosen — not someone assigned to you.",
+            "The person you've chosen, not someone assigned to you.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -585,7 +585,7 @@ private fun AboutCaraCard(modifier: Modifier = Modifier) {
         Spacer(Modifier.height(CareDimens.SpaceLg))
 
         Text(
-            "Cara is a computer program — an AI companion, not a person — who calls you " +
+            "Cara is a computer program, an AI companion, not a person, who calls you " +
                 "once a day to check in on your medications. She listens, asks how you're " +
                 "doing, and lets Sarah know if something seems worrying.",
             style = MaterialTheme.typography.bodyLarge,
@@ -595,7 +595,7 @@ private fun AboutCaraCard(modifier: Modifier = Modifier) {
 
         ExplainerRow(
             icon = Icons.Rounded.VolumeUp,
-            text = "She only listens while you're on a call with her — never in between " +
+            text = "She only listens while you're on a call with her, never in between " +
                 "calls, and never when you haven't picked up.",
         )
     }
@@ -681,7 +681,7 @@ private fun decMinute5(minute: Int): Int = (minute + 55) % 60
 // Previews
 // ---------------------------------------------------------------------------
 
-@Preview(showBackground = true, name = "Settings — light")
+@Preview(showBackground = true, name = "Settings, light")
 @Composable
 private fun SettingsScreenPreview() {
     CareLoopTheme(darkTheme = false) {
@@ -689,7 +689,7 @@ private fun SettingsScreenPreview() {
     }
 }
 
-@Preview(showBackground = true, name = "Settings — dark")
+@Preview(showBackground = true, name = "Settings, dark")
 @Composable
 private fun SettingsScreenDarkPreview() {
     CareLoopTheme(darkTheme = true) {
@@ -697,7 +697,7 @@ private fun SettingsScreenDarkPreview() {
     }
 }
 
-@Preview(showBackground = true, name = "Ring permission — granted")
+@Preview(showBackground = true, name = "Ring permission, granted")
 @Composable
 private fun RingPermissionCardOnPreview() {
     CareLoopTheme(darkTheme = false) {
@@ -707,7 +707,7 @@ private fun RingPermissionCardOnPreview() {
     }
 }
 
-@Preview(showBackground = true, name = "Ring permission — not granted")
+@Preview(showBackground = true, name = "Ring permission, not granted")
 @Composable
 private fun RingPermissionCardOffPreview() {
     CareLoopTheme(darkTheme = false) {
@@ -717,7 +717,7 @@ private fun RingPermissionCardOffPreview() {
     }
 }
 
-@Preview(showBackground = true, name = "What I share — hero row")
+@Preview(showBackground = true, name = "What I share, hero row")
 @Composable
 private fun WhatISharedCardPreview() {
     CareLoopTheme(darkTheme = false) {

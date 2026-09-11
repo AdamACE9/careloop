@@ -219,7 +219,7 @@ private fun WelcomeStep(
         Text(
             text = "Cara will call you once a day, at a time you choose, just to check " +
                 "in on your medications. It's a real phone call, like one from a friend " +
-                "— nothing to open, nothing to type.",
+                "nothing to open, nothing to type.",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -253,7 +253,7 @@ private fun WhoIsThisForStep(
     ) {
         SectionHeader(
             title = "Who's setting this up?",
-            subtitle = "There's no wrong answer here — it just helps us get the next " +
+            subtitle = "There's no wrong answer here, it just helps us get the next " +
                 "few steps right for you.",
         )
 
@@ -341,7 +341,7 @@ private fun CallTimeStep(
     ) {
         SectionHeader(
             title = "What time should Cara call?",
-            subtitle = "This is your call time to set, not anyone else's — and you can " +
+            subtitle = "This is your call time to set, not anyone else's, and you can " +
                 "change it again anytime from Settings.",
         )
 
@@ -534,7 +534,7 @@ private fun RingPermissionStep(
         Spacer(Modifier.height(CareDimens.SpaceMd))
 
         Text(
-            text = "Some phones treat CareLoop's call as just a quiet notification — " +
+            text = "Some phones treat CareLoop's call as just a quiet notification, " +
                 "easy to miss if you're in another room. Turning this on makes it ring " +
                 "and fill the screen instead, the same as a call from family.",
             style = MaterialTheme.typography.bodyLarge,
@@ -544,7 +544,7 @@ private fun RingPermissionStep(
         Spacer(Modifier.height(CareDimens.SpaceMd))
 
         Text(
-            text = "You can still decline any call — it simply rings until you do. And " +
+            text = "You can still decline any call, it simply rings until you do. And " +
                 "Cara never listens in unless you pick up.",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -610,7 +610,7 @@ private fun AllSetStep(
         Spacer(Modifier.height(CareDimens.SpaceSm))
 
         Text(
-            text = "If that's ever not a good moment, that's alright — you can tell " +
+            text = "If that's ever not a good moment, that's alright, you can tell " +
                 "her when she calls. Nothing here is locked in.",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -709,7 +709,7 @@ private fun decMinute(minute: Int): Int = (minute - 5 + 60) % 60
 // Previews
 // ---------------------------------------------------------------------------
 
-@Preview(showBackground = true, name = "Onboarding — Step 1 Welcome")
+@Preview(showBackground = true, name = "Onboarding, Step 1 Welcome")
 @Composable
 private fun WelcomeStepPreview() {
     CareLoopTheme {
@@ -717,7 +717,7 @@ private fun WelcomeStepPreview() {
     }
 }
 
-@Preview(showBackground = true, name = "Onboarding — Step 2 Who")
+@Preview(showBackground = true, name = "Onboarding, Step 2 Who")
 @Composable
 private fun WhoIsThisForStepPreview() {
     CareLoopTheme {
@@ -725,7 +725,7 @@ private fun WhoIsThisForStepPreview() {
     }
 }
 
-@Preview(showBackground = true, name = "Onboarding — Step 3 Call time")
+@Preview(showBackground = true, name = "Onboarding, Step 3 Call time")
 @Composable
 private fun CallTimeStepPreview() {
     CareLoopTheme {
@@ -741,7 +741,7 @@ private fun CallTimeStepPreview() {
     }
 }
 
-@Preview(showBackground = true, name = "Onboarding — Step 4 Ring permission")
+@Preview(showBackground = true, name = "Onboarding, Step 4 Ring permission")
 @Composable
 private fun RingPermissionStepPreview() {
     CareLoopTheme {
@@ -749,7 +749,7 @@ private fun RingPermissionStepPreview() {
     }
 }
 
-@Preview(showBackground = true, name = "Onboarding — Step 5 All set")
+@Preview(showBackground = true, name = "Onboarding, Step 5 All set")
 @Composable
 private fun AllSetStepPreview() {
     CareLoopTheme {
@@ -757,7 +757,7 @@ private fun AllSetStepPreview() {
     }
 }
 
-@Preview(showBackground = true, name = "Onboarding — Full screen (step 1)")
+@Preview(showBackground = true, name = "Onboarding, Full screen (step 1)")
 @Composable
 private fun OnboardingScreenPreview() {
     CareLoopTheme {

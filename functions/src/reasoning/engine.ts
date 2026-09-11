@@ -430,7 +430,7 @@ function buildEscalation(params: {
     if (worst.quote) {
       reasoning.push({
         observation: 'Sounded unsure whether it had been taken, unprompted',
-        evidence: `"${worst.quote.text}" — ${formatDate(worst.quote.date)}`,
+        evidence: `"${worst.quote.text}" (${formatDate(worst.quote.date)})`,
         checkInId: worst.quote.checkInId || null,
       });
     }
@@ -576,29 +576,29 @@ function buildAlternatives(params: {
 
   if (unreachable) {
     alternatives.push(
-      'Carrying on calling — I stopped because past a few attempts it stops being helpful and starts being pestering.',
+      'Carrying on calling. I stopped because past a few attempts it stops being helpful and starts being pestering.',
     );
   }
 
   if (worst) {
     if (worst.medication.criticality === 'critical') {
       alternatives.push(
-        `Waiting another day — I decided against it because ${worst.medication.name.toLowerCase()} is the one medication where waiting carries real risk.`,
+        `Waiting another day. I decided against it because ${worst.medication.name.toLowerCase()} is the one medication where waiting carries real risk.`,
       );
     } else {
       alternatives.push(
-        'Waiting to see whether it settled on its own — I decided the pattern had gone on long enough to mention.',
+        'Waiting to see whether it settled on its own. I decided the pattern had gone on long enough to mention.',
       );
     }
 
     if (worst.uncertainDates.length > 0) {
       alternatives.push(
-        'Treating it as ordinary forgetfulness — but she was unsure rather than simply saying no, and that happening more than once is what changed my mind.',
+        'Treating it as ordinary forgetfulness. She was unsure rather than simply saying no, and that happening more than once is what changed my mind.',
       );
     }
 
     alternatives.push(
-      'Calling her again this evening instead — I still intend to, but it did not feel like a reason to delay telling you.',
+      'Calling her again this evening instead. I still intend to, but it did not feel like a reason to delay telling you.',
     );
   }
 

@@ -283,7 +283,7 @@ private fun bloodSugarStatus(reading: VitalReading): VitalStatus =
  */
 internal fun describeBloodSugarTrend(sortedReadings: List<VitalReading>): String {
     if (sortedReadings.size < 3) {
-        return "There's not quite enough here yet for Cara to spot a pattern — that'll " +
+        return "There's not quite enough here yet for Cara to spot a pattern, that'll " +
             "change after a few more readings."
     }
 

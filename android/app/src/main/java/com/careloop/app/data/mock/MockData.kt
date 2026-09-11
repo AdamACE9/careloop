@@ -80,7 +80,7 @@ object MockData {
         dosesRemaining = 9,
         dosesPerDay = 1,
         refillLeadTimeDays = 10,
-        foodGuidance = "Keep greens like spinach and kale steady day to day — not none, " +
+        foodGuidance = "Keep greens like spinach and kale steady day to day, not none, " +
             "just don't suddenly eat a lot more or less than usual.",
     )
 
@@ -94,7 +94,7 @@ object MockData {
         dosesRemaining = 44,
         dosesPerDay = 2,
         refillLeadTimeDays = 7,
-        foodGuidance = "Take with food — it's much gentler on your stomach that way.",
+        foodGuidance = "Take with food, it's much gentler on your stomach that way.",
     )
 
     val ramipril = Medication(
@@ -148,7 +148,7 @@ object MockData {
         drugA = "Warfarin",
         drugB = "Ibuprofen",
         severity = InteractionSeverity.SEVERE,
-        whatItMeans = "Taken together, these make bleeding much more likely — including " +
+        whatItMeans = "Taken together, these make bleeding much more likely, including " +
             "bleeding in the stomach that can be hard to notice at first.",
         mechanism = "Ibuprofen irritates the stomach lining and also stops platelets " +
             "clumping properly. Warfarin is already slowing your clotting. The two " +
@@ -192,7 +192,7 @@ object MockData {
                 "more than intended.",
             mechanism = "Grapefruit blocks the liver enzyme that normally clears the drug, " +
                 "so more of it stays in your system.",
-            advice = "Other citrus is fine — oranges don't do this.",
+            advice = "Other citrus is fine, oranges don't do this.",
         ),
     )
 
@@ -241,7 +241,7 @@ object MockData {
             "My knee, mostly. I've been taking ibuprofen for it. Couple a day.", 12,
             TranscriptFlag.INTERACTION_CHECK),
         TranscriptLine(Speaker.CARA,
-            "Thank you for telling me — let me just look at that alongside your other " +
+            "Thank you for telling me, let me just look at that alongside your other " +
                 "tablets while we talk. Did you manage your warfarin yesterday evening?", 19),
         TranscriptLine(Speaker.ELDER,
             "The warfarin... I think so. I usually do it after the news. " +
@@ -252,7 +252,7 @@ object MockData {
         TranscriptLine(Speaker.ELDER,
             "Let me see... it's still got the tablet in it.", 40),
         TranscriptLine(Speaker.CARA,
-            "Then it looks like yesterday's was missed. That's the second one this week — " +
+            "Then it looks like yesterday's was missed. That's the second one this week, " +
                 "Tuesday's was missed too. I'm not worried about you, but warfarin is the " +
                 "one I'd rather we didn't let slip.", 45,
             TranscriptFlag.SAFETY_CONCERN),
@@ -260,7 +260,7 @@ object MockData {
             "Oh dear. I hadn't realised.", 56),
         TranscriptLine(Speaker.CARA,
             "There's one more thing I want to mention, and then I'll let you go. The " +
-                "ibuprofen you've been taking for your knee doesn't sit well with warfarin — " +
+                "ibuprofen you've been taking for your knee doesn't sit well with warfarin, " +
                 "together they make bleeding more likely. Paracetamol is usually safer. " +
                 "Could you have a word with your GP before taking any more?", 60,
             TranscriptFlag.SAFETY_CONCERN),
@@ -268,7 +268,7 @@ object MockData {
             "I didn't know that. I'll ring them today.", 74),
         TranscriptLine(Speaker.CARA,
             "Thank you, Margaret. Because it's warfarin and it's happened twice, I'd like " +
-                "to let Sarah know — just so she can help you get back on track. Is that " +
+                "to let Sarah know, just so she can help you get back on track. Is that " +
                 "alright with you?", 79),
         TranscriptLine(Speaker.ELDER,
             "Yes, that's fine. She worries anyway.", 90),
@@ -306,7 +306,7 @@ object MockData {
             medicationsMissed = listOf("Warfarin"),
             vitals = listOf(bloodSugarReadings[9]),
             caraSummary = "Warfarin missed last night. Margaret wasn't sure whether she'd " +
-                "taken it. I've made a note to watch this — it's the first time.",
+                "taken it. I've made a note to watch this, it's the first time.",
         ),
         CheckIn(
             id = "ci-3", startedAt = daysAgo(3).atTime(9, 0), durationSeconds = 59,
@@ -324,7 +324,7 @@ object MockData {
             vitals = listOf(bloodSugarReadings[11], bloodPressureReadings[2]),
             transcript = thursdayTranscript,
             caraSummary = "Warfarin missed again, and Margaret was unsure whether she'd " +
-                "taken it — the same uncertainty as Tuesday. She also mentioned taking " +
+                "taken it, the same uncertainty as Tuesday. She also mentioned taking " +
                 "ibuprofen for her knee, which doesn't mix well with warfarin. I let " +
                 "Sarah know.",
         ),
@@ -362,7 +362,7 @@ object MockData {
             "uncertainty each time, on the medication that matters most for her heart " +
             "rhythm, is a pattern I didn't want to sit on.\n\n" +
             "She also mentioned she's been taking ibuprofen for her knee. That doesn't mix " +
-            "well with warfarin — together they make bleeding more likely — so I asked her " +
+            "well with warfarin, together they make bleeding more likely, so I asked her " +
             "to speak to her GP before taking any more. She said she would.\n\n" +
             "She knows I'm telling you. I asked her on the call and she was happy for me to.",
         reasoning = listOf(
@@ -372,8 +372,8 @@ object MockData {
                 checkInId = "ci-2",
             ),
             ReasoningStep(
-                observation = "She was unsure whether she'd taken it — both times, unprompted",
-                evidence = "\"I'm not sure if I took it or not, love\" — Thursday, 9:01am",
+                observation = "She was unsure whether she'd taken it, both times, unprompted",
+                evidence = "\"I'm not sure if I took it or not, love\", Thursday, 9:01am",
                 checkInId = "ci-2",
             ),
             ReasoningStep(
@@ -384,11 +384,11 @@ object MockData {
         ),
         confidence = Confidence.HIGH,
         alternativesConsidered = listOf(
-            "Waiting another day — I decided against it because warfarin is the one " +
+            "Waiting another day, I decided against it because warfarin is the one " +
                 "medication where a wait carries real risk.",
-            "Treating it as forgetfulness only — but the same uncertainty twice, rather " +
+            "Treating it as forgetfulness only, but the same uncertainty twice, rather " +
                 "than simply forgetting, is what changed my mind.",
-            "Calling her again in the evening instead — I'll still do this, but it " +
+            "Calling her again in the evening instead, I'll still do this, but it " +
                 "didn't feel like a reason to delay telling you.",
         ),
         relatedMedication = "Warfarin",
@@ -401,7 +401,7 @@ object MockData {
         raisedAt = daysAgo(1).atTime(9, 6),
         severity = EscalationSeverity.FYI,
         headline = "Warfarin runs out in about nine days",
-        explanation = "Not urgent, but worth starting now — repeat prescriptions for " +
+        explanation = "Not urgent, but worth starting now, repeat prescriptions for " +
             "warfarin usually take a few days, and it's not one I'd want her to run out of. " +
             "She has nine days left.",
         reasoning = listOf(
