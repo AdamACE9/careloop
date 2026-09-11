@@ -46,7 +46,12 @@ sealed class Destination(
     val icon: ImageVector,
 ) {
     data object Home : Destination("home", "Home", Icons.Rounded.Home)
-    data object Medications : Destination("medications", "Medicines", Icons.Rounded.Medication)
+    // "Medicine", not "Medicines". The plural wrapped onto a second line in the
+    // bottom bar and rendered as "Medicine" over a lone "s", which looks broken.
+    // Shortening the word is the right fix rather than shrinking the label: the
+    // label is load-bearing here, because an icon without one measurably hurts
+    // this audience.
+    data object Medications : Destination("medications", "Medicine", Icons.Rounded.Medication)
     data object Vitals : Destination("vitals", "Health", Icons.Rounded.Favorite)
     data object History : Destination("history", "Calls", Icons.Rounded.Phone)
     data object Settings : Destination("settings", "Settings", Icons.Rounded.Settings)
@@ -76,7 +81,16 @@ fun CareLoopApp(
                             onClick = { navController.navigateToTab(destination.route) },
                             icon = { Icon(destination.icon, contentDescription = null) },
                             // Never icon-only — see the class comment.
-                            label = { Text(destination.label) },
+                            label = {
+                                Text(
+                                    destination.label,
+                                    // One line, always. A wrapped nav label
+                                    // reflows the whole bar and shifts every
+                                    // other tab's tap target sideways.
+                                    maxLines = 1,
+                                    softWrap = false,
+                                )
+                            },
                             alwaysShowLabel = true,
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = CareColors.Navy,
