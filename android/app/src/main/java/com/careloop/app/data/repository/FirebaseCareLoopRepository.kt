@@ -304,7 +304,10 @@ class FirebaseCareLoopRepository(
     ): Result<Map<String, Any?>> = runCatching {
         val body = buildPayload()
         val result = functions.getHttpsCallable(name).call(body).await()
-        (result.data as? Map<String, Any?>) ?: emptyMap()
+        // getData() rather than `.data`: HttpsCallableResult has a private
+        // field named `data` alongside the public getter, and Kotlin's
+        // property syntax resolves to the inaccessible field.
+        (result.getData() as? Map<String, Any?>) ?: emptyMap()
     }.onFailure {
         // Deliberately does not log the payload or the exception message: both
         // can contain medication names and transcript text.
@@ -318,7 +321,7 @@ class FirebaseCareLoopRepository(
     private fun <T> documentFlow(
         path: String?,
         fallback: T,
-        crossinline map: (DocumentSnapshot) -> T?,
+        map: (DocumentSnapshot) -> T?,
     ): Flow<T> {
         if (path == null) return flowOf(fallback)
         return callbackFlow {
@@ -339,7 +342,7 @@ class FirebaseCareLoopRepository(
         path: String?,
         fallback: List<T>,
         orderBy: Pair<String, Query.Direction>?,
-        crossinline map: (DocumentSnapshot) -> T?,
+        map: (DocumentSnapshot) -> T?,
     ): Flow<List<T>> {
         if (path == null) return flowOf(fallback)
         return callbackFlow {

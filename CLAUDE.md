@@ -266,22 +266,48 @@ Environment quirks and gotchas. **Append here whenever something wastes your tim
 **Symptom:** every Gradle build fails with `java.io.IOException: Unable to establish
 loopback connection`.
 
-**Root cause (diagnosed, not guessed):** Gradle's build execution opens an NIO
-`Selector`, which on Windows is `WEPollSelectorImpl`, which internally calls
-`Pipe.open()`. That call fails here with `SocketException: Invalid argument: connect`
-inside `sun.nio.ch.UnixDomainSockets.connect`. Almost certainly endpoint-security
-software blocking AF_UNIX/loopback socket creation for background JVM processes.
+**Root cause (diagnosed precisely on Day 7 — the earlier note was WRONG):**
 
-**Evidence trail:**
-- Node binds loopback fine; `ping 127.0.0.1` fine → not the network.
-- A standalone Java TCP `ServerSocket` test passes → not the JVM's networking generally.
-- A standalone `Pipe.open()` test **fails on JDK 17** but **passes on Android Studio's
-  JBR 21** → JDK-dependent.
-- `gradlew --version` succeeds (never opens a Selector); `gradlew help` fails
-  (does) → the boundary is precisely `Selector.open()`.
-- Fails identically sandboxed and unsandboxed, in Bash and PowerShell, with and
-  without `--no-daemon`, on JDK 17 and JBR 21, and with daemon JVM args matched
-  exactly to what the daemon log requested. **Seven approaches; all fail.**
+`Selector.open()` fails. `Pipe.open()` does **not** — that was the mistake in the
+first diagnosis, and it sent a whole session down the wrong path. On JBR 21,
+`Pipe.open()` succeeds 10/10 while `Selector.open()` fails 10/10, deterministically.
+
+The real chain:
+
+```
+Selector.open()
+  -> WEPollSelectorProvider.openSelector()
+  -> WEPollSelectorImpl.<init>
+  -> PipeImpl.<init>            (the selector's internal wakeup pipe)
+  -> UnixDomainSockets.connect0 -> SocketException: Invalid argument: connect
+```
+
+So it is **AF_UNIX specifically**, not loopback generally and not pipes generally.
+Plain TCP loopback works fine in *both* address families — a `ServerSocket` on
+127.0.0.1 accepts a connection, and so does one on `::1`.
+
+**Ruled out by direct experiment (do not retry these):**
+
+| Hypothesis | Result |
+|---|---|
+| Bash tool sandbox blocking sockets | Ruled out — fails identically with the sandbox disabled |
+| `java.io.tmpdir` being unwritable/odd | Ruled out — overriding it changes nothing |
+| `jdk.nio.channels.unixdomain.tmpdir` | Ruled out — overriding it changes nothing |
+| IPv6 loopback unavailable | Ruled out — `::1` connects fine; `preferIPv4Stack` changes nothing |
+| Alternate `SelectorProvider` | Ruled out — `WindowsSelectorProvider` behaves identically, `PollSelectorProvider` is worse (breaks `Pipe` too) |
+| JDK version | Partially — JDK 17 also fails `Pipe.open()`; JBR 21 fixes the pipe but not the selector |
+| Daemon temp directory | Ruled out on Day 6 |
+
+Almost certainly endpoint-security software hooking AF_UNIX socket connects. It is
+a machine policy, not a project problem, and **nothing in this repo can fix it.**
+
+**The answer: build on CI.** `.github/workflows/android.yml` compiles the app on
+an Ubuntu runner and uploads the debug APK as an artifact. That is where the
+Kotlin is actually verified, and where the download page's APK comes from. Trigger
+it with `gh workflow run android.yml --ref main`.
+
+Also tried and unavailable: WSL (no distro installed), and driving Android Studio
+via computer-use (IDEs are restricted to click-only and the grant would not open).
 
 **Consequence:** the Android app could not be compiled, run, or screenshotted in the
 session that wrote it. **The Kotlin source is unverified.** Treat first compile as a
