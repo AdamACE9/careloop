@@ -37,7 +37,7 @@ import {
  */
 export default function Home() {
   return (
-    <main className="min-h-screen bg-bone">
+    <main className="min-h-screen bg-cream">
       <ScrollProgress />
       <SiteHeader />
 
@@ -169,7 +169,7 @@ export default function Home() {
       </section>
 
       {/* ============================================================ The loop */}
-      <section id="how" className="relative overflow-hidden bg-navy py-24 md:py-32">
+      <section id="how" className="relative overflow-hidden bg-brown py-24 md:py-32">
         <div
           className="drift pointer-events-none absolute -right-40 bottom-0 h-[30rem] w-[30rem] rounded-full opacity-30 blur-3xl"
           style={{
@@ -272,7 +272,7 @@ export default function Home() {
       </section>
 
       {/* ============================================================= Dignity */}
-      <section className="bg-cloud py-24 md:py-32">
+      <section className="bg-bone py-24 md:py-32">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
           <div className="grid gap-14 md:grid-cols-2 md:items-center">
             <FadeUp>
@@ -325,7 +325,7 @@ export default function Home() {
       </section>
 
       {/* ============================================================ Download */}
-      <section className="relative grain overflow-hidden bg-navy-deep py-24 md:py-32">
+      <section className="relative grain overflow-hidden bg-brown py-24 md:py-32">
         <div
           className="drift pointer-events-none absolute top-0 left-1/2 h-[28rem] w-[28rem] -translate-x-1/2 rounded-full opacity-40 blur-3xl"
           style={{

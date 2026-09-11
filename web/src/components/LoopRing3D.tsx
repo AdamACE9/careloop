@@ -45,7 +45,9 @@ import * as THREE from "three";
 
 const GOLD = "#c9a227";
 const GOLD_BRIGHT = "#e8c65a";
-const BLUE = "#3d5da8";
+// The cool rim against warm gold. Without a cool light on one side, a gold
+// ring lit only by warm light has no colour separation and reads flat.
+const RIM = "#1fc2ce";
 
 function Scene() {
   const group = useRef<THREE.Group>(null);
@@ -244,9 +246,9 @@ export default function LoopRing3D() {
     >
       {/* Warm key from upper left, cool rim from lower right, so the ring reads
           as lit by a lamp in a room rather than by a studio rig. */}
-      <ambientLight intensity={0.5} color="#8fa4d8" />
+      <ambientLight intensity={0.5} color="#c9b79a" />
       <directionalLight position={[4, 6, 5]} intensity={2.6} color="#ffe6a8" />
-      <directionalLight position={[-5, -2, 2]} intensity={1.0} color={BLUE} />
+      <directionalLight position={[-5, -2, 2]} intensity={1.0} color={RIM} />
       <pointLight position={[0, 0, 3]} intensity={14} color={GOLD} distance={13} />
       <Scene />
     </Canvas>
