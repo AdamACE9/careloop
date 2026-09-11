@@ -1,0 +1,81 @@
+name: Android build
+
+# The Android app cannot be compiled on the development machine: Gradle's
+# internal Selector.open() fails there because WEPollSelectorImpl builds an
+# AF_UNIX socket pair that this Windows install refuses (see CLAUDE.md §9).
+# CI is therefore not a nicety here, it is the only place the Kotlin is
+# actually verified, and it is where the downloadable APK comes from.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - '.github/workflows/android.yml'
+  pull_request:
+    paths:
+      - 'android/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # google-services.json is gitignored, because it is per-developer config.
+      # If the secret is present the build wires Firebase in; if it is absent the
+      # app module's conditional plugin block builds without Firebase and runs on
+      # demo data. Both are valid, and the compile check is meaningful either way.
+      - name: Write google-services.json (if configured)
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+            echo "Firebase config written, building WITH Firebase."
+          else
+            echo "No GOOGLE_SERVICES_JSON secret, building WITHOUT Firebase."
+          fi
+
+      # Invoking Gradle directly rather than through ./gradlew. The wrapper script
+      # in this repo is hand-written (Gradle could not be run on the machine that
+      # created it), so using the action's own Gradle removes it as a variable on
+      # the one run that has to give a trustworthy answer.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.3'
+
+      - name: Compile Kotlin
+        working-directory: android
+        run: gradle compileDebugKotlin --stacktrace
+
+      - name: Assemble debug APK
+        working-directory: android
+        run: gradle assembleDebug --stacktrace
+
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: careloop-debug-apk
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      # On failure the build output is what matters, and scrolling the web log is
+      # slower than having the report files in hand.
+      - name: Upload build reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-reports
+          path: android/app/build/reports/
+          if-no-files-found: ignore
