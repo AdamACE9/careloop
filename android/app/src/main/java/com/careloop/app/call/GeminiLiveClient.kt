@@ -147,7 +147,13 @@ class GeminiLiveClient(
             }
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
-                Log.d(TAG, "Live session closing: $code")
+                // The reason string is the only thing that explains a protocol
+                // close. 1007 means the server rejected a frame as malformed,
+                // and without the reason there is nothing to act on: the socket
+                // opens, closes a second later, and the call silently falls
+                // back. Gemini's reason describes the setup frame, not the
+                // conversation, so there is no patient data in it.
+                Log.d(TAG, "Live session closing: $code ${reason.take(300)}")
                 webSocket.close(NORMAL_CLOSURE, null)
             }
 
@@ -207,7 +213,15 @@ class GeminiLiveClient(
     }
 
     val sessionDurationSeconds: Int
-        get() = ((System.currentTimeMillis() - sessionStartedAt) / 1000).toInt()
+        // Guarded against being read before connect() sets the start time. The
+        // call screen subscribes to the transcript before connecting, so the
+        // first emission arrived with sessionStartedAt still zero and rendered
+        // the elapsed time as the milliseconds since 1970: "29819383:50".
+        get() = if (sessionStartedAt == 0L) {
+            0
+        } else {
+            ((System.currentTimeMillis() - sessionStartedAt) / 1000).toInt()
+        }
 
     // =========================================================================
     // Outgoing
