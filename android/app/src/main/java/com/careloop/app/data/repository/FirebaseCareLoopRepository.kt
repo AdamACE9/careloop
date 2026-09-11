@@ -9,6 +9,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.functions.FirebaseFunctionsException
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -414,10 +415,18 @@ class FirebaseCareLoopRepository(
         // field named `data` alongside the public getter, and Kotlin's
         // property syntax resolves to the inaccessible field.
         (result.getData() as? Map<String, Any?>) ?: emptyMap()
-    }.onFailure {
-        // Deliberately does not log the payload or the exception message: both
-        // can contain medication names and transcript text.
-        Log.w(TAG, "Callable $name failed")
+    }.onFailure { error ->
+        // The payload and the exception MESSAGE are still never logged: both can
+        // carry medication names and transcript text.
+        //
+        // The exception TYPE and the callable's error code are logged, and they
+        // are not the same thing. A code like UNAUTHENTICATED or NOT_FOUND says
+        // what went wrong without saying anything about whose data it was.
+        // Without it, "Callable mintLiveSessionToken failed" is the entire
+        // diagnosis available for a call that the server log says succeeded,
+        // which is how an afternoon disappears.
+        val code = (error as? FirebaseFunctionsException)?.code?.name ?: "NONE"
+        Log.w(TAG, "Callable $name failed (${error.javaClass.simpleName}, code=$code)")
     }
 
     /** The signed-in uid, or throws so the failure lands in the caller's Result. */
