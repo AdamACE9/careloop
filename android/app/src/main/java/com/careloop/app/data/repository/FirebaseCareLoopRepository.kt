@@ -332,7 +332,11 @@ class FirebaseCareLoopRepository(
         val user = auth.currentUser ?: auth.signInAnonymously().await().user
         ?: error("anonymous sign-in returned no user")
 
-        val ref = db.document("patients/${'$'}{user.uid}")
+        // Concatenated rather than interpolated. This line previously carried
+        // an escaped dollar and wrote to a document literally named
+        // "patients/${user.uid}", which Firestore rejected with a permission
+        // error because that path is not the caller's own record.
+        val ref = db.document("patients/" + user.uid)
         val existing = ref.get().await()
         val now = java.time.Instant.now().toString()
 
