@@ -202,6 +202,11 @@ class LiveCallViewModel(
                 "Cara has reached today's call limit. This is a recorded example."
             message.contains("BUSY", ignoreCase = true) ->
                 "Cara is on another call right now. This is a recorded example."
+            // The backend could not find this person's record. That is a setup
+            // problem, not a network one, and saying "could not reach Cara"
+            // sends someone to check their wifi for something wifi cannot fix.
+            message.contains("NOT_FOUND", ignoreCase = true) ->
+                "Your setup is not finished, so Cara does not know who to ask about. Open Settings to finish it."
             else -> "Could not reach Cara just now. This is a recorded example."
         }
     }

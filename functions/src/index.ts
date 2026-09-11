@@ -143,6 +143,12 @@ export const mintLiveSessionToken = onCall(
         voice: CARA_VOICE_CONFIG,
       };
     } catch (error) {
+      // An HttpsError raised deeper in this handler already says exactly what
+      // went wrong. Relabelling it as TOKEN_MINT_FAILED actively misleads:
+      // a missing patient record was reported for hours as a Gemini problem,
+      // and sent the search to the wrong system entirely.
+      if (error instanceof HttpsError) throw error;
+
       if (error instanceof GeminiTokenError) {
         // Distinct codes so the app can say something honest and specific rather
         // than a generic failure. "We've hit today's limit" is a very different

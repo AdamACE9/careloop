@@ -181,18 +181,31 @@ fun OnboardingScreen(
             // write, rather than at the very end. The sharing step immediately
             // afterwards mints a linking code, which needs an authenticated uid,
             // and a caretaker redeeming that code reads the patient document.
+            // Guarded so it runs once, and launched in a scope that is NOT keyed
+            // to the step.
+            //
+            // This used to be the body of LaunchedEffect(step). That cancels the
+            // moment `step` changes, so anyone who tapped through the sharing
+            // screen quickly had their sign-in and patient record cancelled
+            // half-written, and every later call failed with NOT_FOUND. It only
+            // showed up by running the app and tapping at a normal speed.
+            var accountStarted by rememberSaveable { mutableStateOf(false) }
+
             LaunchedEffect(step) {
-                if (step == 5) {
+                if (step >= 5 && !accountStarted) {
+                    accountStarted = true
                     val hour24 = when {
                         callIsAm && callHour12 == 12 -> 0
                         callIsAm -> callHour12
                         callHour12 == 12 -> 12
                         else -> callHour12 + 12
                     }
-                    AppContainer.repository.ensureSignedInPatient(
-                        preferredName = preferredName.trim().ifBlank { "there" },
-                        dailyCheckInTime = "%02d:%02d".format(hour24, callMinute),
-                    )
+                    onboardingScope.launch {
+                        AppContainer.repository.ensureSignedInPatient(
+                            preferredName = preferredName.trim().ifBlank { "there" },
+                            dailyCheckInTime = "%02d:%02d".format(hour24, callMinute),
+                        )
+                    }
                 }
             }
 
