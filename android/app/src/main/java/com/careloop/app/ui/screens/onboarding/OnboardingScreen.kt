@@ -1,5 +1,9 @@
 package com.careloop.app.ui.screens.onboarding
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -131,6 +135,19 @@ fun OnboardingScreen(
 
     val onboardingScope = rememberCoroutineScope()
 
+    // POST_NOTIFICATIONS was declared in the manifest and never actually
+    // requested, so on Android 13+ it sat denied and every incoming call was
+    // dropped by the system without a sound. The product's signature feature did
+    // nothing at all on a fresh install, and nothing surfaced it, because
+    // NotificationManager.notify() fails silently when the permission is missing.
+    //
+    // Asked here rather than at launch. This is the screen that has just
+    // explained, in plain words, why the phone needs to ring, which is the
+    // moment the request makes sense and the moment it is most likely granted.
+    val notificationPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { /* Either answer is fine: the call degrades to a heads-up banner. */ }
+
     fun goBack() {
         if (step > 0) step -= 1
     }
@@ -209,6 +226,11 @@ fun OnboardingScreen(
                     4 -> RingPermissionStep(
                         onAllow = {
                             fullScreenIntentAllowed = true
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                notificationPermission.launch(
+                                    Manifest.permission.POST_NOTIFICATIONS,
+                                )
+                            }
                             goNext()
                         },
                         onNotNow = {
