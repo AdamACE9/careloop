@@ -585,9 +585,9 @@ private fun AboutCaraCard(modifier: Modifier = Modifier) {
         Spacer(Modifier.height(CareDimens.SpaceLg))
 
         Text(
-            "Cara is a computer program, an AI companion, not a person, who calls you " +
-                "once a day to check in on your medications. She listens, asks how you're " +
-                "doing, and lets Sarah know if something seems worrying.",
+            "Cara is a computer program. She is an AI companion, not a person. She " +
+                "calls you once a day to check in on your medications, listens, asks how " +
+                "you're doing, and lets Sarah know if something seems worrying.",
             style = MaterialTheme.typography.bodyLarge,
         )
 

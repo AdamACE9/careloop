@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -31,10 +33,12 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,6 +51,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.careloop.app.data.model.CaraActivity
@@ -89,7 +95,7 @@ import kotlinx.coroutines.launch
  * architecture.
  */
 
-private const val TOTAL_STEPS = 6
+private const val TOTAL_STEPS = 7
 
 /** Who is holding the phone during setup. See [WhoIsThisForStep]. */
 private enum class SetupAudience { SELF, HELPING_PARENT }
@@ -117,6 +123,12 @@ fun OnboardingScreen(
     // step's own reasoning, but — per this screen's UI-only scope — never wired to a real
     // permission request. See the TODO(backend) on RingPermissionStep.
     var fullScreenIntentAllowed by remember { mutableStateOf<Boolean?>(null) }
+
+    // What Cara calls them out loud. The one piece of text entry in the whole
+    // flow, and unavoidable: without it she has no name to use on the call.
+    var preferredName by remember { mutableStateOf("") }
+
+    val onboardingScope = rememberCoroutineScope()
 
     fun goBack() {
         if (step > 0) step -= 1
@@ -147,6 +159,25 @@ fun OnboardingScreen(
                 Spacer(Modifier.height(CareDimens.TouchTarget))
             }
 
+            // Sign in and write the patient record as soon as there is enough to
+            // write, rather than at the very end. The sharing step immediately
+            // afterwards mints a linking code, which needs an authenticated uid,
+            // and a caretaker redeeming that code reads the patient document.
+            LaunchedEffect(step) {
+                if (step == 5) {
+                    val hour24 = when {
+                        callIsAm && callHour12 == 12 -> 0
+                        callIsAm -> callHour12
+                        callHour12 == 12 -> 12
+                        else -> callHour12 + 12
+                    }
+                    AppContainer.repository.ensureSignedInPatient(
+                        preferredName = preferredName.trim().ifBlank { "there" },
+                        dailyCheckInTime = "%02d:%02d".format(hour24, callMinute),
+                    )
+                }
+            }
+
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 when (step) {
                     0 -> WelcomeStep(onGetStarted = ::goNext)
@@ -160,7 +191,12 @@ fun OnboardingScreen(
                             goNext()
                         },
                     )
-                    2 -> CallTimeStep(
+                    2 -> NameStep(
+                        name = preferredName,
+                        onNameChange = { preferredName = it },
+                        onConfirm = ::goNext,
+                    )
+                    3 -> CallTimeStep(
                         hour12 = callHour12,
                         minute = callMinute,
                         isAm = callIsAm,
@@ -169,7 +205,7 @@ fun OnboardingScreen(
                         onPeriodChange = { callIsAm = it },
                         onConfirm = ::goNext,
                     )
-                    3 -> RingPermissionStep(
+                    4 -> RingPermissionStep(
                         onAllow = {
                             fullScreenIntentAllowed = true
                             goNext()
@@ -179,7 +215,7 @@ fun OnboardingScreen(
                             goNext()
                         },
                     )
-                    4 -> ShareWithFamilyStep(onContinue = ::goNext)
+                    5 -> ShareWithFamilyStep(onContinue = ::goNext)
                     else -> AllSetStep(
                         hour12 = callHour12,
                         minute = callMinute,
@@ -205,6 +241,63 @@ fun OnboardingScreen(
 // that has to be a real option rather than a dark pattern, so "Not now" is a
 // plain button rather than faint grey text.
 // ---------------------------------------------------------------------------
+
+@Composable
+private fun NameStep(
+    name: String,
+    onNameChange: (String) -> Unit,
+    onConfirm: () -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = "What should Cara call you?",
+            style = MaterialTheme.typography.headlineMedium,
+            color = CareColors.Navy,
+        )
+
+        Spacer(Modifier.height(CareDimens.SpaceMd))
+
+        Text(
+            // Asking for the name they actually go by, rather than a legal first
+            // name, is the difference between "Good morning, Margaret" and
+            // "Good morning, Margarethe" every single day.
+            text = "Whatever your family calls you is perfect. She will use it every time she rings.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = CareColors.Slate,
+        )
+
+        Spacer(Modifier.height(CareDimens.SpaceLg))
+
+        OutlinedTextField(
+            value = name,
+            onValueChange = onNameChange,
+            singleLine = true,
+            textStyle = MaterialTheme.typography.headlineSmall,
+            placeholder = {
+                Text("Margaret", style = MaterialTheme.typography.headlineSmall)
+            },
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Words,
+                imeAction = ImeAction.Done,
+            ),
+            keyboardActions = KeyboardActions(onDone = { if (name.isNotBlank()) onConfirm() }),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = CareDimens.TouchTarget),
+        )
+
+        Spacer(Modifier.height(CareDimens.SpaceLg))
+
+        CarePrimaryButton(
+            text = "That's me",
+            onClick = onConfirm,
+            enabled = name.isNotBlank(),
+        )
+    }
+}
 
 @Composable
 private fun ShareWithFamilyStep(onContinue: () -> Unit) {
@@ -340,8 +433,8 @@ private fun WelcomeStep(
 
         Text(
             text = "Cara will call you once a day, at a time you choose, just to check " +
-                "in on your medications. It's a real phone call, like one from a friend " +
-                "nothing to open, nothing to type.",
+                "in on your medications. It's a real phone call, like one from a friend. " +
+                "Nothing to open, nothing to type.",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -478,9 +571,15 @@ private fun CallTimeStep(
 
         Spacer(Modifier.height(CareDimens.SpaceXl))
 
-        Row(
+        // Stacked, not side by side. Two steppers in a Row need roughly 424dp and
+        // a common phone gives about 411dp, so the minutes "+" was rendered off
+        // the right edge and could not be tapped at all. Found by running it on a
+        // device rather than by reading it. Stacking also suits the audience: the
+        // controls stay at full size instead of being squeezed to fit.
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(CareDimens.SpaceMd),
         ) {
             TimeStepper(
                 label = "Hour",
@@ -656,7 +755,7 @@ private fun RingPermissionStep(
         Spacer(Modifier.height(CareDimens.SpaceMd))
 
         Text(
-            text = "Some phones treat CareLoop's call as just a quiet notification, " +
+            text = "Some phones treat CareLoop's call as just a quiet notification. " +
                 "easy to miss if you're in another room. Turning this on makes it ring " +
                 "and fill the screen instead, the same as a call from family.",
             style = MaterialTheme.typography.bodyLarge,

@@ -525,10 +525,11 @@ private fun SafetyFloorCard() {
                 Text("Emergencies always reach Sarah", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(CareDimens.SpaceSm))
                 Text(
-                    "Even with everything above switched off, a genuine emergency, Cara " +
-                        "not being able to reach you, or something seriously wrong, still " +
-                        "reaches Sarah. That's not a setting you can turn off, and we'd " +
-                        "rather tell you plainly than have you find out by surprise.",
+                    "Even with everything above switched off, a genuine emergency still " +
+                        "reaches Sarah. That means Cara not being able to reach you, or " +
+                        "something seriously wrong. It is not a setting you can turn off, " +
+                        "and we would rather tell you plainly than have you find out by " +
+                        "surprise.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )

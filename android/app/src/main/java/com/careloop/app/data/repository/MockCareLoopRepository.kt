@@ -217,6 +217,11 @@ class MockCareLoopRepository : CareLoopRepository {
      * alphabet still excludes O, 0, I, 1 and L so it demonstrates the actual
      * rule.
      */
+    override suspend fun ensureSignedInPatient(
+        preferredName: String,
+        dailyCheckInTime: String,
+    ): Result<Unit> = Result.success(Unit)
+
     override suspend fun generateLinkingCode(): Result<LinkingCode> =
         Result.success(
             LinkingCode(code = "DEMOCARE", expiresAtIso = ""),

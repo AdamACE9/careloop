@@ -322,6 +322,58 @@ class FirebaseCareLoopRepository(
             )
         }.map { }
 
+    override suspend fun ensureSignedInPatient(
+        preferredName: String,
+        dailyCheckInTime: String,
+    ): Result<Unit> = runCatching {
+        val user = auth.currentUser ?: auth.signInAnonymously().await().user
+        ?: error("anonymous sign-in returned no user")
+
+        val ref = db.document("patients/${'$'}{user.uid}")
+        val existing = ref.get().await()
+        val now = java.time.Instant.now().toString()
+
+        if (existing.exists()) {
+            // Only the fields onboarding owns. Rules reject anything else, and
+            // caretakerIds in particular must never be writable from a client.
+            ref.update(
+                mapOf(
+                    "profile.preferredName" to preferredName,
+                    "dailyCheckInTime" to dailyCheckInTime,
+                    "updatedAt" to now,
+                ),
+            ).await()
+        } else {
+            ref.set(
+                mapOf(
+                    "profile" to mapOf(
+                        "firstName" to preferredName,
+                        "lastName" to "",
+                        "preferredName" to preferredName,
+                        "age" to 0,
+                        "conditions" to emptyList<String>(),
+                    ),
+                    // Empty, and the rules enforce that it is empty on create.
+                    // A client that could seed this could grant anyone read
+                    // access to a stranger's health record.
+                    "caretakerIds" to emptyList<String>(),
+                    "dailyCheckInTime" to dailyCheckInTime,
+                    "timezone" to java.util.TimeZone.getDefault().id,
+                    "sharingPreferences" to mapOf(
+                        "enabledCategories" to listOf(
+                            "missed_doses", "confusion", "vitals", "refills",
+                        ),
+                        "alwaysShareUrgent" to true,
+                        "privacyHoldUntil" to null,
+                    ),
+                    "createdAt" to now,
+                    "updatedAt" to now,
+                ),
+            ).await()
+        }
+        Unit
+    }.onFailure { Log.w(TAG, "Could not establish patient session") }
+
     override suspend fun generateLinkingCode(): Result<LinkingCode> =
         callFunction("generateLinkingCode") {
             mapOf("patientId" to requireUid())

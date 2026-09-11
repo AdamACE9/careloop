@@ -119,6 +119,27 @@ interface CareLoopRepository {
      * behalf and mentioned afterwards.
      */
     suspend fun generateLinkingCode(): Result<LinkingCode>
+
+    /**
+     * Makes sure there is a signed-in account and a patient record for it.
+     *
+     * Called once, at the end of onboarding. Until this existed the app never
+     * authenticated at all, so every callable failed with a missing uid and the
+     * entire backend was unreachable from the phone. Nothing surfaced it,
+     * because each call site treats failure as a normal outcome and degrades to
+     * demo data.
+     *
+     * Sign-in is anonymous by design. This person is 78 and the research on
+     * onboarding for this cohort is unambiguous that text entry is the blocker;
+     * asking them to invent and remember a password to receive a phone call
+     * would lose more users than any other single decision. The anonymous uid is
+     * the patient id, it persists on the device, and the caretaker's account is
+     * the one with real credentials.
+     */
+    suspend fun ensureSignedInPatient(
+        preferredName: String,
+        dailyCheckInTime: String,
+    ): Result<Unit>
 }
 
 // -----------------------------------------------------------------------------
