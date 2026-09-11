@@ -495,14 +495,35 @@ rather than continuing to call, because more calls become harassment.
   has been rendered on a device or an emulator.
 - **The Gemini Live handshake has still never succeeded.** The client is now
   actually invoked, which it was not before, but no real session has connected.
+
+### Deployed (Day 7)
+
+The backend is live in `careloop-adam`, region `europe-west1`. All 17 functions
+deployed; every callable was probed and returns 401 to an anonymous request,
+which confirms both that it exists and that requireAuth is doing its job.
+
+Three things bit during the first deploy, all recorded in `functions/.env` and
+here so nobody rediscovers them:
+
+1. `firebase deploy` fails discovery with "Cannot determine backend
+   specification. Timeout after 10000" on this machine. The module itself loads
+   in 1.2s, so it is not the code. Set `FUNCTIONS_DISCOVERY_TIMEOUT=120`.
+2. `--non-interactive` refuses to use a `defineString` default and demands a
+   value, so the non-secret model ids live in a committed `functions/.env`.
+   Secrets stay in Secret Manager.
+3. Enabling the Cloud Functions API takes a few minutes to propagate. The deploy
+   immediately after enabling it fails with "Failed to list functions"; simply
+   running it again works.
 - The Gemini Live wire format is written from documentation, not from a successful
   handshake. The setup frame, tool-call and tool-response shapes are the most
   likely places to need adjustment.
 
 ### Open
 - No medication detail screen; `onMedicationClick` is wired but lands nowhere.
-- Elder-side onboarding does not yet include the linking-code entry step. The
-  backend endpoint exists and works; the screen does not.
+- ~~Elder-side linking~~ **Done (Day 7).** The elder generates a code during
+  onboarding and the caretaker redeems it on the dashboard. This was wired
+  backwards before: the dashboard called generateLinkingCode, which the backend
+  only ever permits from the patient themselves, so it could not have worked.
 - Escalations are not yet pushed to the caretaker (no email or web push). They
   appear on the dashboard when it is open.
 - Agent threads are written and read by the backend and steer Cara's prompt, but

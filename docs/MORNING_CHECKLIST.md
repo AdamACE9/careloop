@@ -230,8 +230,10 @@ the conversation while it runs.
    The dashboard should say **Connected** under Settings → Connection rather than
    "Running on demo data".
 2. Open `android/` in Android Studio and run the app on a device or emulator.
-3. In the app's Settings, note the linking code flow; generate a code from the web
-   dashboard (Settings → Connect a phone) and enter it on the phone.
+3. Link the two sides. The direction matters: the code is generated on the PHONE,
+   during onboarding ("Would you like someone to see how you are getting on?"), and
+   typed into the web dashboard under Settings → Connect to a phone. Only the
+   elder's own device can mint a code; the backend refuses it from anyone else.
 4. Press **Check on her now** on the dashboard. The phone should ring within a few
    seconds with a full-screen call from Cara.
 5. Answer it. Cara should speak.
