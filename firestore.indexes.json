@@ -4,61 +4,84 @@
       "collectionGroup": "checkIns",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "startedAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "checkIns",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "startedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "vitals",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "type", "order": "ASCENDING" },
-        { "fieldPath": "recordedAt", "order": "ASCENDING" }
+        {
+          "fieldPath": "type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "recordedAt",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "escalations",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "acknowledged", "order": "ASCENDING" },
-        { "fieldPath": "raisedAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "escalations",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "raisedAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "sharedItems",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "sharedAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "acknowledged",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "raisedAt",
+          "order": "DESCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "callAttempts",
-      "queryScope": "COLLECTION",
+      "queryScope": "COLLECTION_GROUP",
       "fields": [
-        { "fieldPath": "outcome", "order": "ASCENDING" },
-        { "fieldPath": "sentAt", "order": "DESCENDING" }
+        {
+          "fieldPath": "outcome",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "sentAt",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "patients",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "caretakerIds", "arrayConfig": "CONTAINS" },
-        { "fieldPath": "profile.firstName", "order": "ASCENDING" }
+        {
+          "fieldPath": "caretakerIds",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "profile.firstName",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "agentThreads",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "raisedAt",
+          "order": "DESCENDING"
+        }
       ]
     }
   ],
