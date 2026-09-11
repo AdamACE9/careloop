@@ -8,21 +8,27 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.careloop.app.call.CallNotifier
+import com.careloop.app.data.local.OnboardingStore
 import com.careloop.app.ui.navigation.CareLoopApp
 import com.careloop.app.ui.screens.onboarding.OnboardingScreen
 import com.careloop.app.ui.theme.CareLoopTheme
+import kotlinx.coroutines.launch
 
 /**
  * App entry point.
  *
- * Onboarding state is held in memory rather than persisted, deliberately: on stage the
- * onboarding flow needs to be re-runnable on demand, and a persisted "seen it" flag would
- * mean clearing app data between demos.
+ * Onboarding completion is persisted. It used to be held in memory so the flow could be
+ * replayed on demand during a demo, which was the right call while the app ran on example
+ * data and the wrong one the moment setup started signing people in, writing their patient
+ * record and minting linking codes. Replaying it is now a deliberate action rather than a
+ * side effect of every cold start.
  *
- * TODO(backend): persist completion (DataStore) and skip onboarding for returning users.
  */
 class MainActivity : ComponentActivity() {
 
@@ -41,12 +47,23 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             CareLoopTheme {
-                var onboardingComplete by rememberSaveable { mutableStateOf(false) }
+                val context = LocalContext.current
+                val scope = rememberCoroutineScope()
 
-                if (onboardingComplete) {
-                    CareLoopApp()
-                } else {
-                    OnboardingScreen(onComplete = { onboardingComplete = true })
+                // null while the stored flag is still being read. Rendering
+                // onboarding during that gap would flash the setup flow at
+                // someone who finished it weeks ago, every single launch.
+                val completed by OnboardingStore.completed(context)
+                    .collectAsStateWithLifecycle(initialValue = null as Boolean?)
+
+                when (completed) {
+                    null -> Unit
+                    true -> CareLoopApp()
+                    false -> OnboardingScreen(
+                        onComplete = {
+                            scope.launch { OnboardingStore.markCompleted(context) }
+                        },
+                    )
                 }
             }
         }
