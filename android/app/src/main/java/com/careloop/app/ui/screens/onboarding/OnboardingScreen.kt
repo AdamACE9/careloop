@@ -201,7 +201,8 @@ fun OnboardingScreen(
                         callHour12 == 12 -> 12
                         else -> callHour12 + 12
                     }
-                    onboardingScope.launch {
+                    // Application scope, not this screen's. See AppContainer.
+                    AppContainer.applicationScope.launch {
                         AppContainer.repository.ensureSignedInPatient(
                             preferredName = preferredName.trim().ifBlank { "there" },
                             dailyCheckInTime = "%02d:%02d".format(hour24, callMinute),

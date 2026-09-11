@@ -6,6 +6,9 @@ import com.careloop.app.data.repository.CareLoopRepository
 import com.careloop.app.data.repository.FirebaseCareLoopRepository
 import com.careloop.app.data.repository.MockCareLoopRepository
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.functions.FirebaseFunctions
 
@@ -42,6 +45,20 @@ object AppContainer {
      * visibly, rather than being inferred from a failure.
      */
     val isBackendConfigured: Boolean get() = BuildConfig.FIREBASE_ENABLED
+
+    /**
+     * A scope that lives as long as the process.
+     *
+     * Account provisioning belongs here and not in a screen. It was previously
+     * launched from rememberCoroutineScope inside onboarding, which is cancelled
+     * the moment that screen leaves the composition. Tapping "Done" therefore
+     * cancelled the write that creates the patient record, roughly a second
+     * after starting it, and every later call failed with NOT_FOUND.
+     *
+     * SupervisorJob so one failed write cannot take the others down with it.
+     */
+    val applicationScope: CoroutineScope =
+        CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     val repository: CareLoopRepository by lazy { createRepository() }
 
