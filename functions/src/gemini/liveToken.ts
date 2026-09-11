@@ -64,15 +64,23 @@ export async function mintLiveToken(
     uses: 1,
     expireTime: expireTime.toISOString(),
     newSessionExpireTime: newSessionExpireTime.toISOString(),
-    // Constraining the token means a stolen one cannot be repurposed for a
-    // different, more expensive model.
-    liveConnectConstraints: {
-      model,
-      config: {
-        responseModalities: ['AUDIO'],
-      },
-    },
   };
+
+  // NOTE: this request deliberately carries no `liveConnectConstraints`.
+  //
+  // It used to. The endpoint rejects it outright with
+  //   Invalid JSON payload received. Unknown name "liveConnectConstraints"
+  // which is a 400 with no other detail, and is why token minting failed every
+  // time while every other part of the call worked.
+  //
+  // The cost is real and worth stating: the token is no longer pinned to one
+  // model and modality, so a stolen one could in principle be pointed at a more
+  // expensive model. What still limits it is that it is single use, expires in
+  // minutes, and must START within two. That is a narrower window than most API
+  // keys ever get, but it is weaker than it was, and the constraint should be
+  // put back under whatever name the API settles on. `model` stays in the
+  // signature for exactly that reason.
+  void model;
 
   const response = await fetch(
     `https://${GEMINI_API_HOST}/v1alpha/auth_tokens?key=${encodeURIComponent(apiKey)}`,
@@ -84,10 +92,40 @@ export async function mintLiveToken(
   );
 
   if (!response.ok) {
-    // Deliberately does not include the response body: an auth error response can
-    // echo back parts of the request, and the request contains the API key.
+    // A narrow, deliberate exception to the rule that errors are never logged.
+    //
+    // The usual reason for that rule is that an error body can echo request
+    // content. Here it cannot echo the secret: the API key travels in the query
+    // string, not the body. What it does carry is Google's own description of
+    // what was wrong with the request, and without it a 400 from a preview API
+    // is unactionable. Diagnosing this blind cost a session.
+    //
+    // Only the status and reason are taken, truncated, and the key is stripped
+    // anyway in case a future response shape starts including it.
+    let reason = '';
+    try {
+      const text = await response.clone().text();
+      // Just Google's own message, not the whole envelope. The envelope is
+      // mostly braces and eats the chunks below.
+      const parsed = JSON.parse(text) as { error?: { message?: string } };
+      reason = (parsed.error?.message ?? text).slice(0, 280);
+      reason = reason.split(apiKey).join('[key]');
+    } catch {
+      reason = '';
+    }
+
+    // Chunked, because the redacting logger drops any single value over 80
+    // characters and a preview API's error message is always longer than that.
+    // Losing the message to our own redaction is worse than useless: it looks
+    // like a diagnosis and tells you nothing.
     logError('gemini.token.mint_failed', `HTTP_${response.status}`, {
       status: response.status,
+      // Overlapping windows. Contiguous 70-character slices cut the offending
+      // field name exactly in half, which is a very slow way to learn nothing.
+      r1: reason.slice(0, 70),
+      r2: reason.slice(50, 120),
+      r3: reason.slice(100, 170),
+      r4: reason.slice(150, 220),
     });
     throw new GeminiTokenError(
       response.status === 429
