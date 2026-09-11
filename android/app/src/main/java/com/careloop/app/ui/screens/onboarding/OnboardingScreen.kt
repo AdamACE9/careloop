@@ -1,6 +1,7 @@
 package com.careloop.app.ui.screens.onboarding
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,6 +50,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.careloop.app.data.model.CaraActivity
+import com.careloop.app.di.AppContainer
 import com.careloop.app.ui.components.CarePrimaryButton
 import com.careloop.app.ui.components.CareSecondaryButton
 import com.careloop.app.ui.components.LoopMark
@@ -55,6 +58,7 @@ import com.careloop.app.ui.components.SectionHeader
 import com.careloop.app.ui.theme.CareColors
 import com.careloop.app.ui.theme.CareDimens
 import com.careloop.app.ui.theme.CareLoopTheme
+import kotlinx.coroutines.launch
 
 /**
  * Onboarding — five screens, no more.
@@ -85,7 +89,7 @@ import com.careloop.app.ui.theme.CareLoopTheme
  * architecture.
  */
 
-private const val TOTAL_STEPS = 5
+private const val TOTAL_STEPS = 6
 
 /** Who is holding the phone during setup. See [WhoIsThisForStep]. */
 private enum class SetupAudience { SELF, HELPING_PARENT }
@@ -175,6 +179,7 @@ fun OnboardingScreen(
                             goNext()
                         },
                     )
+                    4 -> ShareWithFamilyStep(onContinue = ::goNext)
                     else -> AllSetStep(
                         hour12 = callHour12,
                         minute = callMinute,
@@ -182,6 +187,123 @@ fun OnboardingScreen(
                         onDone = onComplete,
                     )
                 }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Step 5: sharing with family
+//
+// The code is generated HERE, on this person's own phone, and read out by them.
+// It is never generated on the family's dashboard. The backend enforces the same
+// rule, but the reason is not technical: this code gives somebody ongoing sight
+// of your health, and the person it belongs to should be the one handing it out,
+// not the one being told afterwards that it happened.
+//
+// Skippable on purpose. Someone may want the calls without anyone watching, and
+// that has to be a real option rather than a dark pattern, so "Not now" is a
+// plain button rather than faint grey text.
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun ShareWithFamilyStep(onContinue: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var code by remember { mutableStateOf<String?>(null) }
+    var loading by remember { mutableStateOf(false) }
+    var failed by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            text = "Would you like someone to see how you are getting on?",
+            style = MaterialTheme.typography.headlineMedium,
+            color = CareColors.Navy,
+        )
+
+        Spacer(Modifier.height(CareDimens.SpaceMd))
+
+        Text(
+            text = "You can share your check-ins with a family member. They will see " +
+                "exactly what you see, and you can stop sharing whenever you want.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = CareColors.Slate,
+        )
+
+        Spacer(Modifier.height(CareDimens.SpaceLg))
+
+        when {
+            code != null -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(CareColors.Navy)
+                        .padding(CareDimens.SpaceLg),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = "Read this to them",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = CareColors.White.copy(alpha = 0.7f),
+                    )
+                    Spacer(Modifier.height(CareDimens.SpaceMd))
+                    Text(
+                        // Spaced out because this gets read aloud down a phone
+                        // line, one character at a time.
+                        text = code!!.toCharArray().joinToString("  "),
+                        style = MaterialTheme.typography.displaySmall,
+                        color = CareColors.Gold,
+                    )
+                    Spacer(Modifier.height(CareDimens.SpaceMd))
+                    Text(
+                        text = "They type it into the CareLoop website. It works for " +
+                            "one day, and only once.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = CareColors.White.copy(alpha = 0.7f),
+                    )
+                }
+
+                Spacer(Modifier.height(CareDimens.SpaceLg))
+
+                CarePrimaryButton(text = "Done", onClick = onContinue)
+            }
+
+            else -> {
+                if (failed) {
+                    Text(
+                        text = "Could not create a code just now. You can do this later " +
+                            "from Settings.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = CareColors.Slate,
+                    )
+                    Spacer(Modifier.height(CareDimens.SpaceMd))
+                }
+
+                CarePrimaryButton(
+                    text = if (loading) "Creating a code" else "Yes, share with family",
+                    // enabled rather than an early return. A non-local return out
+                    // of a lambda is the construct that broke this codebase once
+                    // already, and this also stops the button looking pressable
+                    // while it is working.
+                    enabled = !loading,
+                    onClick = {
+                        loading = true
+                        failed = false
+                        scope.launch {
+                            AppContainer.repository.generateLinkingCode()
+                                .onSuccess { code = it.code }
+                                .onFailure { failed = true }
+                            loading = false
+                        }
+                    },
+                )
+
+                Spacer(Modifier.height(CareDimens.SpaceMd))
+
+                CareSecondaryButton(text = "Not now", onClick = onContinue)
             }
         }
     }

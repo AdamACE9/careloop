@@ -107,6 +107,18 @@ interface CareLoopRepository {
 
     /** Cara closing something she had been following up on. */
     suspend fun closeOpenThread(topic: String, whatHappened: String): Result<Unit>
+
+    /**
+     * Mints a one-time code this person reads out to whoever they want to share
+     * their check-ins with.
+     *
+     * Generated HERE, on the elder's own device, and never on the caretaker's
+     * dashboard. The backend enforces this too: generateLinkingCode requires the
+     * caller to be the patient. Access to somebody's health record should be
+     * given by them, from a device in their hand, rather than claimed on their
+     * behalf and mentioned afterwards.
+     */
+    suspend fun generateLinkingCode(): Result<LinkingCode>
 }
 
 // -----------------------------------------------------------------------------
@@ -145,6 +157,11 @@ data class CheckInResult(
     /** What the reasoning engine decided: no_action, retry_soon, retry_later, escalate. */
     val action: String,
     val escalationId: String?,
+)
+
+data class LinkingCode(
+    val code: String,
+    val expiresAtIso: String,
 )
 
 data class LiveSessionToken(

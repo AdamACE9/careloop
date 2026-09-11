@@ -209,6 +209,19 @@ class MockCareLoopRepository : CareLoopRepository {
     override suspend fun closeOpenThread(topic: String, whatHappened: String): Result<Unit> =
         Result.success(Unit)
 
+    /**
+     * A stable, obviously-fake code.
+     *
+     * Not random: on stage this screen may be shown more than once, and a code
+     * that changes every time invites someone to ask whether it is real. The
+     * alphabet still excludes O, 0, I, 1 and L so it demonstrates the actual
+     * rule.
+     */
+    override suspend fun generateLinkingCode(): Result<LinkingCode> =
+        Result.success(
+            LinkingCode(code = "DEMOCARE", expiresAtIso = ""),
+        )
+
     /** Demo helper: appends a completed check-in so the history visibly grows on stage. */
     fun appendDemoCheckIn(checkIn: CheckIn) {
         checkInsState.value = (listOf(checkIn) + checkInsState.value)

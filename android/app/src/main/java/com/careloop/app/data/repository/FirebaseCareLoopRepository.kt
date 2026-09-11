@@ -322,6 +322,16 @@ class FirebaseCareLoopRepository(
             )
         }.map { }
 
+    override suspend fun generateLinkingCode(): Result<LinkingCode> =
+        callFunction("generateLinkingCode") {
+            mapOf("patientId" to requireUid())
+        }.mapCatching { data ->
+            LinkingCode(
+                code = data["code"] as? String ?: error("missing code"),
+                expiresAtIso = data["expiresAt"] as? String ?: "",
+            )
+        }
+
     // =========================================================================
     // Plumbing
     // =========================================================================

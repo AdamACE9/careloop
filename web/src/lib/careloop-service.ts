@@ -254,21 +254,55 @@ export async function acknowledgeEscalation(
   });
 }
 
-/** Generates a code the elder types into their phone to link this caretaker. */
-export async function generateLinkingCode(
-  patientId: string,
-): Promise<{ code: string; expiresAt: string } | null> {
+export type RedeemResult =
+  | { ok: true; patientName: string }
+  | { ok: false; reason: string };
+
+/**
+ * Links this caretaker to an elder, using the code shown on the elder's phone.
+ *
+ * The direction here matters and was previously backwards. The backend's
+ * generateLinkingCode requires the caller to BE the patient, so a caretaker
+ * calling it gets permission-denied every time; only the elder's own device can
+ * mint a code. The caretaker is the one who redeems.
+ *
+ * That is also the right way round for the product. The code grants somebody
+ * ongoing sight of an elderly person's health record, so the person it belongs
+ * to should be the one who issues it, from a device in their own hand, rather
+ * than having access granted to them by someone else and being told afterwards.
+ */
+export async function redeemLinkingCode(code: string): Promise<RedeemResult> {
   const fns = getFns();
-  if (!fns) return null;
+  if (!fns) {
+    return { ok: false, reason: 'Not connected to a backend yet.' };
+  }
 
   try {
-    const call = httpsCallable<{ patientId: string }, { code: string; expiresAt: string }>(
+    const call = httpsCallable<{ code: string }, { patientId: string; patientName: string }>(
       fns,
-      'generateLinkingCode',
+      'redeemLinkingCode',
     );
-    const result = await call({ patientId });
-    return result.data;
-  } catch {
-    return null;
+    const result = await call({ code: code.trim().toUpperCase() });
+    return { ok: true, patientName: result.data.patientName };
+  } catch (error) {
+    const err = error as { message?: string };
+    const message = err?.message ?? '';
+
+    // The backend returns an identical error for missing, used and expired
+    // codes, deliberately, so that nobody can discover which codes exist. The
+    // wording here has to cover all three without implying which it was.
+    if (message.includes('INVALID_CODE')) {
+      return {
+        ok: false,
+        reason: 'That code was not recognised. It may have expired, or already been used.',
+      };
+    }
+    if (message.includes('CANNOT_LINK_SELF')) {
+      return { ok: false, reason: 'That is your own code. Ask them for the one on their phone.' };
+    }
+    if (message.includes('RATE_LIMIT') || message.includes('resource-exhausted')) {
+      return { ok: false, reason: 'Too many attempts. Try again in a little while.' };
+    }
+    return { ok: false, reason: 'Could not connect just now. Try again in a moment.' };
   }
 }

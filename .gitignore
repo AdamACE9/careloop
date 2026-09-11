@@ -34,7 +34,11 @@ web/CLAUDE.md
 # ---- Firebase / Functions ----
 functions/node_modules/
 functions/lib/
-functions/.env
+# functions/.env is COMMITTED: it holds non-secret deploy parameters (model ids)
+# that firebase deploy requires in non-interactive mode. Real secrets live in
+# Secret Manager. Local overrides and any per-developer file stay ignored.
+functions/.env.local
+functions/.env.*.local
 functions/.env.local
 .firebase/
 firebase-debug.log

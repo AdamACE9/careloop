@@ -2,32 +2,46 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
-import { useLinkedPatients, generateLinkingCode } from '@/lib/careloop-service';
+import { useLinkedPatients, redeemLinkingCode } from '@/lib/careloop-service';
 import { isFirebaseConfigured } from '@/lib/firebase';
 
 /**
  * Settings: linking, account, and an honest account of what is connected.
  *
- * The linking flow is the interesting part. A code that grants read access to
- * someone's health record is generated here, read aloud over the phone, and typed
- * into the elder's device. The alphabet excludes O, 0, I, 1 and L because
- * somebody is going to read this to a 78-year-old and "was that an O or a zero"
- * is a real failure, not a hypothetical one.
+ * The linking flow runs elder to caretaker, not the other way round. The code is
+ * generated on the elder's own phone and read out to whoever is being given
+ * access, who types it in here. Access to someone's health record should be
+ * granted by them, from a device in their hand, rather than claimed on their
+ * behalf and mentioned afterwards.
+ *
+ * The code alphabet excludes O, 0, I, 1 and L, because somebody is going to read
+ * it aloud to a 78-year-old and "was that an O or a zero" is a real failure
+ * rather than a hypothetical one. The input below upper-cases as you type for the
+ * same reason.
  */
 export default function SettingsPage() {
   const { displayName, isDemo, signOut } = useAuth();
   const { patients } = useLinkedPatients();
   const patient = patients[0];
 
-  const [code, setCode] = useState<string | null>(null);
-  const [generating, setGenerating] = useState(false);
+  const [code, setCode] = useState('');
+  const [linking, setLinking] = useState(false);
+  const [linkedName, setLinkedName] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  async function handleGenerate() {
-    if (!patient) return;
-    setGenerating(true);
-    const result = await generateLinkingCode(patient.id);
-    setCode(result?.code ?? 'DEMO-MODE');
-    setGenerating(false);
+  async function handleLink() {
+    if (!code.trim()) return;
+    setLinking(true);
+    setError(null);
+
+    const result = await redeemLinkingCode(code);
+    if (result.ok) {
+      setLinkedName(result.patientName);
+      setCode('');
+    } else {
+      setError(result.reason);
+    }
+    setLinking(false);
   }
 
   return (
@@ -52,33 +66,55 @@ export default function SettingsPage() {
 
       {/* --------------------------------------------------- Linking code */}
       <section className="rounded-3xl border border-ink/10 bg-white p-7 md:p-8">
-        <h3 className="font-display text-xl text-ink">Connect a phone</h3>
+        <h3 className="font-display text-xl text-ink">Connect to a phone</h3>
         <p className="mt-3 max-w-xl leading-relaxed text-slate-ink">
-          To start receiving check-ins, generate a code and read it to{' '}
-          {patient?.firstName ?? 'your parent'} over the phone. They type it into
-          CareLoop on their own device, once.
+          Ask {patient?.firstName ?? 'them'} to open CareLoop on their phone and
+          read you the code it shows. Type it in below. You only do this once, and
+          the code works for 24 hours.
         </p>
 
-        {code ? (
-          <div className="mt-6 rounded-2xl bg-navy px-7 py-6 text-center">
-            <p className="text-xs tracking-[0.16em] text-white/50 uppercase">
-              Read this out
-            </p>
-            <p className="mt-3 font-display text-4xl tracking-[0.25em] text-gold">
-              {code}
-            </p>
-            <p className="mt-4 text-sm text-white/60">
-              Valid for 24 hours, and it can only be used once.
+        {linkedName ? (
+          <div className="mt-6 rounded-2xl border border-good/30 bg-good-surface px-6 py-5">
+            <p className="font-medium text-good">Connected to {linkedName}</p>
+            <p className="mt-1.5 text-sm leading-relaxed text-slate-ink">
+              Their check-ins will appear on your dashboard from now on. They can
+              see that you are connected, and can disconnect you at any time.
             </p>
           </div>
         ) : (
-          <button
-            onClick={handleGenerate}
-            disabled={generating}
-            className="mt-6 rounded-xl bg-navy px-6 py-3.5 font-semibold text-white transition hover:bg-navy-soft disabled:opacity-70"
-          >
-            {generating ? 'Generating…' : 'Generate a linking code'}
-          </button>
+          <div className="mt-6">
+            <label htmlFor="linkcode" className="block text-sm font-medium text-ink">
+              Code from their phone
+            </label>
+            <div className="mt-2 flex flex-wrap gap-3">
+              <input
+                id="linkcode"
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void handleLink();
+                }}
+                placeholder="XXXXXXXX"
+                autoComplete="off"
+                spellCheck={false}
+                maxLength={16}
+                className="w-56 rounded-xl border border-ink/20 bg-white px-4 py-3.5 font-display text-2xl tracking-[0.18em] text-ink uppercase placeholder:text-ink/25 focus:border-gold focus:outline-none"
+              />
+              <button
+                onClick={() => void handleLink()}
+                disabled={linking || !code.trim()}
+                className="rounded-xl bg-navy px-6 py-3.5 font-semibold text-white transition hover:bg-navy-soft disabled:opacity-50"
+              >
+                {linking ? 'Connecting' : 'Connect'}
+              </button>
+            </div>
+
+            {error && (
+              <p role="alert" className="mt-3 text-sm leading-relaxed text-urgent">
+                {error}
+              </p>
+            )}
+          </div>
         )}
       </section>
 
