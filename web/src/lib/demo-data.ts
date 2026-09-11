@@ -275,6 +275,61 @@ export const refillEscalation: Escalation = {
 
 export const escalations = [primaryEscalation, refillEscalation];
 
+/**
+ * Something Cara decided, on her own, to come back to on a later call.
+ *
+ * Shown to the family and to the elder in identical terms. An agent memory that
+ * only one side can see is surveillance, and the whole position of this product
+ * is that it is not that.
+ */
+export interface AgentThread {
+  id: string;
+  topic: string;
+  why: string;
+  status: "open" | "resolved";
+  raisedAt: string;
+  followUpAfter: string;
+  timesRaised: number;
+  resolution: string | null;
+  resolvedAt: string | null;
+}
+
+export const agentThreads: AgentThread[] = [
+  {
+    id: "th-1",
+    topic: "Her right knee hurting on the stairs",
+    why: "She mentioned it twice without my asking, and it is the reason she has been going up to bed later.",
+    status: "open",
+    raisedAt: "2026-09-08T09:14:00",
+    followUpAfter: "2026-09-11T09:00:00",
+    timesRaised: 1,
+    resolution: null,
+    resolvedAt: null,
+  },
+  {
+    id: "th-2",
+    topic: "Whether the new pill box is easier to use",
+    why: "Sarah bought it on Saturday and most of the missed doses this month were on days she used the old one.",
+    status: "open",
+    raisedAt: "2026-09-09T09:06:00",
+    followUpAfter: "2026-09-12T09:00:00",
+    timesRaised: 0,
+    resolution: null,
+    resolvedAt: null,
+  },
+  {
+    id: "th-3",
+    topic: "Feeling light headed standing up",
+    why: "She said it happened twice on Tuesday. Worth knowing whether it settled or kept going.",
+    status: "resolved",
+    raisedAt: "2026-09-02T09:11:00",
+    followUpAfter: "2026-09-04T09:00:00",
+    timesRaised: 2,
+    resolution: "It stopped after she started taking the tablet with breakfast instead of before it. She told her GP at her Friday appointment.",
+    resolvedAt: "2026-09-06T09:20:00",
+  },
+];
+
 export const confidencePhrase: Record<Confidence, string> = {
   high: "I'm quite sure",
   medium: "I'm fairly confident",

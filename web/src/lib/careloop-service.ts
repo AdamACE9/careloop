@@ -15,7 +15,7 @@ import { httpsCallable } from 'firebase/functions';
 import { getDb, getFns, isFirebaseConfigured } from './firebase';
 import { getFirebaseAuth } from './firebase';
 import * as demo from './demo-data';
-import type { CheckIn, Escalation, Medication } from './demo-data';
+import type { AgentThread, CheckIn, Escalation, Medication } from './demo-data';
 
 /**
  * The single seam between the dashboard UI and its data.
@@ -171,6 +171,13 @@ export function useCheckIns(patientId: string) {
 
 export function useEscalations(patientId: string) {
   return useCollection<Escalation>(patientId, 'escalations', 'raisedAt', demo.escalations);
+}
+
+export function useAgentThreads(patientId: string) {
+  // Ordered by when Cara opened them. Resolved ones are kept and filtered in the
+  // UI rather than excluded here: seeing what she closed, and why, is most of
+  // what makes the open ones believable.
+  return useCollection<AgentThread>(patientId, 'agentThreads', 'raisedAt', demo.agentThreads);
 }
 
 export function useMedications(patientId: string) {

@@ -1,7 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { useLinkedPatients, useEscalations, acknowledgeEscalation } from '@/lib/careloop-service';
+import {
+  useLinkedPatients,
+  useEscalations,
+  useAgentThreads,
+  acknowledgeEscalation,
+} from '@/lib/careloop-service';
+import AgentThreads from '@/components/dashboard/AgentThreads';
 import { confidencePhrase, type Escalation } from '@/lib/demo-data';
 
 /**
@@ -21,15 +27,23 @@ export default function ReasoningPage() {
   const { patients } = useLinkedPatients();
   const patientId = patients[0]?.id ?? '';
   const { data: escalations } = useEscalations(patientId);
+  const { data: threads } = useAgentThreads(patientId);
 
+  // No escalation is the normal, good state. The threads still belong on screen
+  // here: they are the evidence that Cara is paying attention on the days when
+  // nothing is wrong, which is most days, and a page that goes empty whenever
+  // things are fine makes the agent look asleep rather than watchful.
   if (!escalations.length) {
     return (
-      <div className="rounded-3xl border border-ink/10 bg-white p-12 text-center">
-        <h2 className="font-display text-2xl text-ink">Cara has not needed to get in touch</h2>
-        <p className="mx-auto mt-3 max-w-md leading-relaxed text-slate-ink">
-          When she does, you will find the full reasoning here: what she noticed,
-          which day she noticed it, and what she considered before deciding to tell you.
-        </p>
+      <div className="space-y-6">
+        <div className="rounded-3xl border border-ink/10 bg-white p-12 text-center">
+          <h2 className="font-display text-2xl text-ink">Cara has not needed to get in touch</h2>
+          <p className="mx-auto mt-3 max-w-md leading-relaxed text-slate-ink">
+            When she does, you will find the full reasoning here: what she noticed,
+            which day she noticed it, and what she considered before deciding to tell you.
+          </p>
+        </div>
+        <AgentThreads threads={threads} />
       </div>
     );
   }
@@ -51,6 +65,8 @@ export default function ReasoningPage() {
           patientId={patientId}
         />
       ))}
+
+      <AgentThreads threads={threads} />
     </div>
   );
 }
