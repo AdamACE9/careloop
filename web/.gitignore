@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...except the template, which contains no values. It is the thing that
+# tells a new checkout which keys it needs.
+!.env.local.example
 
 # vercel
 .vercel
