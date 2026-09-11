@@ -34,6 +34,24 @@ export const CRITICALITY_THRESHOLD: Record<Criticality, number> = {
   low: 4,
 };
 
+/**
+ * How many unanswered calls in a row before the agent stops calling and tells
+ * the family.
+ *
+ * Separate from CRITICALITY_THRESHOLD on purpose. That one counts *missed
+ * doses*, and reusing it here meant critical sat at 1, so a single unanswered
+ * ring escalated immediately and the quick-retry ladder for critical
+ * medications was unreachable code. One missed call is someone in the garden,
+ * not an emergency; the right response is to try again in ten minutes and then
+ * escalate if that also fails.
+ */
+export const NO_ANSWER_PATIENCE: Record<Criticality, number> = {
+  critical: 2,
+  high: 3,
+  medium: 3,
+  low: 4,
+};
+
 /** Relative weight a missed dose contributes to the concern score. */
 export const CRITICALITY_WEIGHT: Record<Criticality, number> = {
   critical: 1.0,

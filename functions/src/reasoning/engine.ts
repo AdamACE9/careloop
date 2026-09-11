@@ -8,7 +8,7 @@ import type {
   ReasoningStep,
   VitalDoc,
 } from '../types.js';
-import { CRITICALITY_WEIGHT, CRITICALITY_THRESHOLD } from '../types.js';
+import { CRITICALITY_WEIGHT, NO_ANSWER_PATIENCE } from '../types.js';
 
 /**
  * The reasoning and escalation engine.
@@ -117,6 +117,15 @@ interface MedicationEvidence {
   missedDates: string[];
   uncertainDates: string[];
   score: number;
+  /**
+   * The most recent check-in where this medication was missed.
+   *
+   * Needed so the missed-dose step can cite its source even when there is no
+   * quotable line. Without it, a trace built from a call with no transcript
+   * cited nothing at all, which makes the reasoning unverifiable, and an
+   * unverifiable trace is exactly what this product claims not to produce.
+   */
+  latestMissCheckInId: string | null;
   /** The most quotable moment, for the reasoning trace. */
   quote: { text: string; checkInId: string; date: string } | null;
 }
@@ -143,6 +152,7 @@ function gatherMedicationEvidence(
     const missedDates: string[] = [];
     const uncertainDates: string[] = [];
     let quote: MedicationEvidence['quote'] = null;
+    let latestMissCheckInId: string | null = null;
     let raw = 0;
 
     let occurrence = 0;
@@ -155,6 +165,8 @@ function gatherMedicationEvidence(
       occurrence += 1;
       const date = checkIn.startedAt.slice(0, 10);
       missedDates.push(date);
+      // inWindow is newest-first, so the first miss seen is the most recent.
+      if (!latestMissCheckInId) latestMissCheckInId = checkIn.id ?? null;
 
       // Uncertainty is scored separately and more heavily than a clean miss,
       // because "I'm not sure if I took it" is the signal that distinguishes
@@ -182,7 +194,7 @@ function gatherMedicationEvidence(
         recencyFactor(checkIn.startedAt);
     }
 
-    return { medication, missedDates, uncertainDates, score: raw, quote };
+    return { medication, missedDates, uncertainDates, score: raw, latestMissCheckInId, quote };
   });
 }
 
@@ -342,7 +354,7 @@ function decideRetry(
   attemptsToday: number,
   mostCritical: Criticality,
 ): { action: AgentAction; retryInMinutes: number | null } {
-  const patience = CRITICALITY_THRESHOLD[mostCritical];
+  const patience = NO_ANSWER_PATIENCE[mostCritical];
 
   if (attemptsToday >= 4) {
     // Past this point more calls are harassment, not care. If it still matters,
@@ -412,7 +424,7 @@ function buildEscalation(params: {
     reasoning.push({
       observation: `${worst.medication.name} missed on ${worst.missedDates.length} of the last ${WINDOW_DAYS} days`,
       evidence: formatDates(worst.missedDates),
-      checkInId: null,
+      checkInId: worst.latestMissCheckInId,
     });
 
     if (worst.quote) {
