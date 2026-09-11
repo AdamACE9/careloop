@@ -1,36 +1,70 @@
 @import "tailwindcss";
 
 /*
-  CareLoop design tokens.
+  CareLoop design tokens. Mirrors ui/theme/Color.kt in the Android app.
 
-  Palette note: bright gold (#C9A227) measures ~2.4:1 on white, so it is never used for
-  text on light backgrounds, only as a fill, rule, or accent on navy. `--color-gold-ink`
-  is the darkened variant (~5.1:1 on white) for the rare case gold text is needed on light.
-  This mirrors the same rule enforced in the Android app.
+  See the measured ratios in the @theme block below. The short version: bright
+  gold is a fill and never text, aqua-bright belongs on navy and nowhere else,
+  and nothing in this product signals state with colour alone.
 */
 
 @theme {
+  /*
+    CareLoop, warm identity.
+
+    Gold and brown carry the surfaces, electric aqua is the single accent, and
+    navy is kept as the dark anchor for the call screen and headers.
+
+    Every ratio below is MEASURED, not estimated. The floor here is 7:1 rather
+    than the usual 4.5:1, because this product is read by people in their
+    seventies and eighties, and contrast sensitivity declines with age
+    independently of acuity. Ratios are quoted against `cream` (the page) and
+    `bone` (the alternate surface); a colour is only listed as text-safe when it
+    clears 7:1 on BOTH.
+
+    Age-related colour vision loses blue-yellow discrimination first, which
+    sounds like an argument against a gold interface and is not: gold sits on
+    the red-yellow axis and is spared. What it does forbid is meaning carried by
+    hue alone, which is why every status in this product also carries an icon
+    and a word.
+  */
+
+  /* Grounds */
+  --color-cream: #fffbf3;
+  --color-bone: #faf3e7;
+  --color-cloud: #f0e5d2;
+
+  /* Text. ink 16.3:1 / 15.2:1   slate 7.9:1 / 7.4:1 */
+  --color-ink: #241c13;
+  --color-slate-ink: #5c4d3b;
+
+  /* Gold. The bright one is 2.3:1 and is a FILL ONLY, never text.
+     gold-ink is the text-safe variant at 8.4:1 / 7.9:1. */
+  --color-gold: #c9a227;
+  --color-gold-bright: #e0a93b;
+  --color-gold-ink: #5f480a;
+  --color-brown: #3b2a17;
+
+  /* Accent. aqua 8.7:1 / 8.2:1 on light. aqua-bright is 8.4:1 on navy and is
+     for dark surfaces only; it is 1.5:1 on cream and unreadable there. */
+  --color-aqua: #085158;
+  --color-aqua-bright: #35d6e0;
+  --color-aqua-surface: #e2f4f5;
+
+  /* Dark anchor. navy 14.3:1 / 13.4:1 */
   --color-navy: #16264d;
   --color-navy-deep: #0f1a38;
   --color-navy-soft: #243766;
   --color-navy-mist: #35497d;
 
-  --color-gold: #c9a227;
-  --color-gold-ink: #8a6a00;
-  --color-gold-glow: #e8c65a;
-  --color-yellow: #ffd166;
-
-  --color-bone: #faf9f6;
-  --color-cloud: #efede8;
-  --color-slate-ink: #5a6173;
-  --color-ink: #1a1f2e;
-
-  --color-good: #1e7a5a;
-  --color-good-surface: #e6f4ef;
-  --color-concern: #b4690e;
-  --color-concern-surface: #fdf0e0;
-  --color-urgent: #b3261e;
-  --color-urgent-surface: #fceeee;
+  /* Status. All three clear 7:1 on both grounds, and none of them is ever the
+     only signal: each is paired with an icon and a word. */
+  --color-good: #12513b;
+  --color-good-surface: #e3f1ea;
+  --color-concern: #744208;
+  --color-concern-surface: #fbeeda;
+  --color-urgent: #8f1911;
+  --color-urgent-surface: #fbe9e7;
 
   --font-display: var(--font-instrument-serif), Georgia, "Times New Roman", serif;
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
@@ -39,7 +73,7 @@
 }
 
 :root {
-  --background: var(--color-bone);
+  --background: var(--color-cream);
   --foreground: var(--color-ink);
 }
 
