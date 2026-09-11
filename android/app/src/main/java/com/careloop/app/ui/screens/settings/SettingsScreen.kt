@@ -25,6 +25,7 @@ import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Phone
 import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.TextFields
 import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -40,11 +41,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.PreviewFontScale
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.careloop.app.data.mock.MockData
 import com.careloop.app.data.model.Caretaker
@@ -54,6 +58,9 @@ import com.careloop.app.ui.components.LoopMark
 import com.careloop.app.ui.theme.CareColors
 import com.careloop.app.ui.theme.CareDimens
 import com.careloop.app.ui.theme.CareLoopTheme
+import com.careloop.app.ui.theme.TextScaleStore
+import com.careloop.app.ui.theme.TextSize
+import com.careloop.app.ui.theme.rememberTextSize
 import com.careloop.app.di.AppContainer
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -76,14 +83,17 @@ import kotlinx.coroutines.launch
  * 2. **Let Cara ring like a real phone call** — see the long comment on
  *    [RingPermissionCard]. This is the single most consequential setting on the screen,
  *    even though it looks the most "technical".
- * 3. **What I share with Sarah** — the dignity feature. Deliberately styled as a hero row,
+ * 3. **Text size** — see [TextSizeCard]. Placed right after the two settings most likely to
+ *    need changing, not buried at the bottom, because illegible text is what makes every
+ *    other setting on this screen hard to use in the first place.
+ * 4. **What I share with Sarah** — the dignity feature. Deliberately styled as a hero row,
  *    not a list item, because burying it would undercut the whole point of it existing.
- * 4. **Who Cara calls if she's worried** — read-only, warm, and framed as Margaret's
+ * 5. **Who Cara calls if she's worried** — read-only, warm, and framed as Margaret's
  *    choice rather than an assigned contact.
- * 5. **About Cara** — plain honesty that Cara is an AI. Hiding this would be the easy
+ * 6. **About Cara** — plain honesty that Cara is an AI. Hiding this would be the easy
  *    choice and the wrong one; transparency about the agent's nature is what earns trust
  *    here, not what risks it.
- * 6. **Help** — the low-effort escape hatch, last because it's needed least often.
+ * 7. **Help** — the low-effort escape hatch, last because it's needed least often.
  */
 @Composable
 fun SettingsScreen(
@@ -95,7 +105,9 @@ fun SettingsScreen(
     val elder by AppContainer.repository.observeElder()
         .collectAsStateWithLifecycle(initialValue = MockData.elder)
 
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val textSize = rememberTextSize()
 
     // Demo stand-in for the real Android 14 special-access permission. See the long
     // comment on RingPermissionCard for why this exists and what it is standing in for.
@@ -131,6 +143,13 @@ fun SettingsScreen(
         RingPermissionCard(
             granted = fullScreenCallsGranted,
             onGrantedChange = { fullScreenCallsGranted = it },
+        )
+
+        TextSizeCard(
+            currentSize = textSize,
+            onSizeChange = { newSize ->
+                scope.launch { TextScaleStore.set(context, newSize) }
+            },
         )
 
         WhatISharedCard(onClick = onOpenWhatIShared)
@@ -448,7 +467,109 @@ private fun ExplainerRow(
 }
 
 // ---------------------------------------------------------------------------
-// 3. What I share with Sarah — the dignity feature
+// 3. Text size
+// ---------------------------------------------------------------------------
+
+/**
+ * Four steps, not a slider or a percentage. A slider asks for the fine-motor precision this
+ * whole app is built to avoid (see [CareDimens]'s doc comment on tremor and failed touches
+ * being misread as gestures), and "125%" is a number to interpret, not a size to recognise.
+ * Four plain-language, large-target rows do both jobs a slider does — see roughly where you
+ * are, move it — without either problem.
+ *
+ * The live preview text is genuinely live, not a second copy of the logic: it's rendered
+ * with [MaterialTheme.typography] like everything else on this screen, and this whole screen
+ * sits under `CareLoopTheme(textSize = rememberTextSize())` at the app's root (the default
+ * parameter documented on [CareLoopTheme]), so the instant [onSizeChange] persists a new
+ * value, the theme recomposes at the new scale and this text visibly changes size along
+ * with the rest of the screen. There is nothing here to keep in sync by hand.
+ *
+ * Each option row's own "Aa" sample, by contrast, is deliberately sized by *that row's*
+ * [TextSize.scale] rather than the currently-applied one — Margaret should be able to see
+ * what "Largest" looks like without having to select it first just to preview it.
+ */
+@Composable
+private fun TextSizeCard(
+    currentSize: TextSize,
+    onSizeChange: (TextSize) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    CareCard(modifier = modifier) {
+        CardHeader(icon = Icons.Rounded.TextFields, title = "Text size")
+        Spacer(Modifier.height(CareDimens.SpaceXs))
+        Text(
+            "Choose how big everything looks. It changes right away, everywhere in the app.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        Spacer(Modifier.height(CareDimens.SpaceLg))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(CareDimens.ButtonRadius))
+                .padding(CareDimens.SpaceMd),
+        ) {
+            Text(
+                "Cara calls at nine o'clock every morning.",
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        }
+
+        Spacer(Modifier.height(CareDimens.SpaceLg))
+
+        TextSize.entries.forEachIndexed { index, size ->
+            TextSizeOptionRow(
+                size = size,
+                selected = size == currentSize,
+                onClick = { onSizeChange(size) },
+            )
+            if (index != TextSize.entries.lastIndex) {
+                Spacer(Modifier.height(CareDimens.SpaceSm))
+            }
+        }
+    }
+}
+
+@Composable
+private fun TextSizeOptionRow(
+    size: TextSize,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    CareCard(onClick = onClick, selected = selected, modifier = modifier) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Aa",
+                style = MaterialTheme.typography.headlineMedium.copy(fontSize = 22.sp * size.scale),
+                modifier = Modifier.widthIn(min = 56.dp),
+            )
+            Spacer(Modifier.width(CareDimens.SpaceMd))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(size.label, style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(CareDimens.SpaceXs))
+                Text(
+                    textSizeDescription(size),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/** Plain language, not a percentage — see the class doc on [TextSizeCard]. */
+private fun textSizeDescription(size: TextSize): String = when (size) {
+    TextSize.NORMAL -> "The size everything starts at."
+    TextSize.LARGE -> "A little bigger, still comfortable on the screen."
+    TextSize.LARGER -> "Bigger again, easier to read at a glance."
+    TextSize.LARGEST -> "As big as the app goes."
+}
+
+// ---------------------------------------------------------------------------
+// 4. What I share with Sarah — the dignity feature
 // ---------------------------------------------------------------------------
 
 /**
@@ -511,7 +632,7 @@ private fun WhatISharedCard(
 }
 
 // ---------------------------------------------------------------------------
-// 4. Who Cara calls if she's worried
+// 5. Who Cara calls if she's worried
 // ---------------------------------------------------------------------------
 
 /**
@@ -563,7 +684,7 @@ private fun WhoCaraCallsCard(
 }
 
 // ---------------------------------------------------------------------------
-// 5. About Cara
+// 6. About Cara
 // ---------------------------------------------------------------------------
 
 /**
@@ -602,7 +723,7 @@ private fun AboutCaraCard(modifier: Modifier = Modifier) {
 }
 
 // ---------------------------------------------------------------------------
-// 6. Help
+// 7. Help
 // ---------------------------------------------------------------------------
 
 @Composable
@@ -724,5 +845,24 @@ private fun WhatISharedCardPreview() {
         Column(modifier = Modifier.padding(CareDimens.SpaceLg)) {
             WhatISharedCard(onClick = {})
         }
+    }
+}
+
+@Preview(showBackground = true, name = "Text size")
+@Composable
+private fun TextSizeCardPreview() {
+    CareLoopTheme(darkTheme = false) {
+        Column(modifier = Modifier.padding(CareDimens.SpaceLg)) {
+            TextSizeCard(currentSize = TextSize.LARGE, onSizeChange = {})
+        }
+    }
+}
+
+/** Confirms the whole screen, including the text-size rows themselves, survives 200% scale. */
+@PreviewFontScale
+@Composable
+private fun SettingsScreenFontScalePreview() {
+    CareLoopTheme(darkTheme = false) {
+        SettingsScreen()
     }
 }

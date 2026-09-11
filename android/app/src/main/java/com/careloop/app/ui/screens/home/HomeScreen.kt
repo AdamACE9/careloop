@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.PreviewFontScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.careloop.app.BuildConfig
@@ -161,10 +162,12 @@ fun HomeScreen(
 
         Spacer(Modifier.height(CareDimens.SpaceXl))
 
-        // --- Demo trigger ---
-        // Debug builds only. This is what makes the signature interaction demoable with no
-        // backend at all: it posts the exact same CallStyle notification that a real FCM
-        // push will post, so what is shown on stage is the real code path, not a mock-up.
+        // --- Trigger a real call ---
+        // Debug builds only. "Simulate" undersold this button: it posts the exact same
+        // CallStyle notification that a real FCM push will post, so the call that follows
+        // is the genuine code path, not a mock-up standing in for one. The copy below says
+        // that plainly rather than hedging with "demo" language that isn't true of what
+        // actually happens on tap.
         if (BuildConfig.DEBUG) {
             Column(
                 modifier = Modifier
@@ -176,19 +179,19 @@ fun HomeScreen(
                     .padding(CareDimens.SpaceLg),
             ) {
                 Text(
-                    "Demo",
+                    "Try it now",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(CareDimens.SpaceSm))
                 Text(
-                    "Trigger an incoming call from Cara. This posts the same notification " +
-                        "a real scheduled call would.",
+                    "This rings your phone exactly the way a scheduled check-in would. " +
+                        "It's a real call from Cara, not a preview of one.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Spacer(Modifier.height(CareDimens.SpaceMd))
                 CarePrimaryButton(
-                    text = "Simulate Cara calling",
+                    text = "Have Cara call me now",
                     icon = Icons.Rounded.PhoneInTalk,
                     onClick = { context.startIncomingCallDemo() },
                 )
@@ -211,5 +214,12 @@ private fun greeting(): String {
 @Preview(showBackground = true, widthDp = 400, heightDp = 900)
 @Composable
 private fun HomePreview() {
+    CareLoopTheme { HomeScreen() }
+}
+
+/** Confirms the greeting, status card, and refill card survive 200% scale. */
+@PreviewFontScale
+@Composable
+private fun HomeFontScalePreview() {
     CareLoopTheme { HomeScreen() }
 }

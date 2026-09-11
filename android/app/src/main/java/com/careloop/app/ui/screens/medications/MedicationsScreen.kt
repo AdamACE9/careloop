@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -37,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.PreviewFontScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.careloop.app.data.mock.MockData
@@ -45,6 +48,7 @@ import com.careloop.app.data.model.Medication
 import com.careloop.app.di.AppContainer
 import com.careloop.app.ui.components.CareCard
 import com.careloop.app.ui.components.CarePrimaryButton
+import com.careloop.app.ui.components.CareTipCallout
 import com.careloop.app.ui.components.StatusPill
 import com.careloop.app.ui.theme.CareColors
 import com.careloop.app.ui.theme.CareDimens
@@ -70,8 +74,8 @@ import java.util.Locale
  *    that treats every medication the same defeats the point, and one that treats the
  *    critical one as an emergency terrifies someone for no reason.
  *
- * TODO(backend): [onMedicationClick] should navigate to a medication detail screen (full
- * interaction history, edit dose, etc.) once that screen exists. Not built yet.
+ * [onMedicationClick] opens [com.careloop.app.ui.screens.medications.MedicationDetailScreen] —
+ * wired in [com.careloop.app.ui.navigation.CareLoopNavigation].
  */
 @Composable
 fun MedicationsScreen(
@@ -148,6 +152,7 @@ fun MedicationsScreen(
  * take a few days") rather than a bare countdown, because a number alone reads as a
  * deadline and a reason reads as help.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun RefillPlanningCard(
     medications: List<Medication>,
@@ -184,16 +189,18 @@ private fun RefillPlanningCard(
             )
             Spacer(Modifier.height(CareDimens.SpaceMd))
             medications.forEach { medication ->
-                Row(
+                // FlowRow, not Row: "Ferrous sulfate" plus "9 days left" side by side can
+                // outgrow the card width at 200% font scale, and Row does not wrap onto a
+                // second line on its own — it lets the second Text run off the edge instead.
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(CareDimens.SpaceSm),
                 ) {
                     Text(
                         medication.name,
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
-                    Spacer(Modifier.width(CareDimens.SpaceSm))
                     Text(
                         "· ${medication.daysOfSupplyRemaining} days left",
                         style = MaterialTheme.typography.bodyMedium,
@@ -279,42 +286,28 @@ private fun MedicationCard(
         // Food guidance — surfaced as a tip from Cara, not a warning. The copy in MockData
         // already explains the mechanism ("calcium and iron compete...") rather than just
         // saying "avoid", so this block only needs to present it clearly, not dramatise it.
+        // CareTipCallout, not a bespoke block: MedicationDetailScreen shows the exact same
+        // guidance and must render it identically, or it reads as two different facts.
         val foodGuidance = medication.foodGuidance
         if (foodGuidance != null) {
             Spacer(Modifier.height(CareDimens.SpaceMd))
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(CareDimens.SpaceMd))
-                    .padding(CareDimens.SpaceMd),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Outlined.Restaurant,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp),
-                    )
-                    Spacer(Modifier.width(CareDimens.SpaceSm))
-                    Text(
-                        "A tip from Cara",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Spacer(Modifier.height(CareDimens.SpaceSm))
-                Text(
-                    foodGuidance,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-            }
+            CareTipCallout(
+                icon = Icons.Outlined.Restaurant,
+                label = "A tip from Cara",
+                text = foodGuidance,
+            )
         }
     }
 }
 
-/** How each criticality level should read to Margaret — care and attention, not risk. */
-private data class CriticalityPresentation(
+/**
+ * How each criticality level should read to Margaret — care and attention, not risk.
+ *
+ * Internal, not private: [com.careloop.app.ui.screens.medications.MedicationDetailScreen]
+ * needs the exact same mapping so a medication's criticality reads identically on the list
+ * and the detail screen.
+ */
+internal data class CriticalityPresentation(
     val text: String,
     val icon: ImageVector,
     val contentColor: Color,
@@ -327,7 +320,7 @@ private data class CriticalityPresentation(
  * [CareColors.Concern] here would say the opposite of what we mean, so critical medications
  * get Cara's own gold instead of a semantic warning colour.
  */
-private fun criticalityPresentation(criticality: Criticality): CriticalityPresentation = when (criticality) {
+internal fun criticalityPresentation(criticality: Criticality): CriticalityPresentation = when (criticality) {
     Criticality.CRITICAL -> CriticalityPresentation(
         text = "Cara watches this one closely",
         icon = Icons.Outlined.Info,
@@ -354,11 +347,15 @@ private fun criticalityPresentation(criticality: Criticality): CriticalityPresen
     )
 }
 
-private val scheduleTimeFormatter: DateTimeFormatter =
+internal val scheduleTimeFormatter: DateTimeFormatter =
     DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault())
 
-/** "Taken at 9:00 AM" or "Taken at 9:00 AM and 7:00 PM" — never a bare list of times. */
-private fun scheduleText(times: List<LocalTime>): String {
+/**
+ * "Taken at 9:00 AM" or "Taken at 9:00 AM and 7:00 PM" — never a bare list of times.
+ * Internal so [com.careloop.app.ui.screens.medications.MedicationDetailScreen] reads a
+ * medication's schedule in exactly the same words as this list does.
+ */
+internal fun scheduleText(times: List<LocalTime>): String {
     val formatted = times.sorted().map { it.format(scheduleTimeFormatter) }
     val joined = when (formatted.size) {
         0 -> return "No scheduled time set"
@@ -395,5 +392,14 @@ private fun MedicationCardPreview() {
         Column(modifier = Modifier.padding(CareDimens.SpaceLg)) {
             MedicationCard(medication = MockData.warfarin, onClick = {})
         }
+    }
+}
+
+/** Confirms the refill card's FlowRow and every card's text actually survive 200% scale. */
+@PreviewFontScale
+@Composable
+private fun MedicationsScreenFontScalePreview() {
+    CareLoopTheme(darkTheme = false) {
+        MedicationsScreen()
     }
 }

@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -42,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.PreviewFontScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.careloop.app.data.mock.MockData
@@ -243,6 +246,7 @@ private fun WhatISharedScreenContent(
  * `remember(item.id)`, so each item's in-progress note survives recomposition but never
  * leaks into another item's state.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SharedItemCard(
     item: SharedItem,
@@ -260,23 +264,28 @@ private fun SharedItemCard(
     ) {
         Column(modifier = Modifier.padding(CareDimens.SpaceLg)) {
             // Category + when, both plain text/icon — never colour standing alone for meaning.
-            Row(
+            // FlowRow, not Row: the icon plus two label strings can outgrow the card width
+            // at 200% font scale, and a plain Row would let "· Today, 9:04 AM" run off the
+            // edge rather than wrap onto its own line.
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(CareDimens.SpaceSm),
+                verticalArrangement = Arrangement.spacedBy(CareDimens.SpaceXs),
             ) {
-                Icon(
-                    item.category.icon(),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp),
-                )
-                Spacer(Modifier.width(CareDimens.SpaceSm))
-                Text(
-                    text = item.category.label,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.width(CareDimens.SpaceSm))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        item.category.icon(),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Spacer(Modifier.width(CareDimens.SpaceSm))
+                    Text(
+                        text = item.category.label,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Text(
                     text = "· ${formatSharedAt(item.sharedAt)}",
                     style = MaterialTheme.typography.labelMedium,
@@ -605,6 +614,21 @@ private fun formatHoldUntil(dateTime: LocalDateTime?): String {
 @Preview(showBackground = true, widthDp = 400, heightDp = 1200)
 @Composable
 private fun WhatISharedScreenPreview() {
+    CareLoopTheme {
+        WhatISharedScreenContent(
+            sharedItems = MockData.sharedItems,
+            preferences = MockData.sharingPreferences,
+            onRespond = { _, _, _ -> },
+            onToggleCategory = { _, _ -> },
+            onTogglePrivacyHold = {},
+        )
+    }
+}
+
+/** Confirms the feed's category/time FlowRow survives 200% scale. */
+@PreviewFontScale
+@Composable
+private fun WhatISharedScreenFontScalePreview() {
     CareLoopTheme {
         WhatISharedScreenContent(
             sharedItems = MockData.sharedItems,

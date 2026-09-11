@@ -2,6 +2,8 @@ package com.careloop.app.ui.screens.history
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -32,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.PreviewFontScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.careloop.app.data.mock.MockData
@@ -155,6 +158,7 @@ private fun HistoryScreenContent(
  * everything here: Margaret should read this row and think "Cara kept Sarah in the loop",
  * never "I got reported."
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CheckInRow(
     checkIn: CheckIn,
@@ -180,15 +184,17 @@ private fun CheckInRow(
             Spacer(Modifier.width(CareDimens.SpaceMd))
 
             Column(modifier = Modifier.fillMaxWidth()) {
-                Row(
+                // FlowRow, not Row: "9:02 AM" and "1 min 18 sec" both grow at 200% font
+                // scale, and a plain Row would let the duration run past the card edge
+                // rather than drop to its own line.
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(CareDimens.SpaceSm),
                 ) {
                     Text(
                         text = formatCallTime(checkIn.startedAt),
                         style = MaterialTheme.typography.titleMedium,
                     )
-                    Spacer(Modifier.width(CareDimens.SpaceSm))
                     Text(
                         text = "· ${formatCallDuration(checkIn.durationSeconds)}",
                         style = MaterialTheme.typography.labelMedium,
@@ -331,6 +337,19 @@ private fun formatCallDuration(totalSeconds: Int): String {
 @Preview(showBackground = true, widthDp = 400, heightDp = 900)
 @Composable
 private fun HistoryScreenPreview() {
+    CareLoopTheme {
+        HistoryScreenContent(
+            checkIns = MockData.checkIns,
+            today = LocalDate.now(),
+            onCheckInClick = {},
+        )
+    }
+}
+
+/** Confirms the call-time/duration FlowRow survives 200% scale. */
+@PreviewFontScale
+@Composable
+private fun HistoryScreenFontScalePreview() {
     CareLoopTheme {
         HistoryScreenContent(
             checkIns = MockData.checkIns,

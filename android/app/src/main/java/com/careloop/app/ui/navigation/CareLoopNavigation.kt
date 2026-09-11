@@ -14,12 +14,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.careloop.app.ui.screens.history.HistoryScreen
 import com.careloop.app.ui.screens.home.HomeScreen
+import com.careloop.app.ui.screens.medications.MedicationDetailScreen
 import com.careloop.app.ui.screens.medications.MedicationsScreen
 import com.careloop.app.ui.screens.settings.SettingsScreen
 import com.careloop.app.ui.screens.sharing.WhatISharedScreen
@@ -51,6 +54,7 @@ sealed class Destination(
     companion object {
         val bottomBar = listOf(Home, Medications, Vitals, History, Settings)
         const val WHAT_I_SHARED = "what_i_shared"
+        const val MEDICATION_DETAIL = "medication_detail"
     }
 }
 
@@ -92,7 +96,24 @@ fun CareLoopApp(
         ) {
             composable(Destination.Home.route) { HomeScreen() }
 
-            composable(Destination.Medications.route) { MedicationsScreen() }
+            composable(Destination.Medications.route) {
+                MedicationsScreen(
+                    onMedicationClick = { medicationId ->
+                        navController.navigate("${Destination.MEDICATION_DETAIL}/$medicationId")
+                    },
+                )
+            }
+
+            composable(
+                route = "${Destination.MEDICATION_DETAIL}/{medicationId}",
+                arguments = listOf(navArgument("medicationId") { type = NavType.StringType }),
+            ) { entry ->
+                val medicationId = entry.arguments?.getString("medicationId").orEmpty()
+                MedicationDetailScreen(
+                    medicationId = medicationId,
+                    onBack = { navController.popBackStack() },
+                )
+            }
 
             composable(Destination.Vitals.route) { VitalsScreen() }
 

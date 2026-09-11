@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,12 +16,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Phone
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -40,9 +44,13 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.PreviewFontScale
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.careloop.app.data.mock.MockData
+import com.careloop.app.data.model.CheckIn
+import com.careloop.app.data.model.CheckInStatus
 import com.careloop.app.data.model.VitalReading
 import com.careloop.app.data.model.VitalType
 import com.careloop.app.di.AppContainer
@@ -55,6 +63,8 @@ import com.careloop.app.ui.theme.CareColors
 import com.careloop.app.ui.theme.CareDimens
 import com.careloop.app.ui.theme.CareLoopTheme
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle
+import java.util.Locale
 import kotlin.math.ceil
 import kotlin.math.floor
 
@@ -86,9 +96,16 @@ fun VitalsScreen(
         .observeVitals(VitalType.BLOOD_SUGAR)
         .collectAsStateWithLifecycle(initialValue = MockData.bloodSugarReadings)
 
+    // Check-ins double as the adherence record here — each one already carries a day's
+    // COMPLETED/MISSED_DOSE/NO_ANSWER/ESCALATED status, so the dot-per-day strip below reads
+    // it directly rather than the screen inventing a second, parallel adherence field.
+    val checkIns by AppContainer.repository.observeCheckIns()
+        .collectAsStateWithLifecycle(initialValue = MockData.checkIns)
+
     VitalsScreenContent(
         bloodSugarReadings = bloodSugarReadings,
         bloodPressureReadings = MockData.bloodPressureReadings,
+        checkIns = checkIns,
         onRecordReading = {
             // TODO(backend): open a manual vitals-entry sheet and write the result through
             // the repository. In the shipped product Cara asks for this reading out loud
@@ -107,6 +124,7 @@ fun VitalsScreen(
 private fun VitalsScreenContent(
     bloodSugarReadings: List<VitalReading>,
     bloodPressureReadings: List<VitalReading>,
+    checkIns: List<CheckIn>,
     onRecordReading: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -157,6 +175,18 @@ private fun VitalsScreenContent(
 
         Spacer(Modifier.height(CareDimens.SpaceXl))
 
+        SectionHeader(
+            title = "Taking your medications, day by day",
+            subtitle = "Your last week, at a glance.",
+        )
+        CareCard {
+            AdherenceStrip(checkIns = checkIns)
+            Spacer(Modifier.height(CareDimens.SpaceLg))
+            AdherenceLegend()
+        }
+
+        Spacer(Modifier.height(CareDimens.SpaceXl))
+
         SectionHeader(title = "Your blood pressure")
         CareCard {
             bloodPressureReadings
@@ -187,6 +217,7 @@ private fun VitalsScreenContent(
 
 private val recordedAtFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("h:mm a")
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun TodayReadingCard(
     reading: VitalReading,
@@ -203,12 +234,17 @@ private fun TodayReadingCard(
 
         Spacer(Modifier.height(CareDimens.SpaceSm))
 
-        Row(verticalAlignment = Alignment.Bottom) {
+        // FlowRow, not Row: the big display-scale number and its unit sit comfortably on
+        // one line at normal text size, but displayMedium at 200% scale can push the unit
+        // past the card edge, where a plain Row would just let it run off rather than wrap.
+        FlowRow(
+            verticalArrangement = Arrangement.spacedBy(CareDimens.SpaceXs),
+            horizontalArrangement = Arrangement.spacedBy(CareDimens.SpaceSm),
+        ) {
             Text(
                 text = reading.display,
                 style = MaterialTheme.typography.displayMedium,
             )
-            Spacer(Modifier.width(CareDimens.SpaceSm))
             Text(
                 text = VitalType.BLOOD_SUGAR.unit,
                 style = MaterialTheme.typography.titleMedium,
@@ -610,6 +646,111 @@ private fun DiamondSwatch(modifier: Modifier = Modifier) {
 }
 
 // ---------------------------------------------------------------------------
+// Adherence, day by day
+// ---------------------------------------------------------------------------
+//
+// A dot-per-day strip, not a donut. Stacked/donut/radial charts are the shapes research on
+// this cohort is clearest are BAD — a ring of taken/missed segments asks the reader to judge
+// arc lengths, which is exactly the comparison older eyes do worst at. A row of one dot per
+// day is closer to a calendar than a chart, and it reuses [CheckIn.status], which already
+// exists per day, rather than inventing a second adherence field the reasoning engine would
+// have to keep in sync with.
+
+/** One glyph + colour per day, reused by both the strip's dots and the legend's swatches. */
+private data class AdherenceDotStyle(
+    val icon: ImageVector,
+    val tint: Color,
+    val container: Color,
+)
+
+/**
+ * [CheckInStatus.ESCALATED] reads the same as [CheckInStatus.MISSED_DOSE] here on purpose —
+ * both mean "a dose needed attention that day" — the strip is not the place to relitigate
+ * the warmer "Cara let Sarah know" framing [HistoryScreen] uses; that distinction belongs to
+ * the call record, not a glance-sized dot.
+ */
+private fun adherenceDotStyle(status: CheckInStatus): AdherenceDotStyle = when (status) {
+    CheckInStatus.COMPLETED -> AdherenceDotStyle(Icons.Rounded.CheckCircle, CareColors.Good, CareColors.GoodSurface)
+    CheckInStatus.MISSED_DOSE -> AdherenceDotStyle(Icons.Rounded.Info, CareColors.Concern, CareColors.ConcernSurface)
+    CheckInStatus.ESCALATED -> AdherenceDotStyle(Icons.Rounded.Info, CareColors.Concern, CareColors.ConcernSurface)
+    CheckInStatus.NO_ANSWER -> AdherenceDotStyle(Icons.Rounded.Phone, CareColors.Slate, CareColors.Cloud)
+}
+
+@Composable
+private fun AdherenceDotIcon(status: CheckInStatus, size: Dp, modifier: Modifier = Modifier) {
+    val style = adherenceDotStyle(status)
+    Box(
+        modifier = modifier
+            .size(size)
+            .background(style.container, CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            style.icon,
+            contentDescription = null,
+            tint = style.tint,
+            modifier = Modifier.size(size * 0.55f),
+        )
+    }
+}
+
+private val dayLabelFormatter: TextStyle = TextStyle.SHORT
+
+@Composable
+private fun AdherenceDay(checkIn: CheckIn, modifier: Modifier = Modifier) {
+    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        AdherenceDotIcon(status = checkIn.status, size = 40.dp)
+        Spacer(Modifier.height(CareDimens.SpaceXs))
+        Text(
+            text = checkIn.startedAt.dayOfWeek.getDisplayName(dayLabelFormatter, Locale.getDefault()),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * The most recent seven check-ins, oldest first, so the strip reads left-to-right like a
+ * week on a calendar rather than most-recent-first like [HistoryScreen]'s list.
+ */
+@Composable
+private fun AdherenceStrip(checkIns: List<CheckIn>, modifier: Modifier = Modifier) {
+    val lastWeek = checkIns.sortedByDescending { it.startedAt }.take(7).sortedBy { it.startedAt }
+
+    if (lastWeek.isEmpty()) {
+        Text(
+            text = "Cara's first check-in will show up here.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
+
+    Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        lastWeek.forEach { checkIn -> AdherenceDay(checkIn) }
+    }
+}
+
+/**
+ * [FlowRow], not [Row]: three labelled entries side by side fit at normal text size but not
+ * at 200%, where a plain [Row] would let "No answer" run past the card edge instead of
+ * wrapping onto its own line.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AdherenceLegend(modifier: Modifier = Modifier) {
+    FlowRow(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(CareDimens.SpaceLg),
+        verticalArrangement = Arrangement.spacedBy(CareDimens.SpaceSm),
+    ) {
+        LegendRow(swatch = { AdherenceDotIcon(CheckInStatus.COMPLETED, size = 18.dp) }, label = "Taken")
+        LegendRow(swatch = { AdherenceDotIcon(CheckInStatus.MISSED_DOSE, size = 18.dp) }, label = "Missed")
+        LegendRow(swatch = { AdherenceDotIcon(CheckInStatus.NO_ANSWER, size = 18.dp) }, label = "No answer")
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Blood pressure list
 // ---------------------------------------------------------------------------
 
@@ -668,6 +809,7 @@ private fun VitalsScreenPreview() {
         VitalsScreenContent(
             bloodSugarReadings = MockData.bloodSugarReadings,
             bloodPressureReadings = MockData.bloodPressureReadings,
+            checkIns = MockData.checkIns,
             onRecordReading = {},
         )
     }
@@ -680,6 +822,21 @@ private fun VitalsScreenDarkPreview() {
         VitalsScreenContent(
             bloodSugarReadings = MockData.bloodSugarReadings,
             bloodPressureReadings = MockData.bloodPressureReadings,
+            checkIns = MockData.checkIns,
+            onRecordReading = {},
+        )
+    }
+}
+
+/** Confirms the adherence strip's legend and the today-reading FlowRow survive 200% scale. */
+@PreviewFontScale
+@Composable
+private fun VitalsScreenFontScalePreview() {
+    CareLoopTheme(darkTheme = false) {
+        VitalsScreenContent(
+            bloodSugarReadings = MockData.bloodSugarReadings,
+            bloodPressureReadings = MockData.bloodPressureReadings,
+            checkIns = MockData.checkIns,
             onRecordReading = {},
         )
     }

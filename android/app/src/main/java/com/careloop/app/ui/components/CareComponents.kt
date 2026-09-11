@@ -185,6 +185,51 @@ fun SectionHeader(
 }
 
 /**
+ * A short tip in Cara's voice, e.g. food guidance under a medication.
+ *
+ * Pulled out from [com.careloop.app.ui.screens.medications.MedicationsScreen] because the
+ * medication detail screen (see [com.careloop.app.ui.screens.medications.MedicationDetailScreen])
+ * needs the exact same presentation for the exact same data — a tip should look identical
+ * whether Margaret meets it on the list or the detail screen, or it reads as two different
+ * facts rather than one.
+ */
+@Composable
+fun CareTipCallout(
+    icon: ImageVector,
+    label: String,
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(CareDimens.SpaceMd))
+            .padding(CareDimens.SpaceMd),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+            Spacer(Modifier.width(CareDimens.SpaceSm))
+            Text(
+                label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.height(CareDimens.SpaceSm))
+        Text(
+            text,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}
+
+/**
  * Empty state. Elder-facing empty states must say what will happen next, not just that
  * nothing is here — "nothing yet" is unsettling when you are unsure whether you have
  * broken something.
