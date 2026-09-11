@@ -107,11 +107,12 @@ class GeminiLiveClient(
     /**
      * Opens the session.
      *
-     * @param systemInstruction Cara's persona, built server-side from the
-     *   patient's real medication list so she knows what to ask about.
+     * Everything that shapes Cara's behaviour travels on [token]: her persona,
+     * her tool declarations and her voice are all built server-side. Nothing
+     * about who she is lives in this file.
      */
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
-    fun connect(token: LiveSessionToken, systemInstruction: String) {
+    fun connect(token: LiveSessionToken) {
         _connectionState.value = ConnectionState.CONNECTING
         sessionStartedAt = System.currentTimeMillis()
 
@@ -128,7 +129,7 @@ class GeminiLiveClient(
                 Log.d(TAG, "Live session open")
                 _connectionState.value = ConnectionState.CONNECTED
                 reconnectAttempts = 0
-                sendSetup(webSocket, token.model, systemInstruction)
+                sendSetup(webSocket, token)
                 startCapturing(webSocket)
             }
 
@@ -156,7 +157,7 @@ class GeminiLiveClient(
                 // response body from the API can echo back request content.
                 Log.w(TAG, "Live session failed (code ${response?.code ?: -1})")
                 stopCapturing()
-                handleFailure(token, systemInstruction)
+                handleFailure(token)
             }
         })
     }
@@ -172,7 +173,7 @@ class GeminiLiveClient(
      * Conversation context is lost across a reconnect. That is a real limitation,
      * and the UI marks the seam rather than pretending it did not happen.
      */
-    private fun handleFailure(token: LiveSessionToken, systemInstruction: String) {
+    private fun handleFailure(token: LiveSessionToken) {
         if (reconnectAttempts >= MAX_RECONNECTS) {
             _connectionState.value = ConnectionState.FAILED
             return
@@ -189,7 +190,7 @@ class GeminiLiveClient(
         scope.launch {
             kotlinx.coroutines.delay(RECONNECT_BACKOFF_MS * reconnectAttempts)
             @SuppressLint("MissingPermission")
-            if (scope.isActive) connect(token, systemInstruction)
+            if (scope.isActive) connect(token)
         }
     }
 
@@ -215,24 +216,35 @@ class GeminiLiveClient(
      * it. Declares the model, Cara's persona, her voice, and the tools she may
      * call.
      */
-    private fun sendSetup(socket: WebSocket, model: String, systemInstruction: String) {
+    private fun sendSetup(socket: WebSocket, token: LiveSessionToken) {
+        // Forwarded verbatim. If the server sent nothing usable we fall back to
+        // the local declarations, so a persona-less session still has hands.
+        val tools = runCatching { JSONArray(token.toolsJson) }
+            .getOrNull()
+            ?.takeIf { it.length() > 0 }
+            ?: buildToolDeclarations()
+
         val setup = JSONObject().apply {
             put("setup", JSONObject().apply {
-                put("model", "models/$model")
+                put("model", "models/${token.model}")
                 put("generationConfig", JSONObject().apply {
                     put("responseModalities", JSONArray().put("AUDIO"))
                     put("speechConfig", JSONObject().apply {
+                        put("languageCode", token.languageCode)
                         put("voiceConfig", JSONObject().apply {
                             put("prebuiltVoiceConfig", JSONObject().apply {
-                                put("voiceName", CARA_VOICE)
+                                put("voiceName", token.voiceName)
                             })
                         })
                     })
                 })
                 put("systemInstruction", JSONObject().apply {
-                    put("parts", JSONArray().put(JSONObject().put("text", systemInstruction)))
+                    put(
+                        "parts",
+                        JSONArray().put(JSONObject().put("text", token.systemInstruction)),
+                    )
                 })
-                put("tools", buildToolDeclarations())
+                put("tools", tools)
                 // Ask for both sides of the conversation as text. This is what
                 // populates the on-screen transcript, and what gets summarised and
                 // stored afterwards. Raw audio is never persisted.

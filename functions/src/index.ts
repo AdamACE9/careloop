@@ -322,6 +322,82 @@ export const reportCallOutcome = onCall(async (request: CallableRequest) => {
  * the nagging behaviour the prompt tells her to avoid, and 365 would mean the
  * thread is never seen again.
  */
+/**
+ * Cara escalating in the moment, mid-call.
+ *
+ * Everything else the agent reports goes through the reasoning engine at the end
+ * of a call, which is right for patterns and wrong for chest pain. This path is
+ * deliberately immediate and deliberately unscored: there is no threshold to
+ * weigh, because the model has already been told to say "call 999 first" out
+ * loud before it calls this.
+ *
+ * It writes the escalation and the elder's own copy in one batch, like every
+ * other escalation, because an alert the family can see and the person cannot is
+ * the asymmetry this product exists to avoid.
+ */
+export const reportUrgentConcern = onCall(async (request: CallableRequest) => {
+  const caller = requireAuth(request);
+  const patientId = requireString(request.data?.patientId, 'patientId', { max: 128 });
+  const description = requireString(request.data?.whatTheyDescribed, 'whatTheyDescribed', {
+    max: 500,
+  });
+
+  requirePatientSelf(caller, patientId);
+  await enforceRateLimit(`urgent:${caller.uid}`, { limit: 5, windowSeconds: 3600 });
+
+  const patient = await loadPatient(patientId);
+  const name = patient.profile.preferredName;
+  const now = new Date().toISOString();
+
+  const escalationRef = db().collection(`patients/${patientId}/escalations`).doc();
+  const escalation: EscalationDoc = {
+    raisedAt: now,
+    severity: 'urgent',
+    headline: `${name} described something that needs attention now`,
+    explanation:
+      `During today's call ${name} described: "${description}". I told them to contact ` +
+      'emergency services first, and I am telling you straight away rather than waiting ' +
+      'for the end of the day. I have not assessed this and I am not able to.',
+    reasoning: [
+      {
+        observation: 'Described a symptom during the call that I am not able to assess',
+        evidence: description,
+        checkInId: null,
+      },
+    ],
+    confidence: 'high',
+    alternativesConsidered: [
+      'Waiting for the end-of-call summary, which would have delayed this by minutes',
+    ],
+    relatedMedication: null,
+    concernScore: 99,
+    elderResponse: 'not_yet_seen',
+    elderNote: null,
+    elderRespondedAt: null,
+    acknowledged: false,
+    acknowledgedAt: null,
+  };
+
+  const sharedRef = db().collection(`patients/${patientId}/sharedItems`).doc();
+  const shared: SharedItemDoc = {
+    sharedAt: now,
+    category: 'confusion',
+    whatCaraSaid: `I let your family know straight away that you mentioned: "${description}".`,
+    escalationId: escalationRef.id,
+    elderResponse: 'not_yet_seen',
+    elderNote: null,
+    elderRespondedAt: null,
+  };
+
+  const batch = db().batch();
+  batch.set(escalationRef, escalation);
+  batch.set(sharedRef, shared);
+  await batch.commit();
+
+  logEvent('agent.urgent_reported', { patientHash: hashId(patientId) });
+  return { escalationId: escalationRef.id };
+});
+
 export const rememberForNextTime = onCall(async (request: CallableRequest) => {
   const caller = requireAuth(request);
   const patientId = requireString(request.data?.patientId, 'patientId', { max: 128 });

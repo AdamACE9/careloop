@@ -194,6 +194,21 @@ class MockCareLoopRepository : CareLoopRepository {
         return Result.failure(IllegalStateException("DEMO_MODE"))
     }
 
+    // Cara's own tool calls. In demo mode these succeed silently: the scripted
+    // call never invokes them, and returning a failure would make a future caller
+    // think something had gone wrong when nothing had.
+    override suspend fun reportUrgentConcern(whatTheyDescribed: String): Result<Unit> =
+        Result.success(Unit)
+
+    override suspend fun rememberForNextTime(
+        topic: String,
+        why: String,
+        followUpInDays: Int,
+    ): Result<Unit> = Result.success(Unit)
+
+    override suspend fun closeOpenThread(topic: String, whatHappened: String): Result<Unit> =
+        Result.success(Unit)
+
     /** Demo helper: appends a completed check-in so the history visibly grows on stage. */
     fun appendDemoCheckIn(checkIn: CheckIn) {
         checkInsState.value = (listOf(checkIn) + checkInsState.value)

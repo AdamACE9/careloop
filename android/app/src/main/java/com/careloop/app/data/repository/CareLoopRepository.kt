@@ -89,6 +89,24 @@ interface CareLoopRepository {
 
     /** Mints a short-lived token for a direct Gemini Live connection. */
     suspend fun mintLiveSessionToken(): Result<LiveSessionToken>
+
+    /**
+     * Cara escalating in the moment rather than at the end of the call.
+     *
+     * Separate from [submitCheckIn] on purpose: the reasoning engine is right for
+     * patterns and wrong for chest pain.
+     */
+    suspend fun reportUrgentConcern(whatTheyDescribed: String): Result<Unit>
+
+    /** Cara noting something to raise on a future call. */
+    suspend fun rememberForNextTime(
+        topic: String,
+        why: String,
+        followUpInDays: Int,
+    ): Result<Unit>
+
+    /** Cara closing something she had been following up on. */
+    suspend fun closeOpenThread(topic: String, whatHappened: String): Result<Unit>
 }
 
 // -----------------------------------------------------------------------------
@@ -134,4 +152,23 @@ data class LiveSessionToken(
     val expiresAtEpochMillis: Long,
     val model: String,
     val wsHost: String,
+    /**
+     * Cara's persona, built server-side from this person's real medication list
+     * and whatever she left open on earlier calls.
+     *
+     * Carried with the token rather than compiled into the app. It is
+     * per-session data, and the prompt is the product's actual behaviour, so
+     * baking it into an APK would mean every wording change waits on a release.
+     */
+    val systemInstruction: String,
+    /**
+     * Tool declarations as raw JSON, passed through to the setup frame verbatim.
+     *
+     * A string rather than a parsed type deliberately: this is the server's
+     * contract with Gemini, and re-modelling it here is how the two drift apart.
+     * The client's job is to forward it, not to have an opinion about it.
+     */
+    val toolsJson: String,
+    val voiceName: String,
+    val languageCode: String,
 )

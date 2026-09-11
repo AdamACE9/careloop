@@ -18,6 +18,7 @@ import kotlinx.coroutines.tasks.await
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import org.json.JSONArray
 
 /**
  * Firestore-backed implementation.
@@ -277,8 +278,49 @@ class FirebaseCareLoopRepository(
                     ?: (System.currentTimeMillis() + 10 * 60_000),
                 model = data["model"] as? String ?: "",
                 wsHost = data["wsHost"] as? String ?: "generativelanguage.googleapis.com",
+                systemInstruction = data["systemInstruction"] as? String ?: "",
+                // Re-serialised rather than re-modelled. The callable hands back
+                // decoded maps and lists; Gemini wants the original JSON shape,
+                // and JSONArray(List) reproduces it faithfully without this file
+                // needing to know a single field name inside it.
+                toolsJson = (data["tools"] as? List<*>)
+                    ?.let { runCatching { JSONArray(it).toString() }.getOrNull() }
+                    ?: "[]",
+                voiceName = (data["voice"] as? Map<*, *>)?.get("voiceName") as? String ?: "Aoede",
+                languageCode = (data["voice"] as? Map<*, *>)?.get("languageCode") as? String
+                    ?: "en-GB",
             )
         }
+
+    override suspend fun reportUrgentConcern(whatTheyDescribed: String): Result<Unit> =
+        callFunction("reportUrgentConcern") {
+            mapOf(
+                "patientId" to requireUid(),
+                "whatTheyDescribed" to whatTheyDescribed,
+            )
+        }.map { }
+
+    override suspend fun rememberForNextTime(
+        topic: String,
+        why: String,
+        followUpInDays: Int,
+    ): Result<Unit> = callFunction("rememberForNextTime") {
+        mapOf(
+            "patientId" to requireUid(),
+            "topic" to topic,
+            "why" to why,
+            "followUpInDays" to followUpInDays,
+        )
+    }.map { }
+
+    override suspend fun closeOpenThread(topic: String, whatHappened: String): Result<Unit> =
+        callFunction("closeOpenThread") {
+            mapOf(
+                "patientId" to requireUid(),
+                "topic" to topic,
+                "whatHappened" to whatHappened,
+            )
+        }.map { }
 
     // =========================================================================
     // Plumbing

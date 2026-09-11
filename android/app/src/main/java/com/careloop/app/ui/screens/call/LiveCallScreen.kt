@@ -1,5 +1,14 @@
 package com.careloop.app.ui.screens.call
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.careloop.app.di.AppContainer
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -28,7 +37,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.careloop.app.data.mock.MockData
 import com.careloop.app.data.model.*
 import com.careloop.app.ui.components.LoopMark
 import com.careloop.app.ui.theme.CareColors
@@ -52,38 +60,48 @@ import kotlinx.coroutines.delay
  * 3. **The transcript is live**, so a judge watching over a shoulder can follow exactly
  *    what was said and when the agent acted on it.
  *
- * Tonight this plays [MockData] on a timer. The structure is deliberately the same shape a
- * real Gemini Live session would drive, so wiring the socket later replaces the timer and
- * nothing else.
- *
- * TODO(backend): replace [ScriptedCallPlayer] with a Gemini Live WebSocket session.
- *   - Stream mic audio up as 16-bit PCM; play received audio through AudioTrack.
- *   - Map partial transcripts onto [TranscriptLine] and append as they arrive.
- *   - Register `check_drug_interaction` as an async function call; when the model invokes
- *     it, set activity to [CaraActivity.CHECKING] and surface the result as an
- *     [InteractionAlert] exactly as the mock does here.
- *   - Handle reconnects with backoff: a dropped socket mid-call must not end the call
- *     silently. Verify current Gemini Live socket stability before relying on it.
+ * All of the state on this screen now comes from [LiveCallViewModel], which drives either a
+ * real Gemini Live session or the scripted fallback. This screen does not know or care which,
+ * with one deliberate exception: when the call is not real it says so, plainly, at the top.
+ * A demo that quietly presents itself as live is the one version of this screen worth
+ * refusing to build.
  */
 @Composable
 fun LiveCallScreen(
     onEndCall: () -> Unit,
     modifier: Modifier = Modifier,
+    viewModel: LiveCallViewModel = viewModel(
+        factory = LiveCallViewModel.factory(AppContainer.repository),
+    ),
 ) {
-    val script = remember { MockData.checkIns.first { it.id == "ci-2" }.transcript }
+    val context = LocalContext.current
 
-    var visibleLines by remember { mutableStateOf(listOf<TranscriptLine>()) }
-    var activity by remember { mutableStateOf(CaraActivity.SPEAKING) }
-    var elapsedSeconds by remember { mutableIntStateOf(0) }
-    var interaction by remember { mutableStateOf<DrugInteraction?>(null) }
+    val visibleLines by viewModel.transcript.collectAsStateWithLifecycle()
+    val activity by viewModel.activity.collectAsStateWithLifecycle()
+    val elapsedSeconds by viewModel.elapsedSeconds.collectAsStateWithLifecycle()
+    val interaction by viewModel.interaction.collectAsStateWithLifecycle()
+    val mode by viewModel.mode.collectAsStateWithLifecycle()
+    val statusNote by viewModel.statusNote.collectAsStateWithLifecycle()
 
-    ScriptedCallPlayer(
-        script = script,
-        onLine = { line -> visibleLines = visibleLines + line },
-        onActivityChange = { activity = it },
-        onInteractionFound = { interaction = it },
-        onTick = { elapsedSeconds = it },
-    )
+    // Asked here, at the moment it is needed, rather than at launch. Requesting
+    // the microphone during onboarding for a call that happens tomorrow is the
+    // pattern research consistently finds gets denied.
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted -> viewModel.start(granted) }
+
+    LaunchedEffect(Unit) {
+        val alreadyGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.RECORD_AUDIO,
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (alreadyGranted) {
+            viewModel.start(true)
+        } else {
+            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
 
     val listState = rememberLazyListState()
     LaunchedEffect(visibleLines.size) {
@@ -107,6 +125,12 @@ fun LiveCallScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(Modifier.height(CareDimens.SpaceLg))
+
+            // --- Is this a real call? ---
+            if (mode != LiveCallViewModel.Mode.LIVE) {
+                CallModeNotice(mode = mode, note = statusNote)
+                Spacer(Modifier.height(CareDimens.SpaceMd))
+            }
 
             // --- Cara, and what she is doing right now ---
             LoopMark(size = CareDimens.LoopMedium, activity = activity)
@@ -161,7 +185,7 @@ fun LiveCallScreen(
                         .size(CareDimens.CallActionSize)
                         .clip(CircleShape)
                         .background(Color(0xFFB3261E))
-                        .clickable(onClick = onEndCall),
+                        .clickable { viewModel.endCall(onEndCall) },
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
@@ -182,48 +206,53 @@ fun LiveCallScreen(
 }
 
 /**
- * Drives the scripted conversation.
+ * Says out loud when the call is not real.
  *
- * Playback is time-compressed against the real transcript offsets so a ~100-second call
- * demos in about 35 seconds, while keeping the *rhythm* of the original — the pauses land
- * where they actually landed, which is what makes it feel like a conversation rather than
- * text appearing on a timer.
+ * Deliberately readable rather than a subtle grey chip. The whole product rests
+ * on the person believing what it tells them, and a scripted call presented as a
+ * live one would be the single most damaging thing this screen could do.
  */
 @Composable
-private fun ScriptedCallPlayer(
-    script: List<TranscriptLine>,
-    onLine: (TranscriptLine) -> Unit,
-    onActivityChange: (CaraActivity) -> Unit,
-    onInteractionFound: (DrugInteraction) -> Unit,
-    onTick: (Int) -> Unit,
-) {
-    LaunchedEffect(script) {
-        val speedFactor = 0.35
-        var previousOffset = 0
+private fun CallModeNotice(mode: LiveCallViewModel.Mode, note: String?) {
+    val (label, tint) = when (mode) {
+        LiveCallViewModel.Mode.CONNECTING -> "Connecting to Cara" to CareColors.White
+        LiveCallViewModel.Mode.DEMO -> "Example call, not a real conversation" to CareColors.Yellow
+        LiveCallViewModel.Mode.FAILED -> "Could not reach Cara" to CareColors.Yellow
+        LiveCallViewModel.Mode.LIVE -> return
+    }
 
-        script.forEach { line ->
-            val gapMs = ((line.offsetSeconds - previousOffset) * 1000 * speedFactor).toLong()
-            previousOffset = line.offsetSeconds
-
-            // Show who is about to hold the floor before their words appear.
-            onActivityChange(
-                if (line.speaker == Speaker.CARA) CaraActivity.SPEAKING else CaraActivity.LISTENING
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(CareColors.White.copy(alpha = 0.09f))
+            .padding(CareDimens.SpaceMd),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Rounded.Info,
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(20.dp),
             )
-            delay(gapMs.coerceAtLeast(700L))
-
-            onLine(line)
-            onTick(line.offsetSeconds)
-
-            if (line.flag == TranscriptFlag.INTERACTION_CHECK) {
-                // The key beat: Margaret mentions ibuprofen. Cara starts checking it
-                // against her other medications *without pausing the conversation*.
-                onActivityChange(CaraActivity.CHECKING)
-                delay(1800)
-                onInteractionFound(MockData.warfarinIbuprofen)
-            }
+            Spacer(Modifier.width(CareDimens.SpaceSm))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleSmall,
+                color = tint,
+                fontWeight = FontWeight.SemiBold,
+            )
         }
 
-        onActivityChange(CaraActivity.LISTENING)
+        if (!note.isNullOrBlank()) {
+            Spacer(Modifier.height(CareDimens.SpaceXs))
+            Text(
+                text = note,
+                style = MaterialTheme.typography.bodyMedium,
+                color = CareColors.White.copy(alpha = 0.75f),
+            )
+        }
     }
 }
 
@@ -236,7 +265,9 @@ private fun TranscriptBubble(line: TranscriptLine) {
         horizontalAlignment = if (isCara) Alignment.Start else Alignment.End,
     ) {
         Text(
-            text = if (isCara) "Cara" else MockData.elder.preferredName,
+            // "You" rather than their own name. On their own screen, being
+            // addressed in the third person reads like a case file.
+            text = if (isCara) "Cara" else "You",
             style = MaterialTheme.typography.labelMedium,
             color = CareColors.White.copy(alpha = 0.5f),
         )
