@@ -46,9 +46,17 @@ export default function SiteHeader() {
 
   return (
     <motion.header
-      className="sticky top-0 z-50 backdrop-blur-md"
+      // Blur only once content is scrolling underneath. At rest the background is
+      // opaque, so the blur has nothing to sample and merely creates an extra
+      // compositing layer, which rendered as a visible lightening of the bar
+      // against an identically-coloured hero.
+      className={`sticky top-0 z-50 ${scrolled ? "backdrop-blur-md" : ""}`}
+      // Opaque at rest, translucent only once content is actually scrolling
+      // under it. At scroll 0 the header sits ABOVE the hero rather than over it,
+      // so what is behind it is the page's bone background: a translucent navy
+      // there tints cream, not navy, and the bar renders as washed-out grey.
       animate={{
-        backgroundColor: scrolled ? "rgba(15,26,56,0.92)" : "rgba(15,26,56,0.7)",
+        backgroundColor: scrolled ? "rgba(15,26,56,0.92)" : "rgba(15,26,56,1)",
         borderBottomColor: scrolled ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0)",
       }}
       transition={{ duration: 0.35 }}
