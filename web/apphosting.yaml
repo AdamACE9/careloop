@@ -1,0 +1,57 @@
+# Firebase App Hosting build and runtime config.
+#
+# These six values are the Firebase web config. They are PUBLISHABLE: a web
+# config is an address, not a credential, and who can read what is decided
+# entirely by firestore.rules. They are committed here rather than typed into
+# the console so that a rollout is reproducible from the repository alone.
+#
+# The Gemini key is NOT like this and is not here. It lives in Secret Manager
+# and is only ever read by Cloud Functions, never by the browser.
+#
+# availability: BUILD is required. Next.js inlines NEXT_PUBLIC_ variables at
+# build time, so a value present only at runtime arrives too late and the site
+# silently falls back to demo data.
+
+runConfig:
+  # A caretaker dashboard for a handful of households. One instance is ample,
+  # and a low ceiling is the cheapest protection against a runaway bill.
+  minInstances: 0
+  maxInstances: 2
+  concurrency: 80
+
+env:
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyDDu4TIz-YZNzjKCJ2mNEwtk0QSWCXYeB8
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: careloop-adam.firebaseapp.com
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: careloop-adam
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: careloop-adam.firebasestorage.app
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "741111121438"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: "1:741111121438:web:3a69c9dfd52290af9e500f"
+    availability:
+      - BUILD
+      - RUNTIME
