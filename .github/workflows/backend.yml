@@ -1,0 +1,41 @@
+name: Backend checks
+
+# The evaluation harness gates the backend the way tests gate anything else.
+# These are the invariants around an autonomous decision to contact someone's
+# family, so a regression here is not a style problem.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'functions/**'
+      - '.github/workflows/backend.yml'
+  pull_request:
+    paths:
+      - 'functions/**'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install
+        working-directory: functions
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: functions
+        run: npm run typecheck
+
+      - name: Evaluation harness
+        working-directory: functions
+        run: npm run eval
