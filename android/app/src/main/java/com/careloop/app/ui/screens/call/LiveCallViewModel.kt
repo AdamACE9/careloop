@@ -153,9 +153,19 @@ class LiveCallViewModel(
             live.activity.collect { _activity.value = it }
         }
         viewModelScope.launch {
-            live.transcript.collect { lines ->
-                _transcript.value = lines
+            live.transcript.collect { lines -> _transcript.value = lines }
+        }
+
+        // The clock ticks on its own.
+        //
+        // It used to advance only when a transcript line arrived, so a call
+        // where Cara spoke but no transcription came back sat frozen at 0:00
+        // while she was audibly talking. A timer that stops moving reads as a
+        // frozen app, which on a phone call is the moment people hang up.
+        viewModelScope.launch {
+            while (true) {
                 _elapsedSeconds.value = live.sessionDurationSeconds
+                delay(1000)
             }
         }
         viewModelScope.launch {
