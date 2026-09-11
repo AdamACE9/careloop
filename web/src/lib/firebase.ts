@@ -86,7 +86,7 @@ export function getFns(): Functions | null {
   const instance = ensureApp();
   if (!instance) return null;
   if (!functionsInstance) {
-    functionsInstance = getFunctions(instance, 'us-central1');
+    functionsInstance = getFunctions(instance, 'europe-west1');
     maybeConnectEmulators();
   }
   return functionsInstance;

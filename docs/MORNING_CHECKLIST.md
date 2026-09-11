@@ -66,7 +66,7 @@ the thing you want to hear about.
 All in the Firebase console, left sidebar.
 
 **a) Firestore Database** → Create database → **Production mode** → pick a
-location near you (`europe-west2` for London, `us-central1` otherwise).
+location near you. This project uses `eur3` (Europe multi-region), and the Cloud Functions region in `functions/src/lib/config.ts` is set to match it. If you pick a different location, change that constant and the two clients that name it.
 
 Production mode matters: test mode leaves the database world-readable for 30
 days, which for health data is not acceptable even briefly. The real rules are

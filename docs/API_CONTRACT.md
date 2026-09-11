@@ -101,7 +101,7 @@ Three things are load-bearing and worth restating:
 
 ## Callable functions
 
-All at region `us-central1`.
+All at region `europe-west1`, co-located with the eur3 Firestore instance. Clients must pass this region explicitly; the Android SDK defaults to us-central1 and will otherwise fail with a not-found that looks like a missing function.
 
 ### `registerDevice`
 

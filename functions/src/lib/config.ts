@@ -71,7 +71,27 @@ export const GEMINI_API_HOST = 'generativelanguage.googleapis.com';
 // Operational constants
 // -----------------------------------------------------------------------------
 
-export const REGION = 'us-central1';
+/**
+ * Where the functions run.
+ *
+ * europe-west1 because Firestore for this project is in the eur3 multi-region,
+ * and eur3 is served from europe-west1 and europe-west4. A function in
+ * us-central1 would make a transatlantic round trip for every read, and this
+ * backend reads Firestore on the critical path of a live phone call, where
+ * latency is the difference between Cara answering and Cara pausing.
+ *
+ * Changing this after a deploy does NOT move the old functions. They keep
+ * running in the old region until deleted explicitly, and the clients would
+ * then be calling into whichever region they were told about. If this ever
+ * changes again, delete the old deployment first.
+ *
+ * Both clients must agree with this value:
+ *   web/src/lib/firebase.ts       getFunctions(app, REGION)
+ *   android AppContainer.kt       FirebaseFunctions.getInstance(REGION)
+ * The Android SDK defaults to us-central1 when no region is given, so leaving
+ * it unspecified there is silently wrong rather than loudly wrong.
+ */
+export const REGION = 'europe-west1';
 
 /**
  * How long we wait for the device to report a call outcome before treating it as

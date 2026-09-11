@@ -64,13 +64,20 @@ object AppContainer {
             FirebaseCareLoopRepository(
                 db = FirebaseFirestore.getInstance(),
                 auth = FirebaseAuth.getInstance(),
-                functions = FirebaseFunctions.getInstance(),
+                // Region is explicit. The SDK defaults to us-central1, and
+                // this project's functions are in Europe alongside its
+                // Firestore, so omitting it fails at call time with a
+                // not-found that looks like a missing function.
+                functions = FirebaseFunctions.getInstance(FUNCTIONS_REGION),
             ) as CareLoopRepository
         }.getOrElse { error ->
             Log.e(TAG, "Firebase failed to initialise; falling back to demo data.", error)
             MockCareLoopRepository()
         }
     }
+
+    /** Must match REGION in functions/src/lib/config.ts. */
+    private const val FUNCTIONS_REGION = "europe-west1"
 
     private const val TAG = "AppContainer"
 }
