@@ -418,9 +418,14 @@ private fun BloodSugarTrendChart(
     val textMeasurer = rememberTextMeasurer()
 
     val lineColor = CareColors.Navy
-    val areaTopColor = CareColors.Navy.copy(alpha = 0.20f)
+    // The area under the line is deliberately faint. Seen on a device, a 0.20
+    // alpha fill sat on top of the normal-range band and hid it wherever the
+    // readings ran high, which is precisely where someone needs to see whether
+    // they have left the range. The band is the information; the area fill is
+    // only there to give the line some weight, so the band wins.
+    val areaTopColor = CareColors.Navy.copy(alpha = 0.09f)
     val areaBottomColor = CareColors.Navy.copy(alpha = 0.01f)
-    val normalBandColor = CareColors.Good.copy(alpha = 0.12f)
+    val normalBandColor = CareColors.Good.copy(alpha = 0.18f)
     val gridColor = CareColors.Cloud
     val outsideColor = CareColors.Concern
     val markerRingColor = CareColors.White
