@@ -366,5 +366,20 @@ export const CARA_VOICE_CONFIG = {
    * Swap this in one place if you audition others.
    */
   voiceName: 'Aoede',
-  languageCode: 'en-GB',
+  /**
+   * en-US, not en-GB, and not by preference.
+   *
+   * The native-audio model rejects the whole session with
+   *   Unsupported language code 'en-GB'
+   * closing the socket with 1007 a second after it opens. That presents as
+   * "Cara could not be reached" with no other signal, which is a miserable
+   * thing to debug and cost most of a night.
+   *
+   * Cara's script is still written in British English and she still says
+   * "tablet" rather than "pill". This value selects the speech model, not the
+   * vocabulary, so she reads British copy in an American accent. That is a real
+   * compromise for a product aimed at an older British audience, and it should
+   * be revisited whenever the model supports en-GB.
+   */
+  languageCode: 'en-US',
 };
