@@ -29,6 +29,14 @@ escalation to family → caretaker dashboard.
 
 **Day 4 (frontend):** both surfaces built on mock data, integration points stubbed.
 
+**Day 7 (wiring, verification):** the app was compiled for the first time, on
+CI, because Gradle genuinely cannot run on this machine (see §9, the earlier
+diagnosis was wrong). Three compile errors, all fixed. Found and fixed the worst
+bug in the project: `cara.ts` was dead code, so Cara had no persona and no tools.
+Wired the live call screen to a real Gemini session. Added agent memory, an
+evaluation harness which immediately found two more real bugs, a splash screen,
+and removed em dashes from all copy.
+
 **Day 6 (backend):** the full backend, wired into that frontend. Firestore schema
 and security rules, Cloud Functions v2, real Gemini Live integration, real FCM
 push-calls, real interaction checking, the reasoning and escalation engine, refill
@@ -190,7 +198,7 @@ Legend: ✅ done · 🔨 in progress · ⬜ not started · ⚠️ blocked/flagge
 - ⬜ Shared design tokens
 - ⬜ Mock data layer (persona, meds, check-ins, escalation)
 
-### Android app — code complete, **UNCOMPILED** (see §9 blocker)
+### Android app — **COMPILES** on CI as of Day 7
 - ✅ Theme / design system (Compose)
 - ✅ Domain model + `MockCareLoopRepository` + `AppContainer`
 - ✅ Navigation graph (flat, 5 tabs, always-visible labels)
@@ -202,7 +210,11 @@ Legend: ✅ done · 🔨 in progress · ⬜ not started · ⚠️ blocked/flagge
 - ✅ Vitals + hand-drawn Canvas chart *(agent)*
 - ✅ Call history + "What I shared" *(agent)*
 - ✅ Settings + permission education *(agent)*
-- ⚠️ Emulator verification + screenshots — **BLOCKED**, Gradle cannot build here
+- ✅ **Compiles, and produces a debug APK** (`.github/workflows/android.yml`)
+- ✅ **Live call screen wired to a real Gemini Live session** (`LiveCallViewModel`)
+- ✅ Splash screen (the Loop on navy, via `core-splashscreen`)
+- ⚠️ Emulator verification + screenshots — **still not done.** It compiles; it has
+  never been run. Nothing below the compiler has been exercised.
 
 ### Website
 - ✅ Design tokens / Tailwind 4 theme + editorial serif display type
@@ -478,12 +490,11 @@ rather than continuing to call, because more calls become harassment.
 - All four public routes plus five dashboard routes render
 
 ### NOT verified, and why
-- **The Android app has still never been compiled.** The Gradle blocker in §9
-  persists. Retried this session including a new hypothesis (that the daemon's
-  temp directory was being blocked); disproven, it is not the temp dir. Two real
-  bugs were found by reading and fixed (`Flow.map` called as a non-extension, and
-  a non-local `return@` from inside an inline function). **Assume more remain.
-  Treat the first compile as a debugging session.**
+- **The app compiles but has never run.** CI builds a debug APK on every push.
+  That proves the Kotlin is valid; it proves nothing about behaviour. No screen
+  has been rendered on a device or an emulator.
+- **The Gemini Live handshake has still never succeeded.** The client is now
+  actually invoked, which it was not before, but no real session has connected.
 - The Gemini Live wire format is written from documentation, not from a successful
   handshake. The setup frame, tool-call and tool-response shapes are the most
   likely places to need adjustment.
@@ -494,5 +505,8 @@ rather than continuing to call, because more calls become harassment.
   backend endpoint exists and works; the screen does not.
 - Escalations are not yet pushed to the caretaker (no email or web push). They
   appear on the dashboard when it is open.
+- Agent threads are written and read by the backend and steer Cara's prompt, but
+  neither dashboard renders them yet. That is the "what Cara is keeping an eye
+  on" surface, and it is the visible-reasoning feature judges score for.
 - No rules unit tests. `@firebase/rules-unit-testing` is in devDependencies and
   the emulator is configured in `firebase.json`, so the setup cost is small.
