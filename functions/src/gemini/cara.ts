@@ -1,4 +1,4 @@
-import type { MedicationDoc, PatientDoc } from '../types.js';
+import type { AgentThreadDoc, MedicationDoc, PatientDoc } from '../types.js';
 
 /**
  * Cara's identity, as given to the model.
@@ -46,11 +46,17 @@ export interface CaraContext {
   medications: MedicationDoc[];
   /** Short factual notes from recent days, so she has continuity. */
   recentContext: string[];
+  /**
+   * Threads Cara opened herself on earlier calls and has not closed yet.
+   * This is what turns continuity into intention: she is not just reminded of
+   * what happened, she is reminded of what she said she would do about it.
+   */
+  openThreads: AgentThreadDoc[];
   caretakerFirstName: string | null;
 }
 
 export function buildCaraSystemInstruction(context: CaraContext): string {
-  const { patient, medications, recentContext, caretakerFirstName } = context;
+  const { patient, medications, recentContext, openThreads, caretakerFirstName } = context;
   const name = patient.profile.preferredName;
   const carer = caretakerFirstName ?? 'their family contact';
 
@@ -99,6 +105,10 @@ If they sound unsure, say so kindly and give them a way to check: "Is the Thursd
 # Recent context
 
 ${contextLines}
+
+# What you said you would come back to
+
+${describeOpenThreads(openThreads)}
 
 # Checking something is safe
 
@@ -161,6 +171,45 @@ function describeVitalsAsk(patient: PatientDoc): string {
   }
   asks.push('Record any number they give you with record_vital. Never guess or round.');
   return asks.join('\n');
+}
+
+/**
+ * Renders Cara's own open threads into the prompt.
+ *
+ * The wording matters. These are phrased as *her* commitments ("you said you
+ * would ask"), not as a task list handed to her, because the behaviour we want
+ * is her raising it naturally rather than reciting an agenda. A model told "here
+ * are 3 items" opens the call with three questions; a model told "you said you'd
+ * check on her knee" asks about the knee when the conversation reaches it.
+ *
+ * The instruction to close threads is as important as the instruction to raise
+ * them. Without it the list only grows, and an agent that never decides
+ * something is finished is not reasoning, it is accumulating.
+ */
+function describeOpenThreads(threads: AgentThreadDoc[]): string {
+  const now = Date.now();
+  const due = threads.filter((t) => Date.parse(t.followUpAfter) <= now);
+
+  if (!due.length) {
+    return 'Nothing outstanding from earlier calls. If something comes up today that deserves a second look another day, use remember_for_next_time.';
+  }
+
+  const lines = due
+    .map((t) => {
+      const asked = t.timesRaised > 0
+        ? ` You have asked about this ${t.timesRaised === 1 ? 'once' : `${t.timesRaised} times`} already.`
+        : '';
+      return `- ${t.topic}: you wanted to come back to this because: ${t.why}.${asked}`;
+    })
+    .join('\n');
+
+  return `On an earlier call you decided to follow these up:
+
+${lines}
+
+Raise them naturally, when the conversation gets there. Do not open the call by listing them, and do not work through them like a form.
+
+When one is genuinely settled, call close_open_thread and say what happened. If something has clearly run its course, close it rather than asking a fourth time. Asking repeatedly about the same thing stops being care and starts being nagging, and you are the one who decides where that line is.`;
 }
 
 /**
@@ -250,6 +299,57 @@ export const CARA_TOOLS = [
             whatTheyDescribed: { type: 'STRING' },
           },
           required: ['whatTheyDescribed'],
+        },
+      },
+      {
+        // The agent's own memory, written by the agent. Cara decides what is
+        // worth carrying forward; nothing in the backend picks these for her.
+        // `follow_up_in_days` is hers to choose too, because the right interval
+        // for "did the new tablet upset your stomach" is tomorrow and the right
+        // interval for "you were dreading your daughter's visit" is next week.
+        name: 'remember_for_next_time',
+        description:
+          'Note something to come back to on a future call. Use this when they mention something that deserves a second look but is not urgent: a symptom that might pass, a change they are about to make, something they were worried about. Do not use it for anything you have already dealt with in this call.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            topic: {
+              type: 'STRING',
+              description:
+                'The one thing to revisit, in their words rather than clinical language. They will see this.',
+            },
+            why: {
+              type: 'STRING',
+              description:
+                'Why it is worth coming back to, in one plain sentence. They and their family will both read this, so write it as something you would be comfortable saying out loud.',
+            },
+            follow_up_in_days: {
+              type: 'NUMBER',
+              description:
+                'How long to leave it before raising it again. Use your judgement: a day or two for something that should settle quickly, a week or more for something slower.',
+            },
+          },
+          required: ['topic', 'why', 'follow_up_in_days'],
+        },
+      },
+      {
+        name: 'close_open_thread',
+        description:
+          'Close something you had been following up on, because it is resolved or no longer worth asking about. Closing threads matters as much as opening them.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            topic: {
+              type: 'STRING',
+              description: 'The topic of the thread you are closing, as it was given to you.',
+            },
+            what_happened: {
+              type: 'STRING',
+              description:
+                'How it resolved, in one sentence. "Knee settled on its own after a week" is useful; "resolved" is not.',
+            },
+          },
+          required: ['topic', 'what_happened'],
         },
       },
     ],

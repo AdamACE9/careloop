@@ -254,6 +254,42 @@ export interface RefillDoc {
 }
 
 /** `/deviceTokens/{uid}` — never readable by a client. */
+/**
+ * `/patients/{patientId}/agentThreads/{threadId}`
+ *
+ * Something Cara decided, during a call and on her own initiative, to come back
+ * to later.
+ *
+ * This is the part of the system that is agentic in the strict sense rather than
+ * the marketing sense. Everything else the agent does is a reaction inside one
+ * episode: it hears something, it looks something up, it answers. A thread is an
+ * *intention that outlives the episode*. Cara forms it, it is carried into the
+ * system instruction for a future call, she acts on it days later, and she
+ * closes it when it is genuinely resolved.
+ *
+ * Deliberately NOT a free-form memory blob. A summary of everything ever said
+ * would be both a privacy problem and useless as a prompt. A thread has to name
+ * one thing and say why it is worth revisiting, which keeps the agent's memory
+ * legible to the elder and to the family. It is shown on both dashboards as
+ * "what Cara is keeping an eye on", because a memory the person cannot see is
+ * surveillance.
+ */
+export interface AgentThreadDoc {
+  /** One specific thing, in the elder's own terms. Not a clinical label. */
+  topic: string;
+  /** Why Cara thought it was worth returning to. Shown verbatim to both sides. */
+  why: string;
+  status: 'open' | 'resolved';
+  raisedAt: string;
+  raisedOnCheckInId: string | null;
+  /** Cara chooses this. Asking about a sore knee every day is nagging. */
+  followUpAfter: string;
+  timesRaised: number;
+  lastRaisedAt: string | null;
+  resolution: string | null;
+  resolvedAt: string | null;
+}
+
 export interface DeviceTokenDoc {
   token: string;
   platform: 'android' | 'ios' | 'web';
