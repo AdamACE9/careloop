@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   collection,
   doc,
@@ -13,9 +13,15 @@ import {
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { getDb, getFns, isFirebaseConfigured } from './firebase';
-import { getFirebaseAuth } from './firebase';
+import { useAuth } from './auth-context';
 import * as demo from './demo-data';
-import type { AgentThread, CheckIn, Escalation, Medication } from './demo-data';
+import type {
+  AgentThread,
+  CheckIn,
+  Escalation,
+  Medication,
+  VitalReading,
+} from './demo-data';
 
 /**
  * The single seam between the dashboard UI and its data.
@@ -82,68 +88,73 @@ export function useLinkedPatients(): {
   /** True when what is on screen is the example household, not real data. */
   isDemo: boolean;
 } {
-  const [patients, setPatients] = useState<LinkedPatient[]>(
-    isFirebaseConfigured ? [] : [DEMO_PATIENT],
-  );
-  const [isDemo, setIsDemo] = useState(!isFirebaseConfigured);
-  const [loading, setLoading] = useState(isFirebaseConfigured);
+  // Taken from the auth context rather than read off auth.currentUser inside an
+  // effect with no dependencies. That older form ran exactly once, on mount, so
+  // signing in from the dashboard left this hook looking at the signed-out
+  // answer until the page was reloaded: the new account saw the example
+  // household and no amount of waiting changed it.
+  const { user } = useAuth();
+  const uid = user?.uid ?? null;
+
+  // Tagged with the uid it was fetched for, so a result belonging to the
+  // previous account is ignored on the render where the account changes.
+  const [snapshot, setSnapshot] = useState<{
+    uid: string;
+    patients: LinkedPatient[];
+  } | null>(null);
+
+  const current = snapshot?.uid === uid ? snapshot : null;
+
+  // Not signed in, or no Firebase at all: the example household is the right
+  // thing to show a visitor, and the wrong thing to show an account holder.
+  const isDemo = !isFirebaseConfigured || uid === null;
+  const patients = isDemo ? [DEMO_PATIENT] : (current?.patients ?? []);
+  const loading = !isDemo && current === null;
 
   useEffect(() => {
     const db = getDb();
-    const auth = getFirebaseAuth();
-    if (!db || !auth?.currentUser) {
-      // Not signed in. The example household is the right thing to show a
-      // visitor, and the wrong thing to show an account holder.
-      setPatients([DEMO_PATIENT]);
-      setIsDemo(true);
-      setLoading(false);
-      return;
-    }
+    if (!db || !uid) return;
 
     // Scoped by caretakerIds, which matches the security rule exactly. Firestore
-    // rules are not filters: a broader query here would fail outright rather than
-    // returning a subset, so the query and the rule have to agree.
+    // rules are not filters: a broader query here would fail outright rather
+    // than returning a subset, so the query and the rule have to agree.
     const q = query(
       collection(db, 'patients'),
-      where('caretakerIds', 'array-contains', auth.currentUser.uid),
+      where('caretakerIds', 'array-contains', uid),
     );
 
     return onSnapshot(
       q,
       (snap) => {
-        if (snap.empty) {
-          // Signed in, linked to nobody. Empty is the truth.
-          setPatients([]);
-          setIsDemo(false);
-        } else {
-          setIsDemo(false);
-          setPatients(
-            snap.docs.map((d) => {
-              const data = d.data() as Record<string, never>;
-              const profile = (data.profile ?? {}) as Record<string, string & number>;
-              return {
-                id: d.id,
-                firstName: String(profile.firstName ?? ''),
-                lastName: String(profile.lastName ?? ''),
-                preferredName: String(profile.preferredName ?? profile.firstName ?? ''),
-                age: Number(profile.age ?? 0),
-                conditions: (profile.conditions as unknown as string[]) ?? [],
-                checkInTime: String(data.dailyCheckInTime ?? '09:00'),
-              };
-            }),
-          );
-        }
-        setLoading(false);
+        setSnapshot({
+          uid,
+          // Signed in and linked to nobody gives an empty list, which is the
+          // truth. It used to fall back to the example household, so a
+          // caretaker who had just created an account was shown a stranger's
+          // medication list and blood sugar presented as their mother's. It
+          // looked like the product working and was the opposite.
+          patients: snap.docs.map((d) => {
+            const data = d.data() as Record<string, never>;
+            const profile = (data.profile ?? {}) as Record<string, string & number>;
+            return {
+              id: d.id,
+              firstName: String(profile.firstName ?? ''),
+              lastName: String(profile.lastName ?? ''),
+              preferredName: String(profile.preferredName ?? profile.firstName ?? ''),
+              age: Number(profile.age ?? 0),
+              conditions: (profile.conditions as unknown as string[]) ?? [],
+              checkInTime: String(data.dailyCheckInTime ?? '09:00'),
+            };
+          }),
+        });
       },
       () => {
-        // A permission error here means the caretaker is not linked to anyone.
-        // Treated the same as empty: ask them to link, do not invent a patient.
-        setPatients([]);
-        setIsDemo(false);
-        setLoading(false);
+        // A permission error here means the caretaker is linked to nobody.
+        // Treated the same as empty: ask them to link, never invent a patient.
+        setSnapshot({ uid, patients: [] });
       },
     );
-  }, []);
+  }, [uid]);
 
   return { patients, loading, isDemo };
 }
@@ -152,60 +163,183 @@ export function useLinkedPatients(): {
 // Collections
 // -----------------------------------------------------------------------------
 
+/**
+ * One live subscription to a subcollection under a patient.
+ *
+ * Two sources feed every screen, and which one is showing is derived at render
+ * time rather than assigned in an effect. That matters for three reasons:
+ *
+ *   - It agrees with useLinkedPatients by construction. Keyed off
+ *     isFirebaseConfigured alone, the two hooks disagreed: a signed-out visitor
+ *     on a deployed build got the example patient's name from one and empty
+ *     collections from the other, so the dashboard rendered Margaret with no
+ *     medications, no check-ins and an empty chart.
+ *   - Switching patients cannot show one person's data under another's name,
+ *     because the stored snapshot carries the id it came from and is ignored
+ *     the moment that id stops matching.
+ *   - `loading` and `empty` stay distinguishable. Without that, a page has to
+ *     choose between flashing "nothing here yet" at someone whose data is one
+ *     frame away and spinning forever at someone who genuinely has none.
+ */
 function useCollection<T>(
   patientId: string,
   path: string,
   orderField: string,
   fallback: T[],
   max = 60,
-): { data: T[]; live: boolean } {
-  // Seeded with the example data only when there is no backend to read from.
-  const [data, setData] = useState<T[]>(isFirebaseConfigured ? [] : fallback);
-  const [live, setLive] = useState(false);
+  direction: 'asc' | 'desc' = 'desc',
+): { data: T[]; live: boolean; loading: boolean } {
+  const showExample = !isFirebaseConfigured || patientId === DEMO_PATIENT.id;
+
+  // Tagged with the patient it belongs to, so a snapshot for the previous
+  // patient is discarded on the render where the id changes.
+  const [snapshot, setSnapshot] = useState<{
+    patientId: string;
+    docs: T[];
+    live: boolean;
+  } | null>(null);
+
+  const current = snapshot?.patientId === patientId ? snapshot : null;
+
+  const data = showExample ? fallback : (current?.docs ?? []);
+  const loading = !showExample && current === null;
+  const live = current?.live ?? false;
 
   useEffect(() => {
     const db = getDb();
     // The demo patient id belongs to no real document, so there is nothing to
-    // subscribe to and the seeded example data stands.
+    // subscribe to and the example data stands.
     if (!db || !patientId || patientId === DEMO_PATIENT.id) return;
 
     const q = query(
       collection(db, `patients/${patientId}/${path}`),
-      orderBy(orderField, 'desc'),
+      orderBy(orderField, direction),
       fsLimit(max),
     );
 
     return onSnapshot(
       q,
       (snap) => {
-        if (snap.empty) {
-          setData([]);
-          setLive(true);
-          return;
-        }
         // Real data, including when it is empty. An empty collection for a
-        // linked patient means nothing has happened yet, which the page says
-        // in words rather than papering over with somebody else's history.
-        setData(snap.docs.map((d) => ({ id: d.id, ...d.data() })) as T[]);
-        setLive(true);
+        // linked patient means nothing has happened yet, which the page says in
+        // words rather than papering over with somebody else's history.
+        setSnapshot({
+          patientId,
+          docs: snap.docs.map((d) => ({ id: d.id, ...d.data() })) as T[],
+          live: true,
+        });
       },
       () => {
-        // A read that fails is not the same as a read that returns nothing, so
-        // this keeps the seeded value and marks the data as not live.
-        setData(fallback);
-        setLive(false);
+        // A read that failed is not a read that returned nothing. The page is
+        // told it is not live so it can say so, and shows nothing rather than
+        // the example household dressed up as this person's record.
+        setSnapshot({ patientId, docs: [], live: false });
       },
     );
-    // `fallback` is a stable module-level array; excluding it avoids resubscribing
-    // on every render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [patientId, path, orderField, max]);
+  }, [patientId, path, orderField, max, direction]);
 
-  return { data, live };
+  return { data, live, loading };
 }
 
-export function useCheckIns(patientId: string) {
-  return useCollection<CheckIn>(patientId, 'checkIns', 'startedAt', demo.checkIns);
+// -----------------------------------------------------------------------------
+// Display shaping
+//
+// Stored documents carry ISO timestamps; screens want "Yesterday" and "9:02 am".
+// Deriving that here, once, is what lets the demo dataset and Firestore be the
+// same shape. It used to be the other way round: the example data held the
+// pre-formatted strings and the pages read those field names, so real documents
+// rendered blank dates and, worse, a missed-dose count that was always zero.
+// -----------------------------------------------------------------------------
+
+/** A check-in with the strings the pages actually render. */
+export interface CheckInView extends CheckIn {
+  /** "Today", "Yesterday", or "Thursday" within the last week, else a date. */
+  label: string;
+  /** "9:02 am" in the reader's own locale. */
+  time: string;
+  /** Milliseconds since the epoch, or NaN for an unparseable timestamp. */
+  at: number;
+  confirmed: string[];
+  missed: string[];
+}
+
+function startOfDay(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
+/** "Today" / "Yesterday" / weekday within the last week / "12 Sep". */
+export function dayLabel(iso: string, now = new Date()): string {
+  const at = Date.parse(iso);
+  if (!Number.isFinite(at)) return '';
+
+  const then = new Date(at);
+  const days = Math.round((startOfDay(now) - startOfDay(then)) / 86_400_000);
+
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  // Past six days only. "Thursday" nine days ago is actively misleading, and it
+  // is the kind of wrong that reads as right.
+  if (days > 1 && days < 7) return then.toLocaleDateString(undefined, { weekday: 'long' });
+  return then.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}
+
+export function timeLabel(iso: string): string {
+  const at = Date.parse(iso);
+  if (!Number.isFinite(at)) return '';
+  return new Date(at).toLocaleTimeString(undefined, {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function toView(c: CheckIn): CheckInView {
+  return {
+    ...c,
+    at: Date.parse(c.startedAt),
+    label: dayLabel(c.startedAt),
+    time: timeLabel(c.startedAt),
+    confirmed: c.medicationsConfirmed ?? [],
+    missed: c.medicationsMissed ?? [],
+  };
+}
+
+export function useCheckIns(patientId: string): {
+  data: CheckInView[];
+  live: boolean;
+  loading: boolean;
+} {
+  const { data, live, loading } = useCollection<CheckIn>(
+    patientId,
+    'checkIns',
+    'startedAt',
+    demo.checkIns,
+  );
+  const view = useMemo(() => data.map(toView), [data]);
+  return { data: view, live, loading };
+}
+
+/**
+ * The check-in from today, if there has been one.
+ *
+ * The overview used to take `checkIns[0]` and headline it as today. That is
+ * only the most recent call, so a caretaker whose parent had not been reached
+ * since Monday was shown "Margaret is doing well today" over Monday's summary.
+ * Saying nothing happened today is the honest answer and the more useful one,
+ * because a day with no call is exactly what somebody checking in wants to know.
+ */
+export function todaysCheckIn(checkIns: CheckInView[], now = new Date()): CheckInView | null {
+  return checkIns.find((c) => dayLabel(c.startedAt, now) === 'Today') ?? null;
+}
+
+/** How many of the last `days` days had a dose missed. */
+export function daysWithMissedDose(checkIns: CheckInView[], days = 7, now = new Date()): number {
+  const cutoff = startOfDay(now) - (days - 1) * 86_400_000;
+  const seen = new Set<number>();
+  for (const c of checkIns) {
+    if (!Number.isFinite(c.at) || c.at < cutoff) continue;
+    if (c.missed.length > 0) seen.add(startOfDay(new Date(c.at)));
+  }
+  return seen.size;
 }
 
 export function useEscalations(patientId: string) {
@@ -220,7 +354,31 @@ export function useAgentThreads(patientId: string) {
 }
 
 export function useMedications(patientId: string) {
-  return useCollection<Medication>(patientId, 'medications', 'name', demo.medications);
+  // Ascending, because this one is ordered by name and a list running Z to A
+  // reads as broken. Every other collection here is ordered by time, where
+  // newest first is what you want.
+  return useCollection<Medication>(patientId, 'medications', 'name', demo.medications, 60, 'asc');
+}
+
+/**
+ * Readings, oldest first, for charting.
+ *
+ * Firestore can only order one way per query and the chart needs oldest to
+ * newest, so this asks for ascending rather than reversing 200 documents on
+ * every render.
+ *
+ * The 180 cap is roughly six months of daily readings. It is a bound on the
+ * read, not a window: the chart picks its own range out of whatever comes back.
+ */
+export function useVitals(patientId: string) {
+  return useCollection<VitalReading>(
+    patientId,
+    'vitals',
+    'recordedAt',
+    demo.vitals,
+    180,
+    'asc',
+  );
 }
 
 // -----------------------------------------------------------------------------

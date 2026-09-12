@@ -34,15 +34,27 @@ export interface Escalation {
   acknowledged: boolean;
 }
 
+/**
+ * One check-in, in exactly the shape Firestore stores.
+ *
+ * This used to carry `label: "Thursday"`, `time: "9:01 am"`, `confirmed` and
+ * `missed`. None of those fields exist in a real document, which stores
+ * `startedAt`, `medicationsConfirmed` and `medicationsMissed`. The dashboard
+ * read the demo names, so against real data the date column rendered blank and,
+ * far worse, `missed?.length ?? 0` was always zero: the overview told every real
+ * caretaker their parent was doing well on a day a dose had been missed, and the
+ * "with a missed dose" filter never matched anything.
+ *
+ * The display strings are derived in careloop-service, once, for both data
+ * sources. Formatting is a view concern and does not belong in storage.
+ */
 export interface CheckIn {
   id: string;
-  date: string;
-  label: string;
-  time: string;
+  startedAt: string;
   durationSeconds: number;
   status: CheckInStatus;
-  confirmed: string[];
-  missed: string[];
+  medicationsConfirmed: string[];
+  medicationsMissed: string[];
   caraSummary: string;
 }
 
@@ -116,25 +128,105 @@ export const medications: Medication[] = [
   },
 ];
 
-/** 14 days of blood sugar. Drifts up mid-period, settles after the escalation. */
-export const bloodSugar = [
-  { day: "13 d", value: 6.1 },
-  { day: "12 d", value: 5.8 },
-  { day: "11 d", value: 6.4 },
-  { day: "10 d", value: 6.0 },
-  { day: "9 d", value: 6.3 },
-  { day: "8 d", value: 5.9 },
-  { day: "7 d", value: 6.2 },
-  { day: "6 d", value: 6.6 },
-  { day: "5 d", value: 6.9 },
-  { day: "4 d", value: 7.4 },
-  { day: "3 d", value: 7.9 },
-  { day: "2 d", value: 8.3 },
-  { day: "1 d", value: 8.1 },
-  { day: "Today", value: 7.6 },
-];
+/**
+ * One reading, in exactly the shape Firestore stores.
+ *
+ * The example data used to be `{ day: "3 d", value: 7.9 }`, which meant the
+ * chart could only ever render the example data: nothing in Firestore looks
+ * like that, and the real documents have an ISO timestamp and a type. So the
+ * chart had a demo import baked into it and no way to show a real person's
+ * readings. Matching the stored shape is what lets one component serve both.
+ */
+export interface VitalReading {
+  id: string;
+  type: "blood_sugar" | "blood_pressure" | "heart_rate" | "weight";
+  value: number;
+  /** Diastolic, for blood pressure only. */
+  secondaryValue: number | null;
+  recordedAt: string;
+  source: "call" | "manual";
+}
 
-export const bloodSugarNormalRange = { min: 4.0, max: 7.8 };
+/**
+ * What counts as normal, per reading type, with the unit to display.
+ *
+ * `min`/`max` are null where the idea does not apply. Weight has no normal
+ * range: a healthy weight is a fact about a particular person, not about the
+ * measurement, and drawing a band across the chart would assert something this
+ * app has no basis for. The chart omits the band rather than inventing one.
+ *
+ * There is no fixed axis range here on purpose. The chart sizes its own axis to
+ * the readings plus the band, so the line fills the plot instead of sitting in a
+ * flat strip across the middle of a range chosen in advance.
+ */
+export const vitalRanges: Record<
+  VitalReading["type"],
+  { label: string; unit: string; min: number | null; max: number | null }
+> = {
+  blood_sugar: { label: "Blood sugar", unit: "mmol/L", min: 4.0, max: 7.8 },
+  blood_pressure: { label: "Blood pressure", unit: "mmHg", min: 90, max: 140 },
+  heart_rate: { label: "Heart rate", unit: "bpm", min: 60, max: 100 },
+  weight: { label: "Weight", unit: "kg", min: null, max: null },
+};
+
+/** Kept for anything still importing it. Derived, never edited separately. */
+export const bloodSugarNormalRange = {
+  min: vitalRanges.blood_sugar.min!,
+  max: vitalRanges.blood_sugar.max!,
+};
+
+/**
+ * A local-time ISO string n days before the example "today".
+ *
+ * No trailing Z on purpose: see the note on the example timestamps above. A
+ * string without an offset is parsed as local time, so these readings land at
+ * 9am for every reader instead of shifting across the day by timezone.
+ */
+function daysAgo(n: number): string {
+  const d = new Date(2026, 8, 12, 9, 0, 0);
+  d.setDate(d.getDate() - n);
+  const pad = (x: number) => String(x).padStart(2, "0");
+  return (
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` +
+    `T${pad(d.getHours())}:${pad(d.getMinutes())}:00`
+  );
+}
+
+/**
+ * Fourteen days of readings for the example household.
+ *
+ * Blood sugar drifts up mid-period and settles after the escalation, which is
+ * the same story the example check-ins and the example escalation tell. The
+ * three datasets have to agree, or the demo contradicts itself on screen.
+ */
+export const vitals: VitalReading[] = [
+  ...[6.1, 5.8, 6.4, 6.0, 6.3, 5.9, 6.2, 6.6, 6.9, 7.4, 7.9, 8.3, 8.1, 7.6].map(
+    (value, i): VitalReading => ({
+      id: `bs-${i}`,
+      type: "blood_sugar",
+      value,
+      secondaryValue: null,
+      recordedAt: daysAgo(13 - i),
+      source: "call",
+    }),
+  ),
+  ...[
+    [138, 84],
+    [142, 86],
+    [136, 82],
+    [145, 88],
+    [139, 83],
+  ].map(
+    ([systolic, diastolic], i): VitalReading => ({
+      id: `bp-${i}`,
+      type: "blood_pressure",
+      value: systolic!,
+      secondaryValue: diastolic!,
+      recordedAt: daysAgo(12 - i * 3),
+      source: "call",
+    }),
+  ),
+];
 
 export const adherence = [
   { day: "Mon", taken: 5, total: 5 },
@@ -149,71 +241,59 @@ export const adherence = [
 export const checkIns: CheckIn[] = [
   {
     id: "ci-0",
-    date: "Today",
-    label: "Today",
-    time: "9:00 am",
+    startedAt: "2026-09-12T09:00:00",
     durationSeconds: 66,
     status: "completed",
-    confirmed: ["Warfarin", "Metformin", "Ramipril", "Ferrous sulfate"],
-    missed: [],
+    medicationsConfirmed: ["Warfarin", "Metformin", "Ramipril", "Ferrous sulfate"],
+    medicationsMissed: [],
     caraSummary: "Everything taken. Blood sugar is coming back down.",
   },
   {
     id: "ci-1",
-    date: "Yesterday",
-    label: "Yesterday",
-    time: "9:02 am",
+    startedAt: "2026-09-11T09:02:00",
     durationSeconds: 78,
     status: "completed",
-    confirmed: ["Warfarin", "Metformin", "Ramipril", "Ferrous sulfate"],
-    missed: [],
+    medicationsConfirmed: ["Warfarin", "Metformin", "Ramipril", "Ferrous sulfate"],
+    medicationsMissed: [],
     caraSummary:
       "Warfarin taken, and Margaret had spoken to her GP about the ibuprofen. She's switched to paracetamol.",
   },
   {
     id: "ci-2",
-    date: "Thursday",
-    label: "Thursday",
-    time: "9:01 am",
+    startedAt: "2026-09-10T09:01:00",
     durationSeconds: 112,
     status: "escalated",
-    confirmed: ["Metformin", "Ramipril", "Ferrous sulfate"],
-    missed: ["Warfarin"],
+    medicationsConfirmed: ["Metformin", "Ramipril", "Ferrous sulfate"],
+    medicationsMissed: ["Warfarin"],
     caraSummary:
       "Warfarin missed again, and Margaret was unsure whether she'd taken it, the same uncertainty as Tuesday. She also mentioned taking ibuprofen for her knee, which doesn't mix well with warfarin. I let Sarah know.",
   },
   {
     id: "ci-3",
-    date: "Wednesday",
-    label: "Wednesday",
-    time: "9:00 am",
+    startedAt: "2026-09-09T09:00:00",
     durationSeconds: 59,
     status: "completed",
-    confirmed: ["Warfarin", "Metformin", "Ramipril", "Ferrous sulfate"],
-    missed: [],
+    medicationsConfirmed: ["Warfarin", "Metformin", "Ramipril", "Ferrous sulfate"],
+    medicationsMissed: [],
     caraSummary: "Back on track. Warfarin taken.",
   },
   {
     id: "ci-4",
-    date: "Tuesday",
-    label: "Tuesday",
-    time: "9:03 am",
+    startedAt: "2026-09-08T09:03:00",
     durationSeconds: 88,
     status: "missed_dose",
-    confirmed: ["Metformin", "Ramipril", "Ferrous sulfate"],
-    missed: ["Warfarin"],
+    medicationsConfirmed: ["Metformin", "Ramipril", "Ferrous sulfate"],
+    medicationsMissed: ["Warfarin"],
     caraSummary:
       "Warfarin missed last night. Margaret wasn't sure whether she'd taken it. I've made a note to watch this, it's the first time.",
   },
   {
     id: "ci-5",
-    date: "Monday",
-    label: "Monday",
-    time: "9:01 am",
+    startedAt: "2026-09-07T09:01:00",
     durationSeconds: 64,
     status: "completed",
-    confirmed: ["Warfarin", "Metformin", "Ramipril"],
-    missed: ["Ferrous sulfate"],
+    medicationsConfirmed: ["Warfarin", "Metformin", "Ramipril"],
+    medicationsMissed: ["Ferrous sulfate"],
     caraSummary:
       "Iron tablet missed at lunch. Margaret said she'd forgotten it was in the kitchen drawer. Not concerning on its own.",
   },
@@ -221,7 +301,7 @@ export const checkIns: CheckIn[] = [
 
 export const primaryEscalation: Escalation = {
   id: "esc-1",
-  raisedAt: "Thursday, 9:04 am",
+  raisedAt: "2026-09-10T09:04:00",
   severity: "concern",
   headline: "Margaret has missed her warfarin twice this week",
   explanation:
@@ -254,7 +334,7 @@ export const primaryEscalation: Escalation = {
 
 export const refillEscalation: Escalation = {
   id: "esc-2",
-  raisedAt: "Yesterday, 9:06 am",
+  raisedAt: "2026-09-11T09:06:00",
   severity: "fyi",
   headline: "Warfarin runs out in about nine days",
   explanation:

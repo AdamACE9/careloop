@@ -15,8 +15,9 @@ import { useLinkedPatients, useCheckIns } from '@/lib/careloop-service';
  */
 export default function CallsPage() {
   const { patients } = useLinkedPatients();
-  const patientId = patients[0]?.id ?? '';
-  const { data: checkIns } = useCheckIns(patientId);
+  const patient = patients[0];
+  const patientId = patient?.id ?? '';
+  const { data: checkIns, loading } = useCheckIns(patientId);
   const [filter, setFilter] = useState<'all' | 'missed'>('all');
 
   const visible = filter === 'all'
@@ -30,6 +31,12 @@ export default function CallsPage() {
           <h2 className="font-display text-3xl text-ink">Check-ins</h2>
           <p className="mt-2 leading-relaxed text-slate-ink">
             Every call Cara has made, and what came of it.
+            {checkIns.length > 0 && (
+              <>
+                {' '}
+                Showing {visible.length} of {checkIns.length}.
+              </>
+            )}
           </p>
         </div>
 
@@ -50,12 +57,35 @@ export default function CallsPage() {
         </div>
       </div>
 
-      {visible.length === 0 ? (
+      {loading ? (
+        <div className="space-y-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-28 animate-pulse rounded-3xl bg-cloud" />
+          ))}
+        </div>
+      ) : visible.length === 0 ? (
+        // Three different nothings, and telling them apart matters. "Nothing
+        // missed" shown to someone whose first call has not happened yet reads
+        // as a clean bill of health for a week that never took place.
         <div className="rounded-3xl border border-ink/10 bg-white p-12 text-center">
-          <p className="font-display text-xl text-ink">Nothing missed</p>
-          <p className="mt-2 text-slate-ink">
-            Every medication was taken across these check-ins.
-          </p>
+          {checkIns.length === 0 ? (
+            <>
+              <p className="font-display text-xl text-ink">No check-ins yet</p>
+              <p className="mx-auto mt-2 max-w-md leading-relaxed text-slate-ink">
+                Cara calls at {patient?.checkInTime ?? 'the scheduled time'} each
+                day. The first one will appear here once it has happened, or you
+                can ask her to call now from the overview.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="font-display text-xl text-ink">Nothing missed</p>
+              <p className="mt-2 text-slate-ink">
+                Every medication was taken across{' '}
+                {checkIns.length === 1 ? 'this check-in' : `these ${checkIns.length} check-ins`}.
+              </p>
+            </>
+          )}
         </div>
       ) : (
         <div className="overflow-hidden rounded-3xl border border-ink/10 bg-white">

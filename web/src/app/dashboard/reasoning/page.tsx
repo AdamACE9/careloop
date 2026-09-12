@@ -1,12 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  useLinkedPatients,
-  useEscalations,
-  useAgentThreads,
-  acknowledgeEscalation,
-} from '@/lib/careloop-service';
+import { useLinkedPatients, useEscalations, useAgentThreads, acknowledgeEscalation, dayLabel, timeLabel } from '@/lib/careloop-service';
 import AgentThreads from '@/components/dashboard/AgentThreads';
 import { confidencePhrase, type Escalation } from '@/lib/demo-data';
 
@@ -104,7 +99,9 @@ function EscalationCard({
           >
             {isUrgent ? 'Urgent' : isConcern ? 'Needs attention' : 'Worth knowing'}
           </span>
-          <span className="text-sm text-white/50">{escalation.raisedAt}</span>
+          <span className="text-sm text-white/50">
+            {dayLabel(escalation.raisedAt)} at {timeLabel(escalation.raisedAt)}
+          </span>
           {acknowledged && (
             <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-white/60">
               Seen
