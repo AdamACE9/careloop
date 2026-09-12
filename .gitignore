@@ -47,3 +47,6 @@ ui-debug.log
 .runtimeconfig.json
 google-services.json
 android/app/google-services.json
+
+# Agent worktrees. Transient, and each one is its own git repo.
+.claude/worktrees/
