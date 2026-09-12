@@ -492,13 +492,17 @@ private fun SharingPreferencesCard(
         elevation = CardDefaults.cardElevation(defaultElevation = CareDimens.CardElevation),
     ) {
         Column(modifier = Modifier.padding(horizontal = CareDimens.SpaceLg)) {
-            ShareCategory.entries.forEachIndexed { index, category ->
+            // Only the categories the elder actually controls. ACCESS_CHANGE is
+            // always on, so rendering a switch for it would be offering a
+            // choice that does not exist.
+            val adjustable = ShareCategory.entries.filter { it.mutable }
+            adjustable.forEachIndexed { index, category ->
                 CategoryToggleRow(
                     category = category,
                     checked = category in enabledCategories,
                     onCheckedChange = { onToggleCategory(category, it) },
                 )
-                if (index != ShareCategory.entries.lastIndex) {
+                if (index != adjustable.lastIndex) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()

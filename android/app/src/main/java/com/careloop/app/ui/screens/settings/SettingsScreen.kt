@@ -3,6 +3,8 @@ package com.careloop.app.ui.screens.settings
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,6 +58,7 @@ import com.careloop.app.data.model.Caretaker
 import com.careloop.app.data.repository.EmptyElderProfile
 import com.careloop.app.ui.components.CareCard
 import com.careloop.app.ui.components.CarePrimaryButton
+import com.careloop.app.ui.components.CareSecondaryButton
 import com.careloop.app.ui.components.LoopMark
 import com.careloop.app.ui.theme.CareColors
 import com.careloop.app.ui.theme.CareDimens
@@ -828,7 +831,99 @@ private fun WhoCaraCallsCard(
                     )
                 }
             }
+
+            Spacer(Modifier.height(CareDimens.SpaceLg))
+            DisconnectSection(caretaker = caretaker)
         }
+    }
+}
+
+/**
+ * Taking someone's access away.
+ *
+ * Deliberately quiet. This is not a button anybody should be nudged toward, and
+ * it is the only genuinely destructive control on a screen used by someone who
+ * may have a tremor. So it is a plain text action rather than a button, and it
+ * opens a confirmation in place rather than acting on the first tap.
+ *
+ * Confirmation is inline rather than a dialog on purpose. A dialog has to be
+ * dismissed, and dismissing one is exactly the interaction that fails for
+ * someone with unsteady hands: a stray tap outside it reads as a cancel, or
+ * worse, lands on whatever is underneath. This just expands, and the way out of
+ * it is a large button that says what it does.
+ *
+ * The wording names the consequence rather than the mechanism. "They will no
+ * longer see your check-ins" is the thing a person is deciding about. "Remove
+ * caretaker link" is not.
+ */
+@Composable
+private fun DisconnectSection(caretaker: Caretaker) {
+    val scope = rememberCoroutineScope()
+    var confirming by remember { mutableStateOf(false) }
+    var working by remember { mutableStateOf(false) }
+    var failed by remember { mutableStateOf(false) }
+
+    val firstName = caretaker.name.substringBefore(' ').trim().ifBlank { "They" }
+
+    if (!confirming) {
+        Text(
+            text = "Disconnect $firstName",
+            style = MaterialTheme.typography.bodyLarge,
+            color = CareColors.Slate,
+            modifier = Modifier
+                .heightIn(min = CareDimens.LargeTouchTarget)
+                .fillMaxWidth()
+                .clickable { confirming = true }
+                .wrapContentHeight(Alignment.CenterVertically),
+        )
+        return
+    }
+
+    Column {
+        Text(
+            "$firstName will no longer see your check-ins, and Cara will not " +
+                "contact them if she is worried. You can connect them again later " +
+                "with a new code.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+
+        if (failed) {
+            Spacer(Modifier.height(CareDimens.SpaceSm))
+            Text(
+                "That did not go through. Nothing has changed. Please try again.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+
+        Spacer(Modifier.height(CareDimens.SpaceMd))
+
+        // The safe choice first and styled as the primary action, because the
+        // most likely reason to be looking at this panel is a mis-tap.
+        CarePrimaryButton(
+            text = "Keep $firstName connected",
+            enabled = !working,
+            onClick = { confirming = false; failed = false },
+        )
+
+        Spacer(Modifier.height(CareDimens.SpaceSm))
+
+        CareSecondaryButton(
+            text = if (working) "Disconnecting" else "Yes, disconnect $firstName",
+            enabled = !working,
+            onClick = {
+                working = true
+                failed = false
+                scope.launch {
+                    val result = AppContainer.repository.unlinkCaretaker(caretaker.id)
+                    working = false
+                    result
+                        .onSuccess { confirming = false }
+                        .onFailure { failed = true }
+                }
+            },
+        )
     }
 }
 

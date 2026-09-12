@@ -973,6 +973,90 @@ function generateReadableCode(length: number): string {
  * than entropy alone — an attacker gets a handful of guesses per hour, not
  * unlimited ones.
  */
+/**
+ * Removes a caretaker's access to a patient.
+ *
+ * This did not exist, which was a real hole rather than a missing convenience.
+ * A product whose whole ethical position is that the elder stays in control had
+ * a one-way door: a family member could be granted sight of somebody's health
+ * record and there was no way, anywhere in the product, to take it back. Consent
+ * you cannot withdraw is not consent.
+ *
+ * Two callers are allowed, for different reasons:
+ *
+ *   - The ELDER may remove anyone. It is their record. They do not have to
+ *     justify it and nothing here asks them to.
+ *   - A CARETAKER may remove THEMSELVES, and only themselves. Someone who no
+ *     longer wants the responsibility should be able to step back without
+ *     asking a 78-year-old to work out how to do it for them. Letting a
+ *     caretaker remove a DIFFERENT caretaker would let one family member
+ *     quietly cut another out, which is a family dispute this software has no
+ *     business adjudicating.
+ *
+ * The elder is told either way. An access change happening silently is the same
+ * failure as an escalation happening silently: see D12.
+ */
+export const unlinkCaretaker = onCall(async (request: CallableRequest) => {
+  const caller = requireAuth(request);
+  await enforceRateLimit(`unlink:${caller.uid}`, { limit: 20, windowSeconds: 3600 });
+
+  const patientId = requireString(request.data?.patientId, 'patientId', { max: 128 });
+  const caretakerId = requireString(request.data?.caretakerId, 'caretakerId', { max: 128 });
+
+  const isPatient = caller.uid === patientId;
+  const isSelfRemoval = caller.uid === caretakerId;
+  if (!isPatient && !isSelfRemoval) {
+    throw new HttpsError('permission-denied', 'NOT_ALLOWED');
+  }
+
+  const patientRef = db().doc(`patients/${patientId}`);
+
+  const removed = await db().runTransaction(async (tx) => {
+    const snap = await tx.get(patientRef);
+    if (!snap.exists) throw new HttpsError('not-found', 'NO_SUCH_PATIENT');
+
+    const data = snap.data() as { caretakerIds?: string[] };
+    const current = data.caretakerIds ?? [];
+    if (!current.includes(caretakerId)) {
+      // Already gone. Not an error: the caller wanted them not to have access,
+      // and they do not.
+      return false;
+    }
+
+    tx.update(patientRef, {
+      caretakerIds: FieldValue.arrayRemove(caretakerId),
+      updatedAt: new Date().toISOString(),
+    });
+    return true;
+  });
+
+  if (removed) {
+    // The elder's own record of what happened to their data. Written even when
+    // the caretaker removed themselves, because "Sarah stopped following you"
+    // is exactly the kind of thing that should never be a surprise.
+    await db().collection(`patients/${patientId}/sharedItems`).add({
+      category: 'access_change',
+      whatCaraSaid: isSelfRemoval && !isPatient
+        ? 'Someone you had connected has disconnected themselves. They can no longer see your check-ins.'
+        : 'You disconnected someone. They can no longer see your check-ins.',
+      sharedAt: new Date().toISOString(),
+      elderResponse: 'not_yet_seen',
+      elderNote: null,
+      elderRespondedAt: null,
+      escalationId: null,
+    });
+  }
+
+  logEvent('link.removed', {
+    patientHash: hashId(patientId),
+    callerHash: hashId(caller.uid),
+    selfRemoval: isSelfRemoval,
+    wasLinked: removed,
+  });
+
+  return { removed };
+});
+
 export const redeemLinkingCode = onCall(async (request: CallableRequest) => {
   const caller = requireAuth(request);
   await enforceRateLimit(`linkredeem:${caller.uid}`, { limit: 8, windowSeconds: 3600 });

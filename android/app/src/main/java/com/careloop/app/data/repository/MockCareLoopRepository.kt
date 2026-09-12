@@ -297,6 +297,9 @@ class MockCareLoopRepository : CareLoopRepository {
         dailyCheckInTime: String,
     ): Result<Unit> = Result.success(Unit)
 
+    override suspend fun unlinkCaretaker(caretakerId: String): Result<Boolean> =
+        Result.success(true)
+
     override suspend fun generateLinkingCode(): Result<LinkingCode> =
         Result.success(
             LinkingCode(code = "DEMOCARE", expiresAtIso = ""),

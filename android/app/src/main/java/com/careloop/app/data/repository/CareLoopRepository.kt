@@ -157,6 +157,21 @@ interface CareLoopRepository {
     suspend fun generateLinkingCode(): Result<LinkingCode>
 
     /**
+     * Takes someone's access to this person's check-ins away.
+     *
+     * The counterpart to [generateLinkingCode], and it did not exist for a long
+     * time, which was a hole rather than a missing convenience. A product whose
+     * entire ethical position is that the elder stays in control had a one-way
+     * door: access could be granted and never withdrawn. Consent you cannot
+     * withdraw is not consent.
+     *
+     * Returns true if someone was actually removed, false if they already had
+     * no access. Both are successes; the caller wanted them not to be able to
+     * see this record, and afterwards they cannot.
+     */
+    suspend fun unlinkCaretaker(caretakerId: String): Result<Boolean>
+
+    /**
      * Makes sure there is a signed-in account and a patient record for it.
      *
      * Called once, at the end of onboarding. Until this existed the app never

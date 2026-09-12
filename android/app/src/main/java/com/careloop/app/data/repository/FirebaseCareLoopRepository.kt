@@ -518,6 +518,14 @@ class FirebaseCareLoopRepository(
             )
         }
 
+    override suspend fun unlinkCaretaker(caretakerId: String): Result<Boolean> =
+        callFunction("unlinkCaretaker") {
+            mapOf(
+                "patientId" to requireUid(),
+                "caretakerId" to caretakerId,
+            )
+        }.map { data -> data["removed"] as? Boolean ?: false }
+
     // =========================================================================
     // Plumbing
     // =========================================================================

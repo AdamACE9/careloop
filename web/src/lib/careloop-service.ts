@@ -12,7 +12,7 @@ import {
   limit as fsLimit,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { getDb, getFns, isFirebaseConfigured } from './firebase';
+import { getDb, getFns, isFirebaseConfigured, getFirebaseAuth } from './firebase';
 import { useAuth } from './auth-context';
 import * as demo from './demo-data';
 import type {
@@ -468,6 +468,34 @@ export type RedeemResult =
  * to should be the one who issues it, from a device in their own hand, rather
  * than having access granted to them by someone else and being told afterwards.
  */
+/**
+ * Stops following a patient.
+ *
+ * A caretaker removing their own access, which the backend allows precisely
+ * because it is their own. They cannot remove anyone else: letting one family
+ * member quietly cut another out of a parent's care is a family dispute this
+ * software has no business adjudicating, and the backend refuses it.
+ *
+ * The elder is told either way. An access change happening silently is the same
+ * failure as an escalation happening silently.
+ */
+export async function unlinkSelf(patientId: string): Promise<{ ok: boolean; reason?: string }> {
+  const fns = getFns();
+  const auth = getFirebaseAuth();
+  const uid = auth?.currentUser?.uid;
+
+  if (!fns || !uid || patientId === DEMO_PATIENT.id) {
+    return { ok: false, reason: 'This is the example household, so there is nothing to disconnect.' };
+  }
+
+  try {
+    await httpsCallable(fns, 'unlinkCaretaker')({ patientId, caretakerId: uid });
+    return { ok: true };
+  } catch {
+    return { ok: false, reason: 'That did not go through. Nothing has changed. Please try again.' };
+  }
+}
+
 export async function redeemLinkingCode(code: string): Promise<RedeemResult> {
   const fns = getFns();
   if (!fns) {

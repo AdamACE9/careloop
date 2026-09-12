@@ -87,7 +87,22 @@ export const CONFIDENCE_PHRASE: Record<Confidence, string> = {
   low: "I'm not certain",
 };
 
-export type ShareCategory = 'missed_doses' | 'confusion' | 'vitals' | 'refills';
+/**
+ * What a shared item is about.
+ *
+ * `access_change` is not a thing Cara chose to tell the family. It is a notice
+ * to the ELDER that somebody's access to their record changed, and it is in
+ * this collection because this collection is the one surface that answers "what
+ * has happened to my data". It is deliberately not switchable off: the elder's
+ * sharing preferences govern what gets shared about them, not whether they are
+ * told who can see it.
+ */
+export type ShareCategory =
+  | 'missed_doses'
+  | 'confusion'
+  | 'vitals'
+  | 'refills'
+  | 'access_change';
 
 /** What the agent decided to do after weighing a pattern. */
 export type AgentAction = 'no_action' | 'retry_soon' | 'retry_later' | 'escalate';

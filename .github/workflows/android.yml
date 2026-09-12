@@ -21,6 +21,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    # Needed to publish the APK as a release asset. The default token is
+    # read-only for contents on many repositories.
+    permissions:
+      contents: write
+
     steps:
       - uses: actions/checkout@v4
 
@@ -69,6 +74,27 @@ jobs:
           name: careloop-debug-apk
           path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      # The website's download button points at a GitHub release asset rather
+      # than a file committed into the repo.
+      #
+      # The APK is 23MB. Committing one on every build would add 23MB to git
+      # history permanently, every time, and the history is forever. A release
+      # asset on a public repo downloads with no login, which is the actual
+      # requirement: a judge clicking Download must get an APK without being
+      # asked to sign in to anything.
+      #
+      # One rolling tag rather than a new one per build, so the URL the site
+      # links never changes:
+      #   https://github.com/AdamACE9/careloop/releases/download/latest-apk/careloop.apk
+      - name: Publish the APK for the website
+        if: success() && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk careloop.apk
+          gh release delete latest-apk --yes --cleanup-tag || true
+          gh release create latest-apk careloop.apk             --title "CareLoop debug build"             --notes "Built from ${{ github.sha }}. Debug-signed, so Android will warn about an unknown source before installing."
 
       # On failure the build output is what matters, and scrolling the web log is
       # slower than having the report files in hand.

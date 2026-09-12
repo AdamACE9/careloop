@@ -322,11 +322,28 @@ data class Escalation(
 // Sharing / elder control
 // ---------------------------------------------------------------------------
 
-enum class ShareCategory(val label: String, val description: String) {
+enum class ShareCategory(
+    val label: String,
+    val description: String,
+    /**
+     * Whether the elder can switch this category off.
+     *
+     * ACCESS_CHANGE cannot be. The sharing preferences govern what gets shared
+     * ABOUT them; they do not govern whether they are told WHO can see it. A
+     * setting that let somebody's access be removed or granted without the
+     * person hearing about it would hollow out the whole consent position.
+     */
+    val mutable: Boolean = true,
+) {
     MISSED_DOSES("Missed doses", "When you miss a medication"),
     CONFUSION("How I sound", "If you sound confused or unwell"),
     VITALS("My readings", "Blood sugar and blood pressure readings"),
     REFILLS("Running low", "When a medication is running out"),
+    ACCESS_CHANGE(
+        "Who can see my check-ins",
+        "Always on. You are told whenever someone is connected or disconnected.",
+        mutable = false,
+    ),
 }
 
 /**
