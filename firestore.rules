@@ -94,25 +94,6 @@ service cloud.firestore {
         .affectedKeys().hasOnly(allowedFields);
     }
 
-    // -------------------------------------------------------------------------
-    // /users/{uid} — minimal account record for both roles
-    // -------------------------------------------------------------------------
-    match /users/{uid} {
-      allow read: if isSelf(uid);
-
-      // A user may create their own record, but may not choose privileges.
-      allow create: if isSelf(uid)
-        && request.resource.data.keys().hasOnly(
-             ['role', 'displayName', 'email', 'createdAt']
-           )
-        && request.resource.data.role in ['elder', 'caretaker'];
-
-      allow update: if isSelf(uid) && onlyChanges(['displayName']);
-
-      // Account deletion goes through a Cloud Function so linked data is cleaned
-      // up atomically. A client deleting this doc directly would orphan records.
-      allow delete: if false;
-    }
 
     // -------------------------------------------------------------------------
     // /patients/{patientId} — the elder's profile. patientId == elder's uid.
@@ -266,12 +247,7 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
-    // /linkingCodes/{code} — one-time caretaker linking codes
-    //
-    // Completely opaque to clients. If a client could read this collection it
-    // could enumerate valid codes and link itself to arbitrary patients, which is
-    // -------------------------------------------------------------------------
-    // Caretaker profiles.
+    // /users/{userId} — caretaker profiles.
     //
     // The elder's phone needs a NAME and a PHONE NUMBER for the person it is
     // about to tell something to, and for the "call my daughter" button. All it
@@ -304,8 +280,13 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // a total compromise of the access model. Both generation and redemption go
-    // through Cloud Functions.
+    // -------------------------------------------------------------------------
+    // /linkingCodes/{code} — one-time caretaker linking codes
+    //
+    // Completely opaque to clients. If a client could read this collection it
+    // could enumerate valid codes and link itself to arbitrary patients, which
+    // is a total compromise of the access model rather than the leak of one
+    // document. Both generation and redemption go through Cloud Functions.
     // -------------------------------------------------------------------------
     match /linkingCodes/{code} {
       allow read, write: if false;

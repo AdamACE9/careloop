@@ -1,0 +1,15 @@
+{
+  // The rules tests are typechecked but never compiled.
+  //
+  // tsconfig.json includes only src/**/*.ts and emits into lib/, which is what
+  // gets deployed. The tests must not end up in that bundle, so they are .mts
+  // and excluded there. This config exists purely so a typo in a test is caught
+  // by CI rather than surfacing as a runtime error, since
+  // --experimental-strip-types discards the types without checking them.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["src/rules.test.mts"]
+}

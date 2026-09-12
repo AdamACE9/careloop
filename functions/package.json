@@ -15,8 +15,10 @@
     "shell": "npm run build && firebase functions:shell",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "test:rules": "node --test --experimental-strip-types src/**/*.test.ts",
-    "eval": "npm run build && node lib/eval/run.js"
+    "test:rules": "node --test --experimental-strip-types src/rules.test.mts",
+    "eval": "npm run build && node lib/eval/run.js",
+    "test:rules:emulated": "firebase emulators:exec --only firestore --project careloop-rules-test \"npm run test:rules\"",
+    "typecheck:test": "tsc --noEmit -p tsconfig.test.json"
   },
   "dependencies": {
     "firebase-admin": "^13.0.2",
@@ -25,6 +27,7 @@
   "devDependencies": {
     "@firebase/rules-unit-testing": "^4.0.1",
     "@types/node": "^22.10.5",
+    "firebase": "^11.10.0",
     "typescript": "^5.7.3"
   }
 }
