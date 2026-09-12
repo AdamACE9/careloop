@@ -52,6 +52,7 @@ import com.careloop.app.data.model.ElderResponse
 import com.careloop.app.data.model.ShareCategory
 import com.careloop.app.data.model.SharedItem
 import com.careloop.app.data.model.SharingPreferences
+import com.careloop.app.data.repository.EmptyElderProfile
 import com.careloop.app.di.AppContainer
 import com.careloop.app.ui.components.CareEmptyState
 import com.careloop.app.ui.components.CarePrimaryButton

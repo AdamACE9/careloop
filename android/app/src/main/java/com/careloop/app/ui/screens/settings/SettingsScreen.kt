@@ -62,6 +62,7 @@ import com.careloop.app.ui.theme.CareDimens
 import com.careloop.app.ui.theme.CareLoopTheme
 import com.careloop.app.ui.theme.TextScaleStore
 import com.careloop.app.ui.theme.TextSize
+import com.careloop.app.ui.theme.rememberTextSize
 import com.careloop.app.di.AppContainer
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
