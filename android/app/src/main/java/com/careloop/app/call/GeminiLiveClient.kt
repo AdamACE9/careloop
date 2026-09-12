@@ -267,6 +267,16 @@ class GeminiLiveClient(
                 put("model", "models/${token.model}")
                 put("generationConfig", JSONObject().apply {
                     put("responseModalities", JSONArray().put("AUDIO"))
+                    // Inside generationConfig, not beside it.
+                    //
+                    // At the top level of `setup` these were accepted and then
+                    // silently ignored: the session opened, Cara spoke, and not
+                    // one transcription frame ever arrived. The socket does not
+                    // reject unknown setup fields the way the token endpoint
+                    // does, so a misplaced field looks exactly like a working
+                    // one until you notice the transcript is always empty.
+                    put("inputAudioTranscription", JSONObject())
+                    put("outputAudioTranscription", JSONObject())
                     put("speechConfig", JSONObject().apply {
                         put("languageCode", token.languageCode)
                         put("voiceConfig", JSONObject().apply {
@@ -283,11 +293,6 @@ class GeminiLiveClient(
                     )
                 })
                 put("tools", tools)
-                // Ask for both sides of the conversation as text. This is what
-                // populates the on-screen transcript, and what gets summarised and
-                // stored afterwards. Raw audio is never persisted.
-                put("inputAudioTranscription", JSONObject())
-                put("outputAudioTranscription", JSONObject())
             })
         }
         socket.send(setup.toString())
@@ -504,6 +509,7 @@ class GeminiLiveClient(
         }
 
         if (content.optBoolean("turnComplete", false)) {
+            turnEnded = true
             _activity.value = CaraActivity.LISTENING
         }
     }
@@ -568,7 +574,36 @@ class GeminiLiveClient(
         }
     }
 
+    /**
+     * Appends to the current speaker's line rather than starting a new one.
+     *
+     * Transcription arrives as a stream of fragments, often a word or two at a
+     * time. Treating each fragment as its own line rendered the conversation as
+     * a column of single words, which is unreadable and looks broken. Fragments
+     * are joined until the other party speaks or the turn ends.
+     */
     private fun appendTranscript(speaker: Speaker, text: String) {
+        val current = _transcript.value
+        val last = current.lastOrNull()
+
+        if (last != null && last.speaker == speaker && !turnEnded) {
+            val joined = if (last.text.endsWith(" ") || text.startsWith(" ")) {
+                last.text + text
+            } else {
+                last.text + " " + text
+            }
+            _transcript.value = current.dropLast(1) + last.copy(text = joined.trim())
+            return
+        }
+
+        turnEnded = false
+        appendNewTranscriptLine(speaker, text)
+    }
+
+    /** True once a turn completes, so the next fragment starts a fresh line. */
+    private var turnEnded = true
+
+    private fun appendNewTranscriptLine(speaker: Speaker, text: String) {
         val offset = sessionDurationSeconds
         _transcript.value = _transcript.value + TranscriptLine(
             speaker = speaker,
