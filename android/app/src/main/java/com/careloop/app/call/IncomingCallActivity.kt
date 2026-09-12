@@ -1,7 +1,6 @@
 package com.careloop.app.call
 
 import android.app.KeyguardManager
-import android.content.Context
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -129,7 +128,12 @@ class IncomingCallActivity : ComponentActivity() {
     }
 }
 
-/** Convenience for the debug trigger and, later, the FCM receiver. */
-fun Context.startIncomingCallDemo() {
-    CallNotifier.postIncomingCall(this)
-}
+// startIncomingCallDemo() used to live here: a one-line helper that posted the
+// incoming-call notification locally. It was removed rather than left unused,
+// because calling it is a trap. A locally posted ring has no server call
+// attempt behind it, so the call screen has no attempt id on hang-up and
+// discards the entire conversation: no check-in, no vitals, no outcome, no
+// reasoning, nothing on the family's dashboard.
+//
+// To make the phone ring, ask the server: repository.requestManualCheckIn(),
+// which is the same triggerCall the scheduler uses and which sends a real push.

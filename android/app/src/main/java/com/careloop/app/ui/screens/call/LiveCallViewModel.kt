@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.careloop.app.call.CallSession
+import com.careloop.app.di.AppContainer
 import com.careloop.app.call.GeminiLiveClient
 import com.careloop.app.data.mock.MockData
 import com.careloop.app.data.model.CaraActivity
@@ -394,29 +395,52 @@ class LiveCallViewModel(
         client = null
 
         val attemptId = CallSession.callAttemptId
-        if (_mode.value != Mode.LIVE || attemptId == null) {
+        CallSession.end()
+
+        if (_mode.value != Mode.LIVE) {
             onFinished()
             return
         }
 
-        viewModelScope.launch {
-            repository.submitCheckIn(
-                CheckInSubmission(
-                    callAttemptId = attemptId,
-                    durationSeconds = duration,
-                    medicationsConfirmed = confirmed.toList(),
-                    medicationsMissed = missed.toList(),
-                    transcript = _transcript.value,
-                    confusionSignal = confusionSignal,
-                    hesitationSignal = hesitationSignal,
-                    toneNote = toneNote,
-                    vitals = vitals.toList(),
-                ),
-            ).onFailure { Log.w(TAG, "Check-in submission failed") }
-
-            repository.reportCallOutcome(attemptId, "answered", duration)
+        if (attemptId == null) {
+            // A live conversation with nowhere to record it. This used to return
+            // in silence, which is how a real call could be had, transcribed on
+            // screen, and then dropped without a trace or a log line.
+            Log.w(TAG, "Live call ended with no attempt id; nothing was recorded")
             onFinished()
+            return
         }
+
+        val submission = CheckInSubmission(
+            callAttemptId = attemptId,
+            durationSeconds = duration,
+            medicationsConfirmed = confirmed.toList(),
+            medicationsMissed = missed.toList(),
+            transcript = _transcript.value,
+            confusionSignal = confusionSignal,
+            hesitationSignal = hesitationSignal,
+            toneNote = toneNote,
+            vitals = vitals.toList(),
+        )
+
+        // Application scope, not viewModelScope.
+        //
+        // This screen is an Activity that finishes the moment the call ends, and
+        // a viewModelScope dies with it. Two callable round trips to
+        // europe-west1 do not finish inside that window, so the write was racing
+        // the teardown and losing. Losing it costs the reasoning engine the
+        // evidence for the day.
+        //
+        // onFinished() is called immediately rather than after the writes,
+        // because nobody should watch a spinner after pressing "end call".
+        AppContainer.applicationScope.launch {
+            repository.submitCheckIn(submission)
+                .onFailure { Log.w(TAG, "Check-in submission failed") }
+            repository.reportCallOutcome(attemptId, "answered", duration)
+                .onFailure { Log.w(TAG, "Call outcome report failed") }
+        }
+
+        onFinished()
     }
 
     override fun onCleared() {

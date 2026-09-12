@@ -14,15 +14,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewFontScale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.careloop.app.BuildConfig
-import com.careloop.app.call.startIncomingCallDemo
 import com.careloop.app.data.mock.MockData
 import com.careloop.app.data.model.CheckInStatus
 import com.careloop.app.data.repository.EmptyElderProfile
@@ -31,6 +33,7 @@ import com.careloop.app.ui.components.*
 import com.careloop.app.ui.theme.CareColors
 import com.careloop.app.ui.theme.CareDimens
 import com.careloop.app.ui.theme.CareLoopTheme
+import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
 
 /**
@@ -44,7 +47,13 @@ import java.time.format.DateTimeFormatter
 fun HomeScreen(
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
+    // The call request outlives a recomposition but not the screen, which is
+    // right: if they leave this screen the phone will ring anyway, because the
+    // ring comes from the server.
+    val scope = rememberCoroutineScope()
+    var requesting by remember { mutableStateOf(false) }
+    var requestError by remember { mutableStateOf<String?>(null) }
+
     val elder by AppContainer.repository.observeElder()
         .collectAsStateWithLifecycle(
             initialValue = initialSeed(empty = EmptyElderProfile, demo = MockData.elder),
@@ -172,11 +181,19 @@ fun HomeScreen(
         Spacer(Modifier.height(CareDimens.SpaceXl))
 
         // --- Trigger a real call ---
-        // Debug builds only. "Simulate" undersold this button: it posts the exact same
-        // CallStyle notification that a real FCM push will post, so the call that follows
-        // is the genuine code path, not a mock-up standing in for one. The copy below says
-        // that plainly rather than hedging with "demo" language that isn't true of what
-        // actually happens on tap.
+        //
+        // This asks the SERVER to place the call, through the same triggerCall
+        // callable the 9am scheduler uses. It used to post the notification
+        // locally instead, and that quietly severed the product at its first
+        // link: with no server call attempt there is no attempt id, so the call
+        // screen took its demo branch on hang-up and threw the whole
+        // conversation away. Cara talked, the transcript appeared, and then
+        // nothing was written. No check-in, no vitals, no outcome, no
+        // reasoning, nothing on the family's dashboard. Every call anyone could
+        // actually make was a real conversation with no record of it.
+        //
+        // The copy already claimed this was a real call rather than a preview.
+        // Now it is.
         if (BuildConfig.DEBUG) {
             Column(
                 modifier = Modifier
@@ -200,10 +217,29 @@ fun HomeScreen(
                 )
                 Spacer(Modifier.height(CareDimens.SpaceMd))
                 CarePrimaryButton(
-                    text = "Have Cara call me now",
+                    text = if (requesting) "Asking Cara to call" else "Have Cara call me now",
                     icon = Icons.Rounded.PhoneInTalk,
-                    onClick = { context.startIncomingCallDemo() },
+                    enabled = !requesting,
+                    onClick = {
+                        requesting = true
+                        scope.launch {
+                            val result = AppContainer.repository.requestManualCheckIn()
+                            requesting = false
+                            requestError = result.exceptionOrNull()?.let {
+                                "Cara could not be reached just now. Please try again."
+                            }
+                        }
+                    },
                 )
+
+                requestError?.let { message ->
+                    Spacer(Modifier.height(CareDimens.SpaceSm))
+                    Text(
+                        message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
         }
 
