@@ -827,7 +827,7 @@ private fun RingPermissionStep(
         Spacer(Modifier.height(CareDimens.SpaceMd))
 
         Text(
-            text = "Some phones treat CareLoop's call as just a quiet notification. " +
+            text = "Some phones treat CareLoop's call as just a quiet notification, " +
                 "easy to miss if you're in another room. Turning this on makes it ring " +
                 "and fill the screen instead, the same as a call from family.",
             style = MaterialTheme.typography.bodyLarge,
