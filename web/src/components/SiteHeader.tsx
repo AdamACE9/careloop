@@ -50,7 +50,15 @@ export default function SiteHeader() {
       // opaque, so the blur has nothing to sample and merely creates an extra
       // compositing layer, which rendered as a visible lightening of the bar
       // against an identically-coloured hero.
-      className={`sticky top-0 z-50 ${scrolled ? "backdrop-blur-md" : ""}`}
+      //
+      // `bg-navy-deep` is a real CSS default, not just a fallback for the
+      // `animate` prop below: before hydration, or with JavaScript disabled
+      // entirely, framer-motion never runs, so `animate` never applies and the
+      // header would otherwise render with no background at all. A header the
+      // page's own cream background shows through, with white nav text on it,
+      // is unreadable, which fails this page's own bar for content that must
+      // be legible before any script runs.
+      className={`sticky top-0 z-50 bg-navy-deep ${scrolled ? "backdrop-blur-md" : ""}`}
       // Opaque at rest, translucent only once content is actually scrolling
       // under it. At scroll 0 the header sits ABOVE the hero rather than over it,
       // so what is behind it is the page's bone background: a translucent navy

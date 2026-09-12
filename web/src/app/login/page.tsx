@@ -14,6 +14,11 @@ import { LoopGlyph } from '@/components/SiteHeader';
  * plainly and opens the dashboard on demo data rather than staging a fake
  * authentication, which would be a small lie told to someone evaluating the
  * product.
+ *
+ * No Lenis, no ScrollTrigger here, deliberately. Someone filling in a form
+ * wants it to respond immediately, not to feel cinematic. The only motion on
+ * this page is the ordinary transition on the submit button and the hover
+ * states, both plain CSS.
  */
 export default function LoginPage() {
   const router = useRouter();
@@ -65,13 +70,13 @@ export default function LoginPage() {
           <h1 className="font-display text-4xl text-ink">
             {mode === 'signin' ? 'Welcome back' : 'Create your account'}
           </h1>
-          <p className="mt-3 leading-relaxed text-slate-ink">
+          <p className="mt-3 text-lg leading-relaxed text-slate-ink">
             {mode === 'signin'
               ? 'Sign in to see how your mother is doing.'
               : 'You will be able to connect her phone in a moment.'}
           </p>
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
             {mode === 'signup' && (
               <Field
                 id="name"
@@ -107,7 +112,7 @@ export default function LoginPage() {
             {error && (
               <p
                 role="alert"
-                className="rounded-xl bg-urgent-surface px-4 py-3 text-sm text-urgent"
+                className="rounded-xl bg-urgent-surface px-4 py-3 text-sm font-medium text-urgent"
               >
                 {error}
               </p>
@@ -116,7 +121,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={busy}
-              className="w-full rounded-2xl bg-navy px-6 py-4 font-semibold text-white transition hover:bg-navy-soft disabled:opacity-70"
+              className="flex min-h-[56px] w-full items-center justify-center rounded-2xl bg-navy px-6 py-4 text-lg font-semibold text-white transition hover:bg-navy-soft focus-visible:outline-offset-4 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {busy
                 ? 'One moment…'
@@ -127,8 +132,9 @@ export default function LoginPage() {
           </form>
 
           <button
+            type="button"
             onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(null); }}
-            className="mt-6 text-sm text-slate-ink transition hover:text-ink"
+            className="mt-6 min-h-[44px] text-base text-slate-ink underline decoration-ink/20 underline-offset-4 transition hover:text-ink hover:decoration-ink/50"
           >
             {mode === 'signin'
               ? 'No account yet? Create one'
@@ -158,20 +164,23 @@ export default function LoginPage() {
           aria-hidden
         />
         <div className="relative flex h-full flex-col justify-center px-16">
-          <blockquote className="max-w-md">
+          <p className="text-sm tracking-[0.18em] text-gold uppercase">
+            A real morning, from the demo household
+          </p>
+          <blockquote className="mt-6 max-w-md">
             <p className="font-display text-3xl leading-snug text-white">
-              &ldquo;I&apos;m reaching out because your mother missed her warfarin
-              twice this week, and both times she wasn&apos;t sure whether
-              she&apos;d taken it.&rdquo;
+              &ldquo;Margaret has missed her warfarin twice this week, and both
+              times she wasn&apos;t sure whether she&apos;d taken it.&rdquo;
             </p>
-            <footer className="mt-6 text-sm text-gold">
-              Cara, to Sarah, on a Thursday morning
+            <footer className="mt-6 text-sm text-white/50">
+              Cara, to Sarah, the morning it happened twice
             </footer>
           </blockquote>
 
-          <p className="mt-12 max-w-md leading-relaxed text-white/60">
-            One missed dose is normal. Three in a week is a warning sign. CareLoop
-            is built to know the difference, and to tell you why.
+          <p className="mt-12 max-w-md text-lg leading-relaxed text-white/60">
+            One missed dose is normal. Two, the same way, on the medication that
+            matters most, is worth a phone call. CareLoop is built to know the
+            difference, and to say exactly why.
           </p>
         </div>
       </div>
@@ -198,7 +207,7 @@ function Field({
 }) {
   return (
     <div>
-      <label htmlFor={id} className="block text-sm font-medium text-ink">
+      <label htmlFor={id} className="block text-base font-medium text-ink">
         {label}
       </label>
       <input
@@ -210,7 +219,7 @@ function Field({
         placeholder={placeholder}
         autoComplete={autoComplete}
         required
-        className="mt-2 w-full rounded-2xl border border-ink/15 bg-white px-5 py-4 text-ink placeholder:text-ink/25 focus:border-navy focus:outline-none"
+        className="mt-2 min-h-[56px] w-full rounded-2xl border border-ink/15 bg-white px-5 py-4 text-lg text-ink placeholder:text-ink/25 focus:border-navy focus:outline-none"
       />
     </div>
   );

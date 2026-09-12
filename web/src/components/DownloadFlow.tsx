@@ -13,18 +13,20 @@ import Link from "next/link";
  *
  * The copy avoids two failure modes:
  *  - it never says the warning is meaningless (it is not; it exists for good reason)
- *  - it never uses jargon like "sideloading" or "APK" without saying what it means
- */
-/**
- * The published build.
+ *  - it never uses jargon like "sideloading" without saying what it means
  *
- * A GitHub release rather than a file served from this site: App Hosting
- * rebuilds and redeploys on every push, and shipping a 23 MB binary through that
- * pipeline on every copy change is the wrong place for it. The release is also
- * versioned, which a file in /public would not be.
+ * Calm on purpose: this route carries none of the landing page's Lenis/GSAP scroll
+ * work. Someone here is mid-task, often installing this on a parent's phone while
+ * standing next to them, and the right feeling is fast and certain, not cinematic.
  */
-const APK_URL =
-  "https://github.com/AdamACE9/careloop/releases/download/v0.2.0/careloop.apk";
+
+/**
+ * Served from this site's own root rather than a third-party release host, so
+ * there is exactly one place to look when the build changes. It is a debug
+ * build, not a Play Store release, which is exactly why Android shows the
+ * warning explained on the first screen.
+ */
+const APK_URL = "/careloop.apk";
 
 export default function DownloadFlow() {
   const [step, setStep] = useState<"explain" | "download">("explain");
@@ -50,7 +52,8 @@ export default function DownloadFlow() {
           <p className="mt-7 text-lg leading-relaxed text-slate-ink">
             In a moment, your phone will say this app is from an{" "}
             <strong className="text-ink">unknown source</strong>. That message means
-            CareLoop is not on the Google Play Store yet.
+            CareLoop is not on the Google Play Store yet, and is a debug build we
+            publish directly.
           </p>
           <p className="mt-4 text-lg leading-relaxed text-slate-ink">
             It does <strong className="text-ink">not</strong> mean the app is unsafe.
@@ -99,7 +102,7 @@ export default function DownloadFlow() {
 
           <button
             onClick={() => setStep("download")}
-            className="mt-10 w-full rounded-2xl bg-gold px-8 py-5 text-lg font-semibold text-navy-deep transition hover:bg-gold-glow"
+            className="mt-10 w-full rounded-2xl bg-gold px-8 py-5 text-lg font-semibold text-navy-deep transition hover:bg-gold-bright"
           >
             I understand, continue
           </button>
@@ -113,15 +116,11 @@ export default function DownloadFlow() {
             Ready when you are.
           </h1>
           <p className="mt-7 text-lg leading-relaxed text-slate-ink">
-            CareLoop runs on Android phones running Android 8 or newer. The download is
-            about 23 MB.
+            CareLoop runs on Android phones running Android 8 or newer. This is a
+            debug build while CareLoop is in early access, so the version number
+            you see after installing may move faster than a normal app update.
           </p>
 
-          {/*
-            A real file, built by CI and published as a GitHub release. The size
-            above is the actual size of that build, not a guess: this page used to
-            claim 12 MB for a file that did not exist.
-          */}
           <div className="mt-10 rounded-3xl border border-gold/40 bg-white p-8 text-center">
             <a
               href={APK_URL}
@@ -144,7 +143,8 @@ export default function DownloadFlow() {
               Download CareLoop for Android
             </a>
             <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-slate-ink">
-              Version 0.2.0, about 23 MB. Android 8 or newer.
+              Android 8 or newer. Downloads directly from this site, not a
+              third-party store.
             </p>
           </div>
 

@@ -1,49 +1,61 @@
 import LoopHero from "@/components/LoopHero";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
-import ReasoningCard from "@/components/ReasoningCard";
 import PhoneCallMock from "@/components/PhoneCallMock";
-import ScrollProgress, { WordRise } from "@/components/motion/ScrollProgress";
-import {
-  FadeUp,
-  Stagger,
-  StaggerItem,
-  MagneticButton,
-  TiltCard,
-  Parallax,
-  Counter,
-  Marquee,
-  ScrollSettle,
-} from "@/components/motion/primitives";
+import EscalationNarrative from "@/components/EscalationNarrative";
+import LenisScroll from "@/components/motion/LenisScroll";
+import { Reveal, RevealGroup, SplitReveal, ParallaxLayer } from "@/components/motion/gsap-scroll";
+import { PinnedSteps } from "@/components/motion/PinnedSteps";
+import ScrollProgress from "@/components/motion/ScrollProgress";
+import { MagneticButton, TiltCard, Marquee } from "@/components/motion/primitives";
 
 /**
  * The landing page.
  *
- * Structure follows the argument the product needs to win, in order:
- *   1. the emotional problem (you cannot be there every day)
- *   2. why existing tools fail (a tap is not evidence)
- *   3. what CareLoop does differently, shown running in a phone
- *   4. proof: a real reasoning trace, not a claim about one
- *   5. the dignity position, which nobody else has built
- *   6. download
+ * ## Section order, and why
  *
- * Section 4 is the centrepiece. Judges score for visible autonomous reasoning, so
- * the page shows an actual escalation with its evidence rather than asserting
- * that the agent is clever.
+ * Hero (the product, running) -> what CareLoop plainly is -> how it works, with
+ * real specifics -> one real escalation, told straight -> the honest objection,
+ * answered -> the action. That order was checked against how this category's
+ * more credible sites are actually built: product visual first, plain language
+ * before mechanism, mechanism before proof, one objection answered before the
+ * ask. Two departures from that pattern, both deliberate:
  *
- * This file stays a server component. Every animated piece is a client component
- * imported into it, so the static content is still server-rendered and the motion
- * code is the only thing shipped to the browser.
+ * - The hero never uses the word "AI". Cara is described by what she does
+ *   (calls, listens, checks, remembers), not by the category she belongs to.
+ *   Most of the credible products in this space make the same choice, and the
+ *   word adds nothing a worried adult child is looking for.
+ * - The proof section shows exactly one escalation, as a plain narrative of
+ *   what happened on real calls, with no confidence label and no list of
+ *   rejected alternatives. Both of those are right for the caretaker who has
+ *   opted into the dashboard's full reasoning view; on a first visit they read
+ *   as a machine hedging rather than as a machine that noticed something real.
+ *
+ * ## Motion
+ *
+ * `LenisScroll` and the GSAP primitives in `motion/gsap-scroll.tsx` are the
+ * only things doing scroll-linked work on this page: text splits and reveals
+ * on entry, one scrubbed parallax layer, and a single pinned scene in "how it
+ * works" (the phone mock pins while the four steps scroll past it, since
+ * sequence is the entire point of that section). `MagneticButton`, `TiltCard`
+ * and `Marquee`, used below, are the one exception: they answer to the cursor
+ * or run continuously, not to scroll position, and rebuilding them in GSAP
+ * would not have changed what they do, so they keep the spring-based
+ * Framer Motion implementation already built for this page.
+ *
+ * Every section below is fully present, in its final layout, in the server-
+ * rendered HTML. Nothing starts at `opacity: 0` in markup or CSS; see the note
+ * at the top of gsap-scroll.tsx for exactly how that is enforced.
  */
 export default function Home() {
   return (
     <main className="min-h-screen bg-cream">
+      <LenisScroll />
       <ScrollProgress />
       <SiteHeader />
 
       {/* ================================================================ Hero */}
       <section className="relative grain overflow-hidden bg-navy-deep">
-        {/* Two drifting light sources. Long cycles so they never read as a loop. */}
         <div
           className="pointer-events-none absolute inset-0 opacity-80"
           style={{
@@ -55,36 +67,33 @@ export default function Home() {
         <div
           className="drift pointer-events-none absolute -top-40 -left-40 h-[36rem] w-[36rem] rounded-full opacity-40 blur-3xl"
           style={{
-            background:
-              "radial-gradient(circle, rgba(201,162,39,0.16), transparent 65%)",
+            background: "radial-gradient(circle, rgba(201,162,39,0.16), transparent 65%)",
           }}
           aria-hidden
         />
 
         <div className="relative mx-auto grid max-w-7xl gap-14 px-6 pt-28 pb-20 md:grid-cols-[1.05fr_0.95fr] md:items-center md:gap-10 md:px-10 md:pt-36 md:pb-28">
           <div>
-            <FadeUp>
-              <p className="mb-6 flex items-center gap-3 text-sm tracking-[0.18em] text-gold uppercase">
-                <span className="breathe inline-block h-1.5 w-1.5 rounded-full bg-gold" aria-hidden />
-                Agentic care companion
-              </p>
-            </FadeUp>
+            <p className="mb-6 flex items-center gap-3 text-sm tracking-[0.18em] text-gold uppercase">
+              <span className="breathe inline-block h-1.5 w-1.5 rounded-full bg-gold" aria-hidden />
+              Not a reminder app
+            </p>
 
             <h1 className="font-display text-5xl leading-[1.04] text-white md:text-[4.6rem]">
-              <WordRise
+              <SplitReveal
                 text="Someone checks on your mother every morning."
                 highlight={["every", "morning."]}
               />
             </h1>
 
-            <FadeUp delay={420}>
+            <Reveal delay={420}>
               <p className="mt-8 max-w-xl text-lg leading-relaxed text-white/65 md:text-xl">
-                CareLoop phones her, listens to how she answers, and tells you when
+                CareLoop calls her, has an actual conversation, and tells you when
                 something is genuinely wrong, not every time she is five minutes late.
               </p>
-            </FadeUp>
+            </Reveal>
 
-            <FadeUp delay={540}>
+            <Reveal delay={540}>
               <div className="mt-10 flex flex-col gap-4 sm:flex-row">
                 <MagneticButton href="/download" variant="gold">
                   Set it up for a parent
@@ -93,79 +102,56 @@ export default function Home() {
                   See the family dashboard
                 </MagneticButton>
               </div>
-            </FadeUp>
+            </Reveal>
 
-            <FadeUp delay={640}>
+            <Reveal delay={640}>
               <p className="mt-7 text-sm text-white/40">
                 No call charges. It rings over wifi, like a video call.
               </p>
-            </FadeUp>
+            </Reveal>
           </div>
 
-          <Parallax speed={-0.08} className="h-[340px] md:h-[540px]">
+          <ParallaxLayer speed={-8} className="h-[340px] md:h-[540px]">
             <LoopHero />
-          </Parallax>
+          </ParallaxLayer>
         </div>
 
-        {/* Ticker of what Cara actually does on a call. */}
         <div className="relative border-t border-white/10 py-5">
           <div className="mx-auto max-w-7xl px-6 md:px-10">
             <Marquee
               items={[
                 "Rings like a real phone call",
-                "Listens to how she answers",
-                "Checks interactions mid-conversation",
-                "Reasons across days, not single events",
-                "Explains itself in plain language",
+                "A real conversation, not a script",
+                "Checks new medications while she's still talking",
+                "Remembers the last several days, not just today",
+                "Explains what she decided, in plain language",
                 "She sees everything you see",
-                "Weighs how serious each medication is",
-                "Decides when family needs to know",
               ]}
             />
           </div>
         </div>
       </section>
 
-      {/* ============================================================= Problem */}
-      <section className="mx-auto max-w-7xl px-6 py-24 md:px-10 md:py-32">
-        <FadeUp>
-          <p className="text-sm tracking-[0.18em] text-gold-ink uppercase">The gap</p>
-          <h2 className="mt-5 max-w-3xl font-display text-4xl leading-tight text-ink md:text-5xl">
-            One missed dose is normal. Three in a week is a warning sign. Nothing
-            currently notices the difference.
+      {/* ==================================================== What it plainly is */}
+      <section className="mx-auto max-w-4xl px-6 py-24 text-center md:px-10 md:py-32">
+        <Reveal>
+          <p className="text-sm tracking-[0.18em] text-gold-ink uppercase">
+            What CareLoop actually is
+          </p>
+          <h2 className="mt-5 font-display text-4xl leading-tight text-ink md:text-5xl">
+            Once a day, at a time she picked, her phone rings. Really rings.
           </h2>
-          <span className="rule-draw mt-10 block h-px w-full bg-ink/15" aria-hidden />
-        </FadeUp>
-
-        <Stagger className="mt-14 grid gap-8 md:grid-cols-3" gap={0.1}>
-          {[
-            {
-              n: "01",
-              title: "Reminder apps verify nothing",
-              body: "They log a tap. A tap is not evidence that a tablet was swallowed, and it cannot tell you she sounded confused while she did it.",
-            },
-            {
-              n: "02",
-              title: "Nobody is watching for patterns",
-              body: "A daughter three hours away hears about a problem after it becomes a crisis. The signal was there for a week; there was just no one to see it.",
-            },
-            {
-              n: "03",
-              title: "The alternative costs a salary",
-              body: "Full-time human care is out of reach for most families. The choice today is between a dumb reminder and a carer you cannot afford.",
-            },
-          ].map((item) => (
-            <StaggerItem key={item.n}>
-              <TiltCard className="h-full">
-                <div className="lift h-full rounded-3xl border border-ink/10 bg-white p-8">
-                  <span className="font-display text-2xl text-gold-ink">{item.n}</span>
-                  <h3 className="mt-4 text-xl font-semibold text-ink">{item.title}</h3>
-                  <p className="mt-3 leading-relaxed text-slate-ink">{item.body}</p>
-                </div>
-              </TiltCard>
-            </StaggerItem>
-          ))}
-        </Stagger>
+          <p className="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-slate-ink">
+            Full screen, on the lock screen, like a call from a person, because
+            that is what it is meant to feel like. Cara talks with her, checks
+            whatever medication comes up against everything else she takes, and
+            remembers what happened yesterday and the day before, not just today.
+          </p>
+          <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-slate-ink">
+            Most days end with nothing to report. That is the point: the calls
+            that matter are the ones that would otherwise have gone unnoticed.
+          </p>
+        </Reveal>
       </section>
 
       {/* ============================================================ The loop */}
@@ -179,147 +165,111 @@ export default function Home() {
         />
 
         <div className="relative mx-auto max-w-7xl px-6 md:px-10">
-          <FadeUp>
+          <Reveal>
             <p className="text-sm tracking-[0.18em] text-gold uppercase">How it works</p>
             <h2 className="mt-5 max-w-3xl font-display text-4xl leading-tight text-white md:text-5xl">
-              A loop that <span className="text-sheen">closes itself.</span>
+              Four things happen on every call, in this order.
             </h2>
-          </FadeUp>
+          </Reveal>
 
-          <div className="mt-16 grid gap-12 lg:grid-cols-[1fr_auto] lg:gap-16">
-            <Stagger className="space-y-5" gap={0.09}>
-              {[
+          <div className="mt-16">
+            <PinnedSteps
+              steps={[
                 {
                   n: "01",
                   title: "It calls, properly",
-                  body: "At a time she chooses, her phone rings like a real call. Full screen, on the lock screen. Not a notification she will scroll past.",
+                  body: "At a time she chose, her phone rings like a real call. Full screen, on the lock screen. Not a notification she has to notice and open.",
                 },
                 {
                   n: "02",
-                  title: "It listens to the answer",
-                  body: "A real conversation. Cara hears hesitation, confusion, and the difference between “I took it” and “I think I took it.”",
+                  title: "It listens to how she answers",
+                  body: "A real conversation, not a script. Cara notices hesitation and uncertainty, the difference between “I took it” and “I think I took it.”",
                 },
                 {
                   n: "03",
-                  title: "It checks while it talks",
-                  body: "Mention a new painkiller mid-sentence and Cara checks it against everything else she takes, without the call going quiet.",
+                  title: "It checks while it's still talking",
+                  body: "Mention a new medication mid-sentence and Cara checks it against everything else she takes, out loud, without the call going quiet.",
                 },
                 {
                   n: "04",
-                  title: "It decides when to worry",
-                  body: "Not on one miss. On a pattern, weighted by how serious that specific medication is. Then it explains itself, in plain English.",
+                  title: "It weighs the pattern, not the moment",
+                  body: "One missed dose is not a pattern. A repeat, on a medication that matters, is. Cara decides on days of calls, not a single one, then says why.",
                 },
-              ].map((step) => (
-                <StaggerItem key={step.n}>
-                  <div className="group flex gap-6 rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-colors duration-300 hover:border-gold/40 hover:bg-white/[0.06]">
-                    <span className="font-display text-2xl text-gold transition-transform duration-300 group-hover:scale-110">
-                      {step.n}
-                    </span>
-                    <div>
-                      <h3 className="text-lg font-semibold text-white">{step.title}</h3>
-                      <p className="mt-2 leading-relaxed text-white/60">{step.body}</p>
-                    </div>
-                  </div>
-                </StaggerItem>
-              ))}
-            </Stagger>
-
-            <FadeUp delay={200} className="flex justify-center lg:justify-end">
-              <PhoneCallMock />
-            </FadeUp>
+              ]}
+              visual={<PhoneCallMock />}
+            />
           </div>
         </div>
       </section>
 
-      {/* ================================================= Reasoning, the proof */}
-      <section className="mx-auto max-w-7xl px-6 py-24 md:px-10 md:py-32">
-        <FadeUp>
+      {/* ================================================================ Proof */}
+      <section className="mx-auto max-w-6xl px-6 py-24 md:px-10 md:py-32">
+        <Reveal className="mx-auto max-w-3xl text-center">
           <p className="text-sm tracking-[0.18em] text-gold-ink uppercase">
-            Why it alerted you
+            One real week
           </p>
-          <h2 className="mt-5 max-w-3xl font-display text-4xl leading-tight text-ink md:text-5xl">
-            Most AI tells you what it decided. Cara shows you the working.
+          <h2 className="mt-5 font-display text-4xl leading-tight text-ink md:text-5xl">
+            Most companion apps say they check in. Here is what Cara actually
+            noticed, and what she did about it.
           </h2>
-          <p className="mt-6 max-w-2xl text-lg leading-relaxed text-slate-ink">
-            This is a real escalation from the demo data: the reasoning, the evidence
-            behind each step, and the options Cara weighed and rejected.
-          </p>
-        </FadeUp>
+        </Reveal>
 
-        <ScrollSettle className="mt-14">
-          <ReasoningCard />
-        </ScrollSettle>
-
-        {/* The numbers that make the pattern claim concrete. */}
-        <Stagger className="mt-16 grid gap-6 sm:grid-cols-3" gap={0.12}>
-          {[
-            { to: 2, suffix: "", label: "missed doses before Cara acted" },
-            { to: 7, suffix: " days", label: "of history weighed on every call" },
-            { to: 3, suffix: "", label: "reasons given, never thirty" },
-          ].map((stat) => (
-            <StaggerItem key={stat.label}>
-              <div className="rounded-2xl border border-ink/10 bg-white px-7 py-6">
-                <p className="font-display text-4xl text-navy">
-                  <Counter to={stat.to} suffix={stat.suffix} />
-                </p>
-                <p className="mt-2 text-sm leading-relaxed text-slate-ink">
-                  {stat.label}
-                </p>
-              </div>
-            </StaggerItem>
-          ))}
-        </Stagger>
+        <RevealGroup className="mt-14" stagger={0.12}>
+          <EscalationNarrative />
+        </RevealGroup>
       </section>
 
-      {/* ============================================================= Dignity */}
+      {/* ================================================== The honest question */}
       <section className="bg-bone py-24 md:py-32">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
           <div className="grid gap-14 md:grid-cols-2 md:items-center">
-            <FadeUp>
-              <p className="text-sm tracking-[0.18em] text-gold-ink uppercase">Dignity</p>
+            <Reveal>
+              <p className="text-sm tracking-[0.18em] text-gold-ink uppercase">
+                The honest question
+              </p>
               <h2 className="mt-5 font-display text-4xl leading-tight text-ink md:text-5xl">
-                She sees everything you see.
+                Isn&apos;t this just watching her?
               </h2>
               <p className="mt-6 text-lg leading-relaxed text-slate-ink">
                 Nearly half of older adults are uncomfortable being monitored, even
-                when the safety benefit is obvious. What resolves that discomfort is
-                not a better privacy policy. It is genuine control.
+                when the safety benefit is obvious. What resolves that is not a
+                longer privacy policy. It is genuine control over what gets shared.
               </p>
               <p className="mt-4 text-lg leading-relaxed text-slate-ink">
-                So CareLoop is symmetrical. Every time Cara tells you something, she
-                tells your mother she told you, and gives her the chance to correct the
-                record. She can mute routine categories. Emergencies always reach you,
-                and she knows that too, because hiding it would be the exact
-                condescension we are trying to avoid.
+                So CareLoop is symmetrical. Every time Cara tells Sarah something,
+                she tells Margaret first, in the same words, and Margaret can
+                correct the record. She can mute the routine stuff. A real safety
+                concern still reaches Sarah, and Margaret knows that too, because
+                hiding it would be exactly the condescension this is meant to avoid.
               </p>
-            </FadeUp>
+            </Reveal>
 
-            <FadeUp delay={150}>
+            <Reveal delay={150}>
               <TiltCard>
                 <div className="rounded-3xl border border-ink/10 bg-white p-8 shadow-sm">
                   <p className="text-sm font-medium tracking-wide text-slate-ink uppercase">
-                    What Margaret sees
+                    What Margaret sees, the same morning
                   </p>
                   <p className="mt-5 text-lg leading-relaxed text-ink">
-                    &ldquo;I told Sarah that you&apos;d missed your warfarin on Tuesday
-                    and Thursday, and that you weren&apos;t sure whether you&apos;d
-                    taken it.&rdquo;
+                    &ldquo;I told Sarah you&apos;d missed your warfarin on Tuesday
+                    and Thursday, and that you weren&apos;t sure whether
+                    you&apos;d taken it.&rdquo;
                   </p>
                   <div className="mt-7 flex flex-wrap gap-3">
-                    <span className="cursor-default rounded-xl bg-good-surface px-5 py-3 text-sm font-semibold text-good transition-transform duration-200 hover:scale-[1.03]">
+                    <span className="cursor-default rounded-xl bg-good-surface px-5 py-3 text-sm font-semibold text-good">
                       That&apos;s right
                     </span>
-                    <span className="cursor-default rounded-xl border border-ink/15 px-5 py-3 text-sm font-semibold text-ink transition-transform duration-200 hover:scale-[1.03]">
+                    <span className="cursor-default rounded-xl border border-ink/15 px-5 py-3 text-sm font-semibold text-ink">
                       I&apos;d add something
                     </span>
                   </div>
                   <p className="mt-6 text-sm leading-relaxed text-slate-ink">
-                    If she disputes it, her words appear on your dashboard beside
-                    Cara&apos;s, not buried in a log.
+                    If she disagreed, her own words would appear here beside
+                    Cara&apos;s, not buried in a log only Sarah can read.
                   </p>
                 </div>
               </TiltCard>
-            </FadeUp>
+            </Reveal>
           </div>
         </div>
       </section>
@@ -334,13 +284,13 @@ export default function Home() {
           aria-hidden
         />
         <div className="relative mx-auto max-w-3xl px-6 text-center md:px-10">
-          <FadeUp>
+          <Reveal>
             <h2 className="font-display text-4xl leading-tight text-white md:text-5xl">
               It takes about four minutes to set up.
             </h2>
             <p className="mt-6 text-lg leading-relaxed text-white/65">
-              Most people set it up sitting next to their parent, once. After that it
-              runs on its own.
+              Most people do it sitting next to their parent, once, so the two of
+              them can pick the call time together. After that it runs on its own.
             </p>
             <div className="mt-10 flex justify-center">
               <MagneticButton href="/download" variant="gold" className="px-10 py-5 text-lg">
@@ -350,7 +300,7 @@ export default function Home() {
             <p className="mt-5 text-sm text-white/40">
               Android, free while in early access
             </p>
-          </FadeUp>
+          </Reveal>
         </div>
       </section>
 

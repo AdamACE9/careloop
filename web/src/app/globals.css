@@ -45,6 +45,17 @@
   --color-gold-ink: #5f480a;
   --color-brown: #3b2a17;
 
+  /*
+   * Referenced by `.text-sheen`, `.scroll-progress` and a couple of components
+   * (see PhoneCallMock's "checking..." label) but never actually declared,
+   * which under Tailwind 4's CSS-first theming means the utilities that read
+   * them (`bg-gold-glow`, `text-yellow`) were never generated at all, and the
+   * two hand-written gradients quietly lost a stop. Fill/decorative only, same
+   * rule as the bright gold above: never body text on a light ground.
+   */
+  --color-gold-glow: #eec25a;
+  --color-yellow: #ffd166;
+
   /* Accent. aqua 8.7:1 / 8.2:1 on light. aqua-bright is 8.4:1 on navy and is
      for dark surfaces only; it is 1.5:1 on cream and unreadable there. */
   --color-aqua: #085158;
@@ -310,4 +321,31 @@ body {
 .lift:hover {
   transform: translateY(-4px);
   box-shadow: 0 18px 40px -18px rgba(16, 38, 77, 0.35);
+}
+
+/*
+  Pinned "how it works" steps.
+
+  `.step-block` is fully legible in its resting state already, this only adds a
+  highlight as the GSAP ScrollTrigger in PinnedSteps.tsx marks a step active.
+  Both states are opaque, readable text; nothing here hides content.
+*/
+.step-block {
+  transition:
+    background-color 0.4s var(--ease-out-soft),
+    border-color 0.4s var(--ease-out-soft);
+}
+
+.step-block.step-active {
+  background-color: rgba(255, 255, 255, 0.07);
+  border-color: rgba(201, 162, 39, 0.45);
+}
+
+.step-block .step-number {
+  display: inline-block;
+  transition: transform 0.4s var(--ease-out-soft);
+}
+
+.step-block.step-active .step-number {
+  transform: scale(1.12);
 }
