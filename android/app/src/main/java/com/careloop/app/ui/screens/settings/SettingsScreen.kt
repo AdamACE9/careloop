@@ -270,6 +270,15 @@ private fun CallTimeCard(
                     onTimeChange(LocalTime.of(checkInTime.hour, incMinute5(checkInTime.minute)))
                 },
             )
+
+            MorningEveningPicker(
+                isMorning = checkInTime.hour < 12,
+                onChange = { morning ->
+                    onTimeChange(
+                        LocalTime.of(toHour24(checkInTime.hour, morning), checkInTime.minute),
+                    )
+                },
+            )
         }
     }
 }
@@ -319,6 +328,91 @@ private fun TimeStepper(
                 symbol = "+",
                 contentDescription = incrementDescription,
                 onClick = onIncrement,
+            )
+        }
+    }
+}
+
+/**
+ * Morning or evening, as one tap.
+ *
+ * The hour stepper alone could not express this. It ran 1 to 12 with the
+ * meaning hidden in the 24-hour value behind it, so the only way to move 9am to
+ * 9pm was to press "+" twelve times, watching the number wrap around twice. On
+ * a screen built for someone with a tremor that is not a control, it is an
+ * obstacle course, and it is how the call time landed on 9:00 PM by accident
+ * while testing.
+ *
+ * Two labelled buttons rather than a switch: a switch needs a label saying what
+ * "on" means, and "on" for a time of day means nothing. These say which one is
+ * chosen in words, and the big display above says it again.
+ */
+@Composable
+private fun MorningEveningPicker(
+    isMorning: Boolean,
+    onChange: (morning: Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = "Morning or evening",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(CareDimens.SpaceSm))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(CareDimens.SpaceMd),
+        ) {
+            HalfDayButton(
+                text = "Morning",
+                selected = isMorning,
+                onClick = { onChange(true) },
+                modifier = Modifier.weight(1f),
+            )
+            HalfDayButton(
+                text = "Evening",
+                selected = !isMorning,
+                onClick = { onChange(false) },
+                modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun HalfDayButton(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.heightIn(min = CareDimens.LargeTouchTarget),
+        shape = RoundedCornerShape(CareDimens.CardRadius),
+        color = if (selected) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant
+        },
+        // The selected state is carried by the label as well as the fill, so it
+        // never depends on telling two similar colours apart.
+        contentColor = if (selected) {
+            MaterialTheme.colorScheme.onPrimary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = if (selected) "$text \u2713" else text,
+                style = MaterialTheme.typography.titleMedium,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(CareDimens.SpaceMd),
             )
         }
     }
@@ -942,6 +1036,15 @@ private fun CardHeader(
 private fun display12Hour(hour24: Int): Int {
     val h = hour24 % 12
     return if (h == 0) 12 else h
+}
+
+/**
+ * The 24-hour value for the same clock face reading, in the chosen half of the
+ * day. 9 with morning is 09:00; 9 with evening is 21:00.
+ */
+private fun toHour24(hour24: Int, morning: Boolean): Int {
+    val onTheClock = hour24 % 12 // midnight and noon both read as 12
+    return if (morning) onTheClock else onTheClock + 12
 }
 
 private fun incHour24(hour24: Int): Int = (hour24 + 1) % 24
