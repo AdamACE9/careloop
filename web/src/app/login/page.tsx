@@ -53,7 +53,7 @@ export default function LoginPage() {
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
       {/* ------------------------------------------------------- The form */}
-      <div className="flex items-center justify-center bg-bone px-6 py-16">
+      <div className="flex items-center justify-center bg-cream px-6 py-16">
         <div className="w-full max-w-sm">
           <Link href="/" className="mb-10 flex items-center gap-3 text-navy">
             <span className="text-gold-ink">
@@ -148,7 +148,7 @@ export default function LoginPage() {
       </div>
 
       {/* ------------------------------------------------------- The pitch */}
-      <div className="relative hidden overflow-hidden bg-navy-deep lg:block">
+      <div className="relative hidden overflow-hidden bg-brown lg:block">
         <div
           className="pointer-events-none absolute inset-0"
           style={{

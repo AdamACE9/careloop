@@ -47,9 +47,9 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
   const patient = patients[0];
 
   return (
-    <div className="min-h-screen bg-bone">
+    <div className="min-h-screen bg-cream">
       {/* ---------------------------------------------------------- Top bar */}
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-navy-deep/95 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-brown/95 backdrop-blur-md">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
           <div className="flex h-16 items-center justify-between gap-6">
             <Link href="/" className="flex items-center gap-3 text-white">
