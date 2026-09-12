@@ -484,18 +484,35 @@ items then fought over a 375px header and pushed the whole page sideways.
 **Put display utilities in the conditional, never in the base**, when anything
 about the element is responsive.
 
-### Measuring contrast: walk the whole ancestor chain and composite it
+### Measuring contrast: the audit lied twice, in both directions
 
-A first pass at auditing the rebuilt site reported 47 contrast failures. Nearly
-all were the measurement's fault: it took the first non-transparent ancestor
-background, which for a semi-transparent overlay is not what the eye sees, and it
-counted wrapper elements whose text actually lives in a child.
+This cost two rounds and is the most transferable lesson of the night.
 
-A correct audit looks at **leaf text nodes only**, and composites every
-`rgba` background down the chain before comparing. That pass reported zero
-failures on the same page. Two of the original 47 looked real and were worth the
-check, so the exercise was not wasted, but do not act on a raw number from a
-naive script.
+**Round one, false positives.** A naive script reported 47 failures. It took the
+first non-transparent ancestor background, which for a semi-transparent overlay
+is not what the eye sees, and it counted wrapper elements whose text lives in a
+child. A corrected version, leaf text nodes only with `rgba` composited down the
+chain, reported zero on the same page.
+
+**Round two, false negatives, which was worse.** That "zero" was also wrong.
+**Tailwind 4 emits `oklab()` for any colour with an opacity modifier**, which is
+most of the semi-transparent surfaces here. The parser returned null for those
+and fell back to assuming white, so it invented a failure on a dark header and
+hid every real failure on a dark background.
+
+With an oklab-aware parser the live landing page had **18 real failures**,
+including the medical disclaimer in the footer at 3.76:1.
+
+Three rules that follow:
+
+1. An audit that cannot parse the colour space its own framework emits will
+   report whatever you hoped for. Check `unparsedColors` is empty.
+2. Composite alpha down the full ancestor chain; never take the first opaque one.
+3. Measure leaf text nodes, not wrappers.
+
+The working script converts oklab to linear sRGB via the standard matrices and is
+worth keeping; an earlier version of it is preserved in this session's scratchpad.
+`text-white/40` on navy is about 3.5:1, not the 4.5:1 it looks like by eye.
 
 ### Other environment notes
 
