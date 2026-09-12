@@ -227,6 +227,74 @@ check('R9', 'Past the daily attempt ceiling it escalates instead of calling agai
     : `kept retrying after 4 attempts (action ${out.action}), which is harassment, not care`;
 });
 
+check('R11', 'The same evidence always produces the same decision', () => {
+  // A regression guard with a real incident behind it.
+  //
+  // Recency used to decay off a continuous age in days, so a check-in that had
+  // aged by a millisecond before it was scored came out fractionally lighter
+  // than one scored instantly. A single missed anticoagulant sits exactly on
+  // the escalation threshold, so that fraction decided whether a family was
+  // told about a missed blood thinner. Running this harness five times on
+  // unchanged code gave two failures and three passes.
+  //
+  // Same day, different moments in it, must weigh the same.
+  const now = new Date();
+  const startOfToday = new Date(
+    now.getFullYear(), now.getMonth(), now.getDate(), 0, 5, 0,
+  ).toISOString();
+
+  const justNow = reason(
+    input({ recentCheckIns: [checkIn(0, { missed: ['Warfarin'] })] }),
+  );
+  const earlierToday = reason(
+    input({
+      recentCheckIns: [
+        { ...checkIn(0, { missed: ['Warfarin'] }), startedAt: startOfToday },
+      ],
+    }),
+  );
+
+  if (justNow.action !== earlierToday.action) {
+    return `same day, different decisions: ${justNow.action} vs ${earlierToday.action}`;
+  }
+  if (justNow.concernScore !== earlierToday.concernScore) {
+    return `same day, different scores: ${justNow.concernScore} vs ${earlierToday.concernScore}`;
+  }
+  return null;
+});
+
+check('R12', 'Two misses in one day are one day of evidence, not two', () => {
+  // Cara told a family "missed on 2 of the last 7 days" about a single
+  // morning, and wrote the sentence "Eleanor missed her warfarin today and
+  // today". A retry after no answer, or a manual call from the dashboard,
+  // produces a second check-in on the same date, and the engine counted it as
+  // a second day.
+  //
+  // The claim this engine makes is that it reasons about a pattern across
+  // days. Two misses in one morning is one day of evidence.
+  const twiceToday = reason(
+    input({
+      recentCheckIns: [
+        { ...checkIn(0, { missed: ['Warfarin'] }), id: 'ci-morning' },
+        { ...checkIn(0, { missed: ['Warfarin'] }), id: 'ci-retry' },
+      ],
+    }),
+  );
+  const onceToday = reason(
+    input({ recentCheckIns: [checkIn(0, { missed: ['Warfarin'] })] }),
+  );
+
+  if (twiceToday.concernScore !== onceToday.concernScore) {
+    return `a same-day retry changed the score: ${onceToday.concernScore} -> ${twiceToday.concernScore}`;
+  }
+  const text = `${twiceToday.headline} ${twiceToday.explanation}`;
+  if (/today and today/i.test(text)) return 'wrote "today and today"';
+  if (/2 of the last/i.test(JSON.stringify(twiceToday.reasoning))) {
+    return 'claimed two days from a single day of evidence';
+  }
+  return null;
+});
+
 check('R10', 'Never escalates without naming an alternative it considered', () => {
   const out = reason(input({ recentCheckIns: [checkIn(0, { missed: ['Warfarin'] })] }));
   if (out.action !== 'escalate') return 'precondition failed: did not escalate';

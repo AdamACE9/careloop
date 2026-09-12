@@ -134,9 +134,25 @@ function daysAgo(iso: string): number {
   return (Date.now() - new Date(iso).getTime()) / 86_400_000;
 }
 
-/** Older evidence matters less. Linear decay to zero at the window edge. */
+/**
+ * Older evidence matters less. Linear decay to zero at the window edge.
+ *
+ * Decays by WHOLE DAYS, and that is load bearing rather than tidiness.
+ *
+ * This used to decay continuously off a floating point age in days, which put
+ * the single most important case in the product exactly on a knife edge. A
+ * missed anticoagulant scores 1.0 against a threshold of 1.0, so it escalated
+ * only when the check-in's timestamp and the moment it was reasoned about
+ * landed in the same millisecond. Running the evaluation harness five times on
+ * identical code gave two failures and three passes.
+ *
+ * In production that means whether a family is told about a missed blood
+ * thinner could turn on how long the callable took to reach this line. Evidence
+ * from today is today's evidence, at full weight, and a day is the unit this
+ * engine reasons in everywhere else.
+ */
 function recencyFactor(iso: string): number {
-  const age = daysAgo(iso);
+  const age = Math.floor(daysAgo(iso));
   if (age >= WINDOW_DAYS) return 0;
   return Math.max(0, 1 - age / WINDOW_DAYS);
 }
@@ -155,6 +171,20 @@ function gatherMedicationEvidence(
     let latestMissCheckInId: string | null = null;
     let raw = 0;
 
+    // Repetition is counted in DAYS, not in check-ins.
+    //
+    // These were the same thing for as long as there was one call a day, and
+    // then they were not. A retry after no answer, or a manual "call her now"
+    // from the dashboard, produces a second check-in on the same date. Counting
+    // those as two separate misses inflated the concern score and, worse, made
+    // Cara tell the family "missed on 2 of the last 7 days" about a single day,
+    // and write the sentence "Eleanor missed her warfarin today and today".
+    //
+    // The engine's whole claim is that it reasons about a pattern across days
+    // rather than reacting to a moment. Two misses in one morning is one day of
+    // evidence, and saying otherwise is the counter-with-an-if-statement this
+    // file exists not to be.
+    const daysSeen = new Set<string>();
     let occurrence = 0;
     for (const checkIn of inWindow) {
       const wasMissed = checkIn.medicationsMissed.some(
@@ -162,18 +192,23 @@ function gatherMedicationEvidence(
       );
       if (!wasMissed) continue;
 
-      occurrence += 1;
       const date = checkIn.startedAt.slice(0, 10);
-      missedDates.push(date);
       // inWindow is newest-first, so the first miss seen is the most recent.
       if (!latestMissCheckInId) latestMissCheckInId = checkIn.id ?? null;
+
+      const firstOnThisDay = !daysSeen.has(date);
+      if (firstOnThisDay) {
+        daysSeen.add(date);
+        occurrence += 1;
+        missedDates.push(date);
+      }
 
       // Uncertainty is scored separately and more heavily than a clean miss,
       // because "I'm not sure if I took it" is the signal that distinguishes
       // this product from a reminder app.
       const soundedUnsure = (checkIn.toneSignals?.confusion ?? 0) > 0.4;
       if (soundedUnsure) {
-        uncertainDates.push(date);
+        if (!uncertainDates.includes(date)) uncertainDates.push(date);
         if (!quote) {
           const line = checkIn.transcript.find((l) => l.flag === 'observation');
           if (line) {
@@ -181,6 +216,11 @@ function gatherMedicationEvidence(
           }
         }
       }
+
+      // Only the first miss on a given day scores. Otherwise the number the
+      // engine acts on and the number it reports to the family would drift
+      // apart, which is the one thing an audit trail cannot do.
+      if (!firstOnThisDay) continue;
 
       // Super-linear in repetition: the second miss is worth more than the first,
       // because one miss is forgetfulness and two is a pattern.
@@ -640,7 +680,10 @@ function datePhrase(dates: string[]): string {
 }
 
 function formatDates(dates: string[]): string {
-  const formatted = dates.map(formatDate);
+  // Deduplicated here as well as upstream. "today and today" reached a real
+  // escalation once, and a sentence a family reads about their mother should
+  // not depend on one call site getting its bookkeeping right.
+  const formatted = [...new Set(dates.map(formatDate))];
   if (formatted.length === 1) return formatted[0]!;
   if (formatted.length === 2) return `${formatted[0]} and ${formatted[1]}`;
   return `${formatted.slice(0, -1).join(', ')} and ${formatted[formatted.length - 1]}`;
