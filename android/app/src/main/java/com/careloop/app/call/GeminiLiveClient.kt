@@ -761,7 +761,21 @@ class GeminiLiveClient(
                     .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                     .build(),
             )
-            .setBufferSizeInBytes(maxOf(minBuffer, OUTPUT_CHUNK_BYTES * 4))
+            // Roughly half a second of audio, and never less than four times
+            // the platform minimum.
+            //
+            // The old buffer was a few chunks deep, which underran constantly:
+            // the log filled with "track disabled due to previous underrun,
+            // restarting" and Cara came out as stuttering syllables rather than
+            // speech. Audio is written from the socket thread, so any hesitation
+            // in the network or the decoder empties a small buffer immediately.
+            //
+            // Half a second of buffer costs half a second of extra latency at
+            // the very start of a turn, which on a phone call nobody notices,
+            // and buys speech that does not break up.
+            .setBufferSizeInBytes(
+                maxOf(minBuffer * 4, OUTPUT_SAMPLE_RATE /* bytes: 0.5s at 16-bit */),
+            )
             .setTransferMode(AudioTrack.MODE_STREAM)
             .build()
             .apply { play() }

@@ -47,9 +47,11 @@ import com.careloop.app.data.model.Criticality
 import com.careloop.app.data.model.Medication
 import com.careloop.app.di.AppContainer
 import com.careloop.app.ui.components.CareCard
+import com.careloop.app.ui.components.CareEmptyState
 import com.careloop.app.ui.components.CarePrimaryButton
 import com.careloop.app.ui.components.CareTipCallout
 import com.careloop.app.ui.components.StatusPill
+import com.careloop.app.ui.components.initialSeed
 import com.careloop.app.ui.theme.CareColors
 import com.careloop.app.ui.theme.CareDimens
 import com.careloop.app.ui.theme.CareLoopTheme
@@ -80,12 +82,17 @@ import java.util.Locale
 @Composable
 fun MedicationsScreen(
     onMedicationClick: (String) -> Unit = {},
+    onAddMedication: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    // MockData.medications as the seed value means the list is never empty on first frame —
-    // there is no flash of an empty state while the (instant, in-memory) flow catches up.
+    // MockData.medications as the demo-mode seed means the list is never empty on first
+    // frame in a demo build — there is no flash of an empty state while the (instant,
+    // in-memory) flow catches up. A real signed-in account seeds empty instead: see
+    // initialSeed's doc for why that split matters.
     val medications by AppContainer.repository.observeMedications()
-        .collectAsStateWithLifecycle(initialValue = MockData.medications)
+        .collectAsStateWithLifecycle(
+            initialValue = initialSeed(empty = emptyList(), demo = MockData.medications),
+        )
 
     val medicationsNeedingRefill = remember(medications) {
         medications.filter { it.needsRefillSoon }
@@ -119,6 +126,16 @@ fun MedicationsScreen(
             }
         }
 
+        if (medications.isEmpty()) {
+            item(key = "empty") {
+                CareEmptyState(
+                    title = "No medications added yet",
+                    whatHappensNext = "Add your first one below, and Cara will start " +
+                        "asking about it on your calls.",
+                )
+            }
+        }
+
         items(medications, key = { it.id }) { medication ->
             MedicationCard(
                 medication = medication,
@@ -132,10 +149,7 @@ fun MedicationsScreen(
                 CarePrimaryButton(
                     text = "Add a medication",
                     icon = Icons.Rounded.Add,
-                    // TODO(backend): wire to an add-medication flow (name, dose, schedule,
-                    // criticality) once that flow exists. Left unwired deliberately rather
-                    // than faking a save that goes nowhere.
-                    onClick = {},
+                    onClick = onAddMedication,
                 )
             }
         }

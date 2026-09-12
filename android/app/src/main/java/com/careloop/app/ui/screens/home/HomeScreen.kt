@@ -25,6 +25,7 @@ import com.careloop.app.BuildConfig
 import com.careloop.app.call.startIncomingCallDemo
 import com.careloop.app.data.mock.MockData
 import com.careloop.app.data.model.CheckInStatus
+import com.careloop.app.data.repository.EmptyElderProfile
 import com.careloop.app.di.AppContainer
 import com.careloop.app.ui.components.*
 import com.careloop.app.ui.theme.CareColors
@@ -45,11 +46,17 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val elder by AppContainer.repository.observeElder()
-        .collectAsStateWithLifecycle(initialValue = MockData.elder)
+        .collectAsStateWithLifecycle(
+            initialValue = initialSeed(empty = EmptyElderProfile, demo = MockData.elder),
+        )
     val checkIns by AppContainer.repository.observeCheckIns()
-        .collectAsStateWithLifecycle(initialValue = MockData.checkIns)
+        .collectAsStateWithLifecycle(
+            initialValue = initialSeed(empty = emptyList(), demo = MockData.checkIns),
+        )
     val medications by AppContainer.repository.observeMedications()
-        .collectAsStateWithLifecycle(initialValue = MockData.medications)
+        .collectAsStateWithLifecycle(
+            initialValue = initialSeed(empty = emptyList(), demo = MockData.medications),
+        )
 
     val today = checkIns.firstOrNull { it.date == java.time.LocalDate.now() }
     val timeFormat = androidx.compose.runtime.remember {
@@ -72,7 +79,9 @@ fun HomeScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(
-            text = elder.preferredName,
+            // Blank only for the sliver of time before onboarding has written a name to a
+            // real account -- never blank in demo mode, where MockData.elder always has one.
+            text = elder.preferredName.ifBlank { "Welcome to CareLoop" },
             style = MaterialTheme.typography.headlineLarge,
         )
 

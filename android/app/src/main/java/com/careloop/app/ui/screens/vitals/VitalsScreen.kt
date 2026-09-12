@@ -55,10 +55,12 @@ import com.careloop.app.data.model.VitalReading
 import com.careloop.app.data.model.VitalType
 import com.careloop.app.di.AppContainer
 import com.careloop.app.ui.components.CareCard
+import com.careloop.app.ui.components.CareEmptyState
 import com.careloop.app.ui.components.CarePrimaryButton
 import com.careloop.app.ui.components.LoopMark
 import com.careloop.app.ui.components.SectionHeader
 import com.careloop.app.ui.components.StatusPill
+import com.careloop.app.ui.components.initialSeed
 import com.careloop.app.ui.theme.CareColors
 import com.careloop.app.ui.theme.CareDimens
 import com.careloop.app.ui.theme.CareLoopTheme
@@ -86,32 +88,41 @@ import kotlin.math.floor
  */
 @Composable
 fun VitalsScreen(
+    onRecordReading: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     // Firestore-shaped flow, collected lifecycle-safely. The initial value is what renders
-    // on the very first frame, before the flow has had a chance to emit — see the note in
-    // this file's tail comment about why the mock repository's *live* value can differ in
-    // size from this initial 14-day list (it only surfaces readings attached to a check-in).
+    // on the very first frame, before the flow has had a chance to emit — initialSeed picks
+    // MockData only in demo mode; a real signed-in account seeds empty (see its doc).
     val bloodSugarReadings by AppContainer.repository
         .observeVitals(VitalType.BLOOD_SUGAR)
-        .collectAsStateWithLifecycle(initialValue = MockData.bloodSugarReadings)
+        .collectAsStateWithLifecycle(
+            initialValue = initialSeed(empty = emptyList(), demo = MockData.bloodSugarReadings),
+        )
+
+    // This used to be `MockData.bloodPressureReadings` unconditionally, regardless of what
+    // repository was actually configured — a real signed-in account would have seen
+    // Margaret's blood pressure forever, since nothing here ever asked the repository for
+    // their own. It's a live query now, exactly like blood sugar above it.
+    val bloodPressureReadings by AppContainer.repository
+        .observeVitals(VitalType.BLOOD_PRESSURE)
+        .collectAsStateWithLifecycle(
+            initialValue = initialSeed(empty = emptyList(), demo = MockData.bloodPressureReadings),
+        )
 
     // Check-ins double as the adherence record here — each one already carries a day's
     // COMPLETED/MISSED_DOSE/NO_ANSWER/ESCALATED status, so the dot-per-day strip below reads
     // it directly rather than the screen inventing a second, parallel adherence field.
     val checkIns by AppContainer.repository.observeCheckIns()
-        .collectAsStateWithLifecycle(initialValue = MockData.checkIns)
+        .collectAsStateWithLifecycle(
+            initialValue = initialSeed(empty = emptyList(), demo = MockData.checkIns),
+        )
 
     VitalsScreenContent(
         bloodSugarReadings = bloodSugarReadings,
-        bloodPressureReadings = MockData.bloodPressureReadings,
+        bloodPressureReadings = bloodPressureReadings,
         checkIns = checkIns,
-        onRecordReading = {
-            // TODO(backend): open a manual vitals-entry sheet and write the result through
-            // the repository. In the shipped product Cara asks for this reading out loud
-            // during the daily call — this button only exists as a fallback for a reading
-            // taken between calls (e.g. at a pharmacy blood-pressure machine).
-        },
+        onRecordReading = onRecordReading,
         modifier = modifier,
     )
 }
@@ -130,6 +141,7 @@ private fun VitalsScreenContent(
 ) {
     val sortedBloodSugar = bloodSugarReadings.sortedBy { it.recordedAt }
     val latestBloodSugar = sortedBloodSugar.lastOrNull()
+    val hasAnyVitals = bloodSugarReadings.isNotEmpty() || bloodPressureReadings.isNotEmpty()
 
     Column(
         modifier = modifier
@@ -152,6 +164,17 @@ private fun VitalsScreenContent(
 
         if (latestBloodSugar != null) {
             TodayReadingCard(reading = latestBloodSugar)
+            Spacer(Modifier.height(CareDimens.SpaceXl))
+        } else if (!hasAnyVitals) {
+            // One shared empty state for the whole screen rather than three separate
+            // near-empty widgets (today's reading, the trend chart, the blood pressure
+            // list) each saying their own small version of "nothing here yet" — CLAUDE.md's
+            // TASK 1 asks for one clear sentence and one obvious action, not three quiet ones.
+            CareEmptyState(
+                title = "No readings yet",
+                whatHappensNext = "Record a reading below, or Cara will ask for one on " +
+                    "your next call.",
+            )
             Spacer(Modifier.height(CareDimens.SpaceXl))
         }
 
@@ -189,14 +212,22 @@ private fun VitalsScreenContent(
 
         SectionHeader(title = "Your blood pressure")
         CareCard {
-            bloodPressureReadings
-                .sortedByDescending { it.recordedAt }
-                .forEachIndexed { index, reading ->
-                    BloodPressureRow(reading = reading)
-                    if (index != bloodPressureReadings.lastIndex) {
-                        Spacer(Modifier.height(CareDimens.SpaceMd))
+            if (bloodPressureReadings.isEmpty()) {
+                Text(
+                    text = "No blood pressure readings recorded yet.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                bloodPressureReadings
+                    .sortedByDescending { it.recordedAt }
+                    .forEachIndexed { index, reading ->
+                        BloodPressureRow(reading = reading)
+                        if (index != bloodPressureReadings.lastIndex) {
+                            Spacer(Modifier.height(CareDimens.SpaceMd))
+                        }
                     }
-                }
+            }
         }
 
         Spacer(Modifier.height(CareDimens.SpaceXl))

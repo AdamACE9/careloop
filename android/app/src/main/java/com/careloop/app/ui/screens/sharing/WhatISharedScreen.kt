@@ -53,10 +53,12 @@ import com.careloop.app.data.model.ShareCategory
 import com.careloop.app.data.model.SharedItem
 import com.careloop.app.data.model.SharingPreferences
 import com.careloop.app.di.AppContainer
+import com.careloop.app.ui.components.CareEmptyState
 import com.careloop.app.ui.components.CarePrimaryButton
 import com.careloop.app.ui.components.CareSecondaryButton
 import com.careloop.app.ui.components.SectionHeader
 import com.careloop.app.ui.components.StatusPill
+import com.careloop.app.ui.components.initialSeed
 import com.careloop.app.ui.theme.CareColors
 import com.careloop.app.ui.theme.CareDimens
 import com.careloop.app.ui.theme.CareLoopTheme
@@ -116,9 +118,16 @@ fun WhatISharedScreen(
     modifier: Modifier = Modifier,
 ) {
     val sharedItems by AppContainer.repository.observeSharedItems()
-        .collectAsStateWithLifecycle(initialValue = MockData.sharedItems)
+        .collectAsStateWithLifecycle(
+            initialValue = initialSeed(empty = emptyList(), demo = MockData.sharedItems),
+        )
     val preferences by AppContainer.repository.observeSharingPreferences()
-        .collectAsStateWithLifecycle(initialValue = MockData.sharingPreferences)
+        .collectAsStateWithLifecycle(
+            initialValue = initialSeed(
+                empty = SharingPreferences(enabledCategories = emptySet()),
+                demo = MockData.sharingPreferences,
+            ),
+        )
 
     val scope = rememberCoroutineScope()
 
@@ -192,6 +201,16 @@ private fun WhatISharedScreenContent(
         }
 
         // ---- A. The feed --------------------------------------------------
+        if (sortedItems.isEmpty()) {
+            item(key = "empty") {
+                CareEmptyState(
+                    title = "Nothing shared with Sarah yet",
+                    whatHappensNext = "As soon as Cara has something to tell her, it will " +
+                        "show up here first, in the same words, for you to see too.",
+                )
+            }
+        }
+
         items(sortedItems, key = { it.id }) { item ->
             SharedItemCard(
                 item = item,

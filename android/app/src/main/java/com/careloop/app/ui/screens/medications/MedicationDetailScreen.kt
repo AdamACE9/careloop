@@ -24,12 +24,20 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.outlined.LocalPharmacy
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.Medication
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -44,11 +52,14 @@ import com.careloop.app.data.model.Medication
 import com.careloop.app.di.AppContainer
 import com.careloop.app.ui.components.CareCard
 import com.careloop.app.ui.components.CareEmptyState
+import com.careloop.app.ui.components.CareSecondaryButton
 import com.careloop.app.ui.components.CareTipCallout
 import com.careloop.app.ui.components.StatusPill
+import com.careloop.app.ui.components.initialSeed
 import com.careloop.app.ui.theme.CareColors
 import com.careloop.app.ui.theme.CareDimens
 import com.careloop.app.ui.theme.CareLoopTheme
+import kotlinx.coroutines.launch
 
 /**
  * One medication, in full — what it's for, when it's taken, how much is left, and any food
@@ -81,18 +92,35 @@ import com.careloop.app.ui.theme.CareLoopTheme
 fun MedicationDetailScreen(
     medicationId: String,
     onBack: () -> Unit,
+    onEdit: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    // Same seed-with-mock-data pattern as MedicationsScreen: the list flow is already live
-    // elsewhere, so this just finds the one medication in it rather than asking the
-    // repository for a lookup shape it doesn't expose.
+    // Same seed pattern as MedicationsScreen: the list flow is already live elsewhere, so
+    // this just finds the one medication in it rather than asking the repository for a
+    // lookup shape it doesn't expose. initialSeed, not MockData directly -- a signed-in
+    // account must never render Margaret's medication for the frame before Firestore's
+    // first snapshot lands (see initialSeed's doc).
     val medications by AppContainer.repository.observeMedications()
-        .collectAsStateWithLifecycle(initialValue = MockData.medications)
+        .collectAsStateWithLifecycle(
+            initialValue = initialSeed(empty = emptyList(), demo = MockData.medications),
+        )
     val medication = medications.firstOrNull { it.id == medicationId }
+    val scope = rememberCoroutineScope()
 
     MedicationDetailScreenContent(
         medication = medication,
         onBack = onBack,
+        onEdit = { onEdit(medicationId) },
+        onDelete = {
+            // Fire-and-forget from the caller's point of view: the medication list is a
+            // live snapshot listener, so leaving this screen and having the item simply be
+            // gone from it is the confirmation, the same way a successful add or edit is
+            // confirmed by showing up rather than by a toast.
+            scope.launch {
+                AppContainer.repository.deleteMedication(medicationId)
+                onBack()
+            }
+        },
         modifier = modifier,
     )
 }
@@ -101,6 +129,8 @@ fun MedicationDetailScreen(
 private fun MedicationDetailScreenContent(
     medication: Medication?,
     onBack: () -> Unit,
+    onEdit: () -> Unit = {},
+    onDelete: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -114,15 +144,15 @@ private fun MedicationDetailScreenContent(
         Spacer(Modifier.height(CareDimens.SpaceLg))
 
         if (medication == null) {
-            // Reachable only if a medication is removed while this screen is open — the mock
-            // repository never does this today, but a real backend swap could, and a blank
-            // screen would read as broken rather than "this was removed."
+            // Reachable if a medication is removed (by this screen's own delete action, or
+            // elsewhere) while this screen is still open — a blank screen would read as
+            // broken rather than "this was removed."
             CareEmptyState(
                 title = "This medication is no longer on your list",
                 whatHappensNext = "Go back and Cara's current list will be right there.",
             )
         } else {
-            MedicationDetailBody(medication)
+            MedicationDetailBody(medication, onEdit = onEdit, onDelete = onDelete)
         }
     }
 }
@@ -151,8 +181,14 @@ private fun BackRow(onBack: () -> Unit, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun MedicationDetailBody(medication: Medication, modifier: Modifier = Modifier) {
+private fun MedicationDetailBody(
+    medication: Medication,
+    onEdit: () -> Unit = {},
+    onDelete: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
     val criticalityInfo = criticalityPresentation(medication.criticality)
+    var confirmingDelete by remember(medication.id) { mutableStateOf(false) }
 
     Column(modifier = modifier) {
         Text(medication.name, style = MaterialTheme.typography.headlineLarge)
@@ -222,7 +258,47 @@ private fun MedicationDetailBody(medication: Medication, modifier: Modifier = Mo
             )
         }
 
+        Spacer(Modifier.height(CareDimens.SpaceXl))
+
+        CareSecondaryButton(
+            text = "Edit medication",
+            icon = Icons.Rounded.Edit,
+            onClick = onEdit,
+        )
+        Spacer(Modifier.height(CareDimens.SpaceMd))
+        CareSecondaryButton(
+            text = "Remove this medication",
+            icon = Icons.Rounded.Delete,
+            onClick = { confirmingDelete = true },
+        )
+
         Spacer(Modifier.height(CareDimens.SpaceLg))
+    }
+
+    // A confirmation step, not an immediate delete: this cohort's whole interaction model is
+    // "tap only, never irreversible-by-accident" (CLAUDE.md §5) -- a permanent removal is
+    // exactly the case a stray tap must not be able to trigger on its own.
+    if (confirmingDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmingDelete = false },
+            title = { Text("Remove ${medication.name}?") },
+            text = {
+                Text(
+                    "Cara will stop asking about this one on your calls. This can't be undone.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmingDelete = false
+                    onDelete()
+                }) {
+                    Text("Remove", color = CareColors.Urgent)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmingDelete = false }) { Text("Cancel") }
+            },
+        )
     }
 }
 

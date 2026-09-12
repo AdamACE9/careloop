@@ -23,9 +23,11 @@ import androidx.navigation.navArgument
 import com.careloop.app.ui.screens.history.HistoryScreen
 import com.careloop.app.ui.screens.home.HomeScreen
 import com.careloop.app.ui.screens.medications.MedicationDetailScreen
+import com.careloop.app.ui.screens.medications.MedicationFormScreen
 import com.careloop.app.ui.screens.medications.MedicationsScreen
 import com.careloop.app.ui.screens.settings.SettingsScreen
 import com.careloop.app.ui.screens.sharing.WhatISharedScreen
+import com.careloop.app.ui.screens.vitals.RecordVitalScreen
 import com.careloop.app.ui.screens.vitals.VitalsScreen
 import com.careloop.app.ui.theme.CareColors
 
@@ -60,6 +62,9 @@ sealed class Destination(
         val bottomBar = listOf(Home, Medications, Vitals, History, Settings)
         const val WHAT_I_SHARED = "what_i_shared"
         const val MEDICATION_DETAIL = "medication_detail"
+        const val MEDICATION_ADD = "medication_add"
+        const val MEDICATION_EDIT = "medication_edit"
+        const val RECORD_VITAL = "record_vital"
     }
 }
 
@@ -115,6 +120,7 @@ fun CareLoopApp(
                     onMedicationClick = { medicationId ->
                         navController.navigate("${Destination.MEDICATION_DETAIL}/$medicationId")
                     },
+                    onAddMedication = { navController.navigate(Destination.MEDICATION_ADD) },
                 )
             }
 
@@ -126,10 +132,40 @@ fun CareLoopApp(
                 MedicationDetailScreen(
                     medicationId = medicationId,
                     onBack = { navController.popBackStack() },
+                    onEdit = { id -> navController.navigate("${Destination.MEDICATION_EDIT}/$id") },
                 )
             }
 
-            composable(Destination.Vitals.route) { VitalsScreen() }
+            composable(Destination.MEDICATION_ADD) {
+                MedicationFormScreen(
+                    medicationId = null,
+                    onDone = { navController.popBackStack() },
+                )
+            }
+
+            composable(
+                route = "${Destination.MEDICATION_EDIT}/{medicationId}",
+                arguments = listOf(navArgument("medicationId") { type = NavType.StringType }),
+            ) { entry ->
+                val medicationId = entry.arguments?.getString("medicationId").orEmpty()
+                MedicationFormScreen(
+                    medicationId = medicationId,
+                    // Pops back to the detail screen it was opened from, not all the way to
+                    // the list -- an edit is a correction to one medication, not a return
+                    // trip to the whole list.
+                    onDone = { navController.popBackStack() },
+                )
+            }
+
+            composable(Destination.Vitals.route) {
+                VitalsScreen(
+                    onRecordReading = { navController.navigate(Destination.RECORD_VITAL) },
+                )
+            }
+
+            composable(Destination.RECORD_VITAL) {
+                RecordVitalScreen(onDone = { navController.popBackStack() })
+            }
 
             composable(Destination.History.route) { HistoryScreen() }
 

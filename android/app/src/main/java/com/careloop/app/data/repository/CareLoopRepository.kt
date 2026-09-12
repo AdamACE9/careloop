@@ -2,6 +2,7 @@ package com.careloop.app.data.repository
 
 import com.careloop.app.data.model.*
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalTime
 
 /**
  * The single seam between the UI and wherever data actually lives.
@@ -55,6 +56,41 @@ interface CareLoopRepository {
 
     suspend fun updateCheckInTime(time: java.time.LocalTime)
     suspend fun updateSharingPreferences(preferences: SharingPreferences)
+
+    // ---- Medications (add / edit / remove) ----------------------------------
+    //
+    // The elder owns this list outright -- firestore.rules grants the patient full
+    // create/update/delete on their own medications subcollection, unlike almost
+    // everything else here, which the server writes. No return value beyond
+    // success/failure: [observeMedications] is a live snapshot listener, so a
+    // successful write shows up in the list on its own, and handing back an id or a
+    // full [Medication] would just be data the caller has nothing to do with.
+
+    /** Adds a new medication to the signed-in patient's own list. */
+    suspend fun addMedication(input: MedicationInput): Result<Unit>
+
+    /** Replaces an existing medication's fields in place. Same shape as [addMedication]. */
+    suspend fun updateMedication(medicationId: String, input: MedicationInput): Result<Unit>
+
+    /** Removes a medication from the signed-in patient's own list. Not reversible. */
+    suspend fun deleteMedication(medicationId: String): Result<Unit>
+
+    // ---- Vitals (manual entry) -----------------------------------------------
+
+    /**
+     * Records a reading taken between calls, e.g. at a pharmacy blood-pressure machine.
+     *
+     * [secondaryValue] carries diastolic for [VitalType.BLOOD_PRESSURE] and must be passed
+     * as an explicit null for every other type -- `firestore.rules`' `vitals` create rule
+     * requires the document to have exactly the keys `type, value, secondaryValue,
+     * recordedAt, source`, so an implementation must write the key even when there is
+     * nothing to put in it, not omit it.
+     */
+    suspend fun recordVitalReading(
+        type: VitalType,
+        value: Float,
+        secondaryValue: Float? = null,
+    ): Result<Unit>
 
     /** The elder confirming or disputing something Cara shared. The dignity loop. */
     suspend fun respondToSharedItem(itemId: String, response: ElderResponse, note: String?)
@@ -183,6 +219,46 @@ data class CheckInResult(
 data class LinkingCode(
     val code: String,
     val expiresAtIso: String,
+)
+
+/**
+ * What the add/edit medication form collects, before it becomes a [Medication].
+ *
+ * Deliberately a separate type from [Medication] rather than reusing it directly: the form
+ * never has (and must never invent) an id, and it has no business carrying [Medication]'s
+ * derived getters ([Medication.daysOfSupplyRemaining] etc.) as if they were user input.
+ */
+data class MedicationInput(
+    val name: String,
+    val dose: String,
+    val purpose: String,
+    val schedule: List<LocalTime>,
+    val criticality: Criticality,
+    val dosesRemaining: Int,
+    val dosesPerDay: Int,
+    val refillLeadTimeDays: Int = 7,
+    val foodGuidance: String? = null,
+)
+
+/**
+ * What a brand-new signed-in account looks like: no name yet, no caretaker linked, nothing
+ * borrowed from a demo persona to paper over it.
+ *
+ * [FirebaseCareLoopRepository] falls back to this -- never to
+ * [com.careloop.app.data.mock.MockData.elder] -- whenever a real patient document is
+ * missing, still loading, or fails to parse. A signed-in stranger seeing Margaret's profile
+ * for even one frame was the actual bug this repository used to have; a signed-in account
+ * seeing nothing at all describes its own state honestly instead.
+ */
+val EmptyElderProfile = ElderProfile(
+    id = "",
+    firstName = "",
+    lastName = "",
+    preferredName = "",
+    age = 0,
+    conditions = emptyList(),
+    dailyCheckInTime = LocalTime.of(9, 0),
+    caretaker = Caretaker(id = "", name = "", relationship = "", phone = "", email = ""),
 )
 
 data class LiveSessionToken(

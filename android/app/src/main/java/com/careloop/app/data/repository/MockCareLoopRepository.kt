@@ -96,6 +96,81 @@ class MockCareLoopRepository : CareLoopRepository {
         sharingPrefsState.value = preferences
     }
 
+    // -----------------------------------------------------------------------
+    // Medications (add / edit / remove)
+    //
+    // Mutations are real within a session, same rule as the rest of this class: a demo
+    // build where "Add a medication" visibly does nothing is worse than one where it works.
+    // -----------------------------------------------------------------------
+
+    override suspend fun addMedication(input: MedicationInput): Result<Unit> {
+        delay(300)
+        medicationsState.value = medicationsState.value + Medication(
+            id = "med-${System.currentTimeMillis()}",
+            name = input.name,
+            dose = input.dose,
+            purpose = input.purpose,
+            schedule = input.schedule,
+            criticality = input.criticality,
+            dosesRemaining = input.dosesRemaining,
+            dosesPerDay = input.dosesPerDay,
+            refillLeadTimeDays = input.refillLeadTimeDays,
+            foodGuidance = input.foodGuidance,
+        )
+        return Result.success(Unit)
+    }
+
+    override suspend fun updateMedication(
+        medicationId: String,
+        input: MedicationInput,
+    ): Result<Unit> {
+        delay(300)
+        medicationsState.value = medicationsState.value.map { medication ->
+            if (medication.id != medicationId) {
+                medication
+            } else {
+                medication.copy(
+                    name = input.name,
+                    dose = input.dose,
+                    purpose = input.purpose,
+                    schedule = input.schedule,
+                    criticality = input.criticality,
+                    dosesRemaining = input.dosesRemaining,
+                    dosesPerDay = input.dosesPerDay,
+                    refillLeadTimeDays = input.refillLeadTimeDays,
+                    foodGuidance = input.foodGuidance,
+                )
+            }
+        }
+        return Result.success(Unit)
+    }
+
+    override suspend fun deleteMedication(medicationId: String): Result<Unit> {
+        delay(200)
+        medicationsState.value = medicationsState.value.filter { it.id != medicationId }
+        return Result.success(Unit)
+    }
+
+    // -----------------------------------------------------------------------
+    // Vitals (manual entry)
+    // -----------------------------------------------------------------------
+
+    override suspend fun recordVitalReading(
+        type: VitalType,
+        value: Float,
+        secondaryValue: Float?,
+    ): Result<Unit> {
+        delay(300)
+        vitalsState.value = vitalsState.value + VitalReading(
+            id = "vital-${System.currentTimeMillis()}",
+            type = type,
+            value = value,
+            secondaryValue = secondaryValue,
+            recordedAt = LocalDateTime.now(),
+        )
+        return Result.success(Unit)
+    }
+
     override suspend fun respondToSharedItem(
         itemId: String,
         response: ElderResponse,

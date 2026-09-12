@@ -1,7 +1,6 @@
 package com.careloop.app.data.repository
 
 import android.util.Log
-import com.careloop.app.data.mock.MockData
 import com.careloop.app.data.model.*
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentSnapshot
@@ -30,12 +29,16 @@ import org.json.JSONArray
  *
  * ## Two decisions worth knowing about
  *
- * **Reads degrade to demo data rather than to an error.** If a collection is
- * empty or a listener fails on permissions, these flows emit the bundled demo
- * dataset instead of an empty list. That is deliberate for a product being
- * demonstrated: a freshly created account showing a blank medication list looks
- * broken, whereas showing the example household immediately communicates what the
- * app is for. Real data replaces it the moment any exists.
+ * **Reads degrade to a genuinely empty result, never to demo data.** An earlier version of
+ * this file fell back to [com.careloop.app.data.mock.MockData] whenever a collection was
+ * empty or a listener errored, on the reasoning that a blank medication list looks broken
+ * for a product being demonstrated. That reasoning stopped being defensible the moment real
+ * accounts existed: a signed-in stranger with no medications yet would see Margaret's
+ * warfarin, not their own empty list, and there is no framing under which that is anything
+ * but a bug. A real empty result now means an empty [Flow] value (`emptyList()`, or
+ * [EmptyElderProfile] for the single-document reads) -- every screen that reads from this
+ * repository is responsible for its own honest empty state, not this repository for hiding
+ * the emptiness.
  *
  * **The patient id is always the signed-in uid.** The elder's device only ever
  * reads and writes its own record. That is enforced server-side by
@@ -58,30 +61,26 @@ class FirebaseCareLoopRepository(
 
     override fun observeElder(): Flow<ElderProfile> = documentFlow(
         path = patientPath(),
-        fallback = MockData.elder,
+        empty = EmptyElderProfile,
     ) { snapshot -> snapshot.toElderProfile() }
 
     override fun observeMedications(): Flow<List<Medication>> = collectionFlow(
         path = patientPath()?.let { "$it/medications" },
-        fallback = MockData.medications,
         orderBy = null,
     ) { it.toMedication() }
 
     override fun observeCheckIns(): Flow<List<CheckIn>> = collectionFlow(
         path = patientPath()?.let { "$it/checkIns" },
-        fallback = MockData.checkIns,
         orderBy = "startedAt" to Query.Direction.DESCENDING,
     ) { it.toCheckIn() }
 
     override fun observeEscalations(): Flow<List<Escalation>> = collectionFlow(
         path = patientPath()?.let { "$it/escalations" },
-        fallback = MockData.escalations,
         orderBy = "raisedAt" to Query.Direction.DESCENDING,
     ) { it.toEscalation() }
 
     override fun observeVitals(type: VitalType): Flow<List<VitalReading>> = collectionFlow(
         path = patientPath()?.let { "$it/vitals" },
-        fallback = MockData.bloodSugarReadings,
         orderBy = "recordedAt" to Query.Direction.ASCENDING,
     ) { it.toVitalReading() }
         // Filtered client-side rather than with a where() clause, to avoid needing
@@ -90,12 +89,11 @@ class FirebaseCareLoopRepository(
 
     override fun observeSharingPreferences(): Flow<SharingPreferences> = documentFlow(
         path = patientPath(),
-        fallback = MockData.sharingPreferences,
+        empty = SharingPreferences(enabledCategories = emptySet()),
     ) { it.toSharingPreferences() }
 
     override fun observeSharedItems(): Flow<List<SharedItem>> = collectionFlow(
         path = patientPath()?.let { "$it/sharedItems" },
-        fallback = MockData.sharedItems,
         orderBy = "sharedAt" to Query.Direction.DESCENDING,
     ) { it.toSharedItem() }
 
@@ -182,6 +180,62 @@ class FirebaseCareLoopRepository(
             ).await()
         }.onFailure { Log.w(TAG, "Could not update sharing preferences") }
     }
+
+    // =========================================================================
+    // Medications (add / edit / remove)
+    // =========================================================================
+
+    override suspend fun addMedication(input: MedicationInput): Result<Unit> = runCatching {
+        val path = patientPath() ?: throw NotSignedIn()
+        val now = java.time.Instant.now().toString()
+        db.collection("$path/medications").add(input.toCreateMap(now)).await()
+        Unit
+    }.onFailure { Log.w(TAG, "Could not add medication") }
+
+    override suspend fun updateMedication(
+        medicationId: String,
+        input: MedicationInput,
+    ): Result<Unit> = runCatching {
+        val path = patientPath() ?: throw NotSignedIn()
+        // update(), not set(): a set() would silently wipe createdAt and rxcui, since
+        // neither field is collected by this form and both would then be entirely
+        // absent from the replacement map rather than merely unchanged.
+        db.document("$path/medications/$medicationId")
+            .update(input.toUpdateMap(java.time.Instant.now().toString()))
+            .await()
+        Unit
+    }.onFailure { Log.w(TAG, "Could not update medication") }
+
+    override suspend fun deleteMedication(medicationId: String): Result<Unit> = runCatching {
+        val path = patientPath() ?: throw NotSignedIn()
+        db.document("$path/medications/$medicationId").delete().await()
+        Unit
+    }.onFailure { Log.w(TAG, "Could not delete medication") }
+
+    // =========================================================================
+    // Vitals (manual entry)
+    // =========================================================================
+
+    override suspend fun recordVitalReading(
+        type: VitalType,
+        value: Float,
+        secondaryValue: Float?,
+    ): Result<Unit> = runCatching {
+        val path = patientPath() ?: throw NotSignedIn()
+        db.collection("$path/vitals").add(
+            mapOf(
+                "type" to type.name.lowercase(),
+                "value" to value,
+                // Always present, even as null. firestore.rules' vitals create rule
+                // requires the document's keys to be EXACTLY this set, so a non-blood-
+                // pressure reading still needs this key written, just with nothing in it.
+                "secondaryValue" to secondaryValue,
+                "recordedAt" to LocalDateTime.now().toString(),
+                "source" to "manual",
+            ),
+        ).await()
+        Unit
+    }.onFailure { Log.w(TAG, "Could not record vital reading") }
 
     override suspend fun respondToSharedItem(
         itemId: String,
@@ -454,47 +508,49 @@ class FirebaseCareLoopRepository(
     /** The signed-in uid, or throws so the failure lands in the caller's Result. */
     private fun requireUid(): String = uid ?: throw NotSignedIn()
 
-    /** A single document as a flow, falling back to demo data on empty or error. */
+    /** A single document as a flow, falling back to [empty] -- never to demo data. */
     private fun <T> documentFlow(
         path: String?,
-        fallback: T,
+        empty: T,
         map: (DocumentSnapshot) -> T?,
     ): Flow<T> {
-        if (path == null) return flowOf(fallback)
+        if (path == null) return flowOf(empty)
         return callbackFlow {
             var registration: ListenerRegistration? = null
             registration = db.document(path).addSnapshotListener { snapshot, error ->
                 if (error != null || snapshot == null || !snapshot.exists()) {
-                    trySend(fallback)
+                    trySend(empty)
                     return@addSnapshotListener
                 }
-                trySend(runCatching { map(snapshot) }.getOrNull() ?: fallback)
+                trySend(runCatching { map(snapshot) }.getOrNull() ?: empty)
             }
             awaitClose { registration?.remove() }
         }
     }
 
-    /** A collection as a flow, falling back to demo data on empty or error. */
+    /**
+     * A collection as a flow. A genuinely empty collection maps to `emptyList()`, not to a
+     * substitute dataset -- see the class doc for why that changed.
+     */
     private fun <T> collectionFlow(
         path: String?,
-        fallback: List<T>,
         orderBy: Pair<String, Query.Direction>?,
         map: (DocumentSnapshot) -> T?,
     ): Flow<List<T>> {
-        if (path == null) return flowOf(fallback)
+        if (path == null) return flowOf(emptyList())
         return callbackFlow {
             var query: Query = db.collection(path)
             if (orderBy != null) query = query.orderBy(orderBy.first, orderBy.second)
 
             val registration = query.addSnapshotListener { snapshot, error ->
-                if (error != null || snapshot == null || snapshot.isEmpty) {
-                    trySend(fallback)
+                if (error != null || snapshot == null) {
+                    trySend(emptyList())
                     return@addSnapshotListener
                 }
                 val items = snapshot.documents.mapNotNull { doc ->
                     runCatching { map(doc) }.getOrNull()
                 }
-                trySend(items.ifEmpty { fallback })
+                trySend(items)
             }
             awaitClose { registration.remove() }
         }
@@ -528,7 +584,12 @@ private fun DocumentSnapshot.toElderProfile(): ElderProfile? {
             Condition.entries.firstOrNull { it.name.equals(value as? String, ignoreCase = true) }
         },
         dailyCheckInTime = parseTime(getString("dailyCheckInTime")) ?: LocalTime.of(9, 0),
-        caretaker = MockData.caretaker,
+        // TODO(backend): the patient document only stores caretakerIds (uids), not a
+        // caretaker's name/phone/email -- see firestore.rules. Resolving those needs a
+        // second read of /users/{caretakerId} per linked caretaker, which nothing calls
+        // yet. Until then this is a real empty caretaker, never MockData.caretaker: a
+        // fabricated "Sarah" here would be exactly the bug TASK 1 exists to remove.
+        caretaker = EmptyElderProfile.caretaker,
     )
 }
 
@@ -685,6 +746,32 @@ private fun Map<*, *>.toFoodInteraction(): FoodInteraction? {
         advice = this["advice"] as? String ?: "",
     )
 }
+
+private val hhmmFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+
+/** Fields set once, on creation. */
+private fun MedicationInput.toCreateMap(now: String): Map<String, Any?> =
+    toUpdateMap(now) + mapOf(
+        // Not collected by this form today; written explicitly so the document's shape
+        // matches the field list this project has committed to (see CLAUDE.md TASK 2),
+        // ready for an RxNorm match to fill in later without a schema migration.
+        "rxcui" to null,
+        "createdAt" to now,
+    )
+
+/** Fields this form owns on every save, add or edit alike. */
+private fun MedicationInput.toUpdateMap(now: String): Map<String, Any?> = mapOf(
+    "name" to name,
+    "dose" to dose,
+    "purpose" to purpose,
+    "schedule" to schedule.map { it.format(hhmmFormatter) },
+    "criticality" to criticality.name.lowercase(),
+    "dosesRemaining" to dosesRemaining,
+    "dosesPerDay" to dosesPerDay,
+    "refillLeadTimeDays" to refillLeadTimeDays,
+    "foodGuidance" to foodGuidance,
+    "updatedAt" to now,
+)
 
 private fun parseTime(value: String?): LocalTime? =
     value?.let { runCatching { LocalTime.parse(it) }.getOrNull() }

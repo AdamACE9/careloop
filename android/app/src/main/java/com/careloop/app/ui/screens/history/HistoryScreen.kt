@@ -44,6 +44,7 @@ import com.careloop.app.di.AppContainer
 import com.careloop.app.ui.components.CareEmptyState
 import com.careloop.app.ui.components.LoopMark
 import com.careloop.app.ui.components.StatusPill
+import com.careloop.app.ui.components.initialSeed
 import com.careloop.app.ui.theme.CareColors
 import com.careloop.app.ui.theme.CareDimens
 import com.careloop.app.ui.theme.CareLoopTheme
@@ -74,7 +75,9 @@ fun HistoryScreen(
     modifier: Modifier = Modifier,
 ) {
     val checkIns by AppContainer.repository.observeCheckIns()
-        .collectAsStateWithLifecycle(initialValue = MockData.checkIns)
+        .collectAsStateWithLifecycle(
+            initialValue = initialSeed(empty = emptyList(), demo = MockData.checkIns),
+        )
 
     val today = remember { LocalDate.now() }
 
