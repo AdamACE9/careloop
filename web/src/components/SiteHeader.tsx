@@ -104,7 +104,7 @@ export default function SiteHeader() {
               // put three items in a 375px header and pushed the page sideways.
               className={`relative min-h-11 items-center rounded-lg px-3 text-sm transition-colors ${
                 item.href === "/#how" ? "hidden sm:inline-flex" : "inline-flex"
-              } ${hovered === item.href ? "text-white" : "text-white/65"}`}
+              } ${hovered === item.href ? "text-white" : "text-white/78"}`}
             >
               {/* One shared pill that slides between items, rather than a
                   separate background fading in on each. */}

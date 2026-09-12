@@ -94,16 +94,16 @@ function EscalationCard({
                 ? 'bg-urgent-surface text-urgent'
                 : isConcern
                   ? 'bg-concern-surface text-concern'
-                  : 'bg-white/10 text-white/70'
+                  : 'bg-white/10 text-white/78'
             }`}
           >
             {isUrgent ? 'Urgent' : isConcern ? 'Needs attention' : 'Worth knowing'}
           </span>
-          <span className="text-sm text-white/50">
+          <span className="text-sm text-white/78">
             {dayLabel(escalation.raisedAt)} at {timeLabel(escalation.raisedAt)}
           </span>
           {acknowledged && (
-            <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-white/60">
+            <span className="rounded-full bg-white/10 px-3 py-1 text-xs text-white/78">
               Seen
             </span>
           )}

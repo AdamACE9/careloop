@@ -93,7 +93,7 @@ export default function DownloadFlow() {
 
           <div className="mt-10 rounded-3xl bg-navy p-7 text-white">
             <p className="font-display text-xl">Doing this for a parent?</p>
-            <p className="mt-3 leading-relaxed text-white/70">
+            <p className="mt-3 leading-relaxed text-white/78">
               Most people set CareLoop up sitting next to the person it is for. It is
               worth doing it together, the app will ask a few questions that only they
               can answer, like what time they want to be called.
@@ -199,7 +199,7 @@ function StepDot({ active, label }: { active: boolean; label: string }) {
   return (
     <span
       className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition ${
-        active ? "bg-navy text-white" : "bg-ink/10 text-ink/40"
+        active ? "bg-navy text-white" : "bg-ink/10 text-ink/70"
       }`}
     >
       {label}

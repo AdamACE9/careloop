@@ -107,18 +107,18 @@ function ThreadCard({ thread }: { thread: AgentThread }) {
           </div>
 
           <p className="mt-2 text-sm leading-relaxed text-slate-ink">
-            <span className="text-ink/50">Why: </span>
+            <span className="text-ink/70">Why: </span>
             {thread.why}
           </p>
 
           {thread.resolution && (
             <p className="mt-2.5 rounded-xl bg-white px-4 py-3 text-sm leading-relaxed text-slate-ink">
-              <span className="text-ink/50">How it ended: </span>
+              <span className="text-ink/70">How it ended: </span>
               {thread.resolution}
             </p>
           )}
 
-          <p className="mt-3 text-xs text-ink/45">
+          <p className="mt-3 text-xs text-ink/70">
             Noticed {formatDate(thread.raisedAt)}
             {isOpen && thread.timesRaised > 0 && (
               <> · raised again {thread.timesRaised === 1 ? 'once' : `${thread.timesRaised} times`} since</>

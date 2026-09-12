@@ -461,7 +461,7 @@ export function Marquee({
 
   if (reduced) {
     return (
-      <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm text-white/45">
+      <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm text-white/78">
         {items.map((item) => (
           <span key={item}>{item}</span>
         ))}
@@ -483,7 +483,7 @@ export function Marquee({
         {[...items, ...items].map((item, i) => (
           <span
             key={`${item}-${i}`}
-            className="flex shrink-0 items-center gap-3 text-sm whitespace-nowrap text-white/45"
+            className="flex shrink-0 items-center gap-3 text-sm whitespace-nowrap text-white/78"
           >
             <span className="h-1 w-1 rounded-full bg-gold" aria-hidden />
             {item}

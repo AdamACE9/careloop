@@ -106,7 +106,7 @@ export function PinnedSteps({
             <span className="step-number font-display text-2xl text-gold">{step.n}</span>
             <div>
               <h3 className="text-lg font-semibold text-white">{step.title}</h3>
-              <p className="mt-2 leading-relaxed text-white/60">{step.body}</p>
+              <p className="mt-2 leading-relaxed text-white/78">{step.body}</p>
             </div>
           </div>
         ))}

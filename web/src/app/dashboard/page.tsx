@@ -175,11 +175,17 @@ export default function DashboardOverview() {
 
       {/* -------------------------------------------------- Recent calls */}
       <section>
-        <div className="flex items-baseline justify-between">
+        <div className="flex items-center justify-between">
           <h3 className="font-display text-2xl text-ink">Recent check-ins</h3>
+          {/*
+            A hit area, not just a word. This was 20px tall, which is half the
+            floor and a genuine miss on a page that is mostly read on a phone in
+            a stolen moment. The negative margin keeps it optically aligned with
+            the heading while the tappable box stays 44px.
+          */}
           <Link
             href="/dashboard/calls"
-            className="text-sm font-medium text-navy underline decoration-gold decoration-2 underline-offset-4"
+            className="-my-3 inline-flex min-h-11 items-center text-sm font-medium text-navy underline decoration-gold decoration-2 underline-offset-4"
           >
             See all
           </Link>

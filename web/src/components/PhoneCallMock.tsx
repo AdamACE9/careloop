@@ -190,7 +190,7 @@ export default function PhoneCallMock() {
         </div>
       </motion.div>
 
-      <p className="mt-6 text-center text-xs leading-relaxed text-white/40">
+      <p className="mt-6 text-center text-xs leading-relaxed text-white/78">
         A real check-in. Cara checks the interaction in the background while the
         conversation keeps going.
       </p>
@@ -213,7 +213,7 @@ function Notch() {
 
 function StatusBar() {
   return (
-    <div className="relative z-20 flex items-center justify-between px-7 pt-3 pb-1 text-[10px] font-medium text-white/70">
+    <div className="relative z-20 flex items-center justify-between px-7 pt-3 pb-1 text-[10px] font-medium text-white/78">
       <span>9:00</span>
       <div className="flex items-center gap-1" aria-hidden>
         {/* Signal */}
@@ -290,7 +290,7 @@ function RingingScreen() {
       >
         Cara
       </motion.p>
-      <p className="mt-1.5 text-sm text-white/55">Your daily check-in</p>
+      <p className="mt-1.5 text-sm text-white/78">Your daily check-in</p>
 
       <div className="mt-auto flex w-full items-start justify-around">
         <CallAction label="Decline" tone="decline" />
@@ -361,7 +361,7 @@ function ConnectingScreen() {
         <LoopMarkSvg size={80} />
       </motion.div>
       <motion.p
-        className="mt-6 text-sm text-white/50"
+        className="mt-6 text-sm text-white/78"
         animate={{ opacity: [0.35, 1, 0.35] }}
         transition={{ duration: 1.2, repeat: Infinity }}
       >
@@ -409,7 +409,7 @@ function LiveScreen({
           initial={{ opacity: 0, y: 4 }}
           animate={{ opacity: 1, y: 0 }}
           className={`mt-0.5 text-[11px] ${
-            checking && !showInteraction ? "text-yellow" : "text-white/45"
+            checking && !showInteraction ? "text-yellow" : "text-white/78"
           }`}
         >
           {checking && !showInteraction

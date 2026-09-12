@@ -172,12 +172,12 @@ export default function LoginPage() {
               &ldquo;Margaret has missed her warfarin twice this week, and both
               times she wasn&apos;t sure whether she&apos;d taken it.&rdquo;
             </p>
-            <footer className="mt-6 text-sm text-white/50">
+            <footer className="mt-6 text-sm text-white/78">
               Cara, to Sarah, the morning it happened twice
             </footer>
           </blockquote>
 
-          <p className="mt-12 max-w-md text-lg leading-relaxed text-white/60">
+          <p className="mt-12 max-w-md text-lg leading-relaxed text-white/78">
             One missed dose is normal. Two, the same way, on the medication that
             matters most, is worth a phone call. CareLoop is built to know the
             difference, and to say exactly why.
@@ -219,7 +219,7 @@ function Field({
         placeholder={placeholder}
         autoComplete={autoComplete}
         required
-        className="mt-2 min-h-[56px] w-full rounded-2xl border border-ink/15 bg-white px-5 py-4 text-lg text-ink placeholder:text-ink/25 focus:border-navy focus:outline-none"
+        className="mt-2 min-h-[56px] w-full rounded-2xl border border-ink/15 bg-white px-5 py-4 text-lg text-ink placeholder:text-ink/55 focus:border-navy focus:outline-none"
       />
     </div>
   );

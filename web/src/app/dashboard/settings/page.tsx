@@ -102,7 +102,7 @@ export default function SettingsPage() {
                 autoComplete="off"
                 spellCheck={false}
                 maxLength={16}
-                className="w-56 rounded-xl border border-ink/20 bg-white px-4 py-3.5 font-display text-2xl tracking-[0.18em] text-ink uppercase placeholder:text-ink/25 focus:border-gold focus:outline-none"
+                className="w-56 rounded-xl border border-ink/20 bg-white px-4 py-3.5 font-display text-2xl tracking-[0.18em] text-ink uppercase placeholder:text-ink/55 focus:border-gold focus:outline-none"
               />
               <button
                 onClick={() => void handleLink()}

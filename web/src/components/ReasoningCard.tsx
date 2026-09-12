@@ -29,7 +29,7 @@ export default function ReasoningCard() {
           <span className="rounded-full bg-concern-surface px-3 py-1 text-xs font-semibold tracking-wide text-concern uppercase">
             Needs attention
           </span>
-          <span className="text-sm text-white/50">{e.raisedAt}</span>
+          <span className="text-sm text-white/78">{e.raisedAt}</span>
         </div>
         <h3 className="mt-4 font-display text-2xl leading-snug text-white md:text-3xl">
           {e.headline}

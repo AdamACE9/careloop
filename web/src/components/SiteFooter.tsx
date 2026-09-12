@@ -13,7 +13,7 @@ export default function SiteFooter() {
               </span>
               <span className="font-display text-xl">CareLoop</span>
             </div>
-            <p className="mt-4 text-sm leading-relaxed text-white/55">
+            <p className="mt-4 text-sm leading-relaxed text-white/80">
               An agentic care companion that calls, listens, and knows the difference
               between a bad day and a pattern.
             </p>
@@ -21,19 +21,19 @@ export default function SiteFooter() {
 
           <div className="flex gap-14">
             <div>
-              <p className="text-xs tracking-[0.16em] text-white/40 uppercase">
+              <p className="text-xs tracking-[0.16em] text-white/75 uppercase">
                 Product
               </p>
               <ul className="mt-2 text-sm">
                 <li>
-                  <Link href="/#how" className="-my-1 inline-flex min-h-11 items-center text-white/70 transition hover:text-gold">
+                  <Link href="/#how" className="-my-1 inline-flex min-h-11 items-center text-white/78 transition hover:text-gold">
                     How it works
                   </Link>
                 </li>
                 <li>
                   <Link
                     href="/dashboard"
-                    className="-my-1 inline-flex min-h-11 items-center text-white/70 transition hover:text-gold"
+                    className="-my-1 inline-flex min-h-11 items-center text-white/78 transition hover:text-gold"
                   >
                     Family dashboard
                   </Link>
@@ -41,7 +41,7 @@ export default function SiteFooter() {
                 <li>
                   <Link
                     href="/download"
-                    className="-my-1 inline-flex min-h-11 items-center text-white/70 transition hover:text-gold"
+                    className="-my-1 inline-flex min-h-11 items-center text-white/78 transition hover:text-gold"
                   >
                     Download
                   </Link>
@@ -50,12 +50,12 @@ export default function SiteFooter() {
             </div>
 
             <div>
-              <p className="text-xs tracking-[0.16em] text-white/40 uppercase">
+              <p className="text-xs tracking-[0.16em] text-white/75 uppercase">
                 Access
               </p>
               <ul className="mt-2 text-sm">
                 <li>
-                  <Link href="/login" className="-my-1 inline-flex min-h-11 items-center text-white/70 transition hover:text-gold">
+                  <Link href="/login" className="-my-1 inline-flex min-h-11 items-center text-white/78 transition hover:text-gold">
                     Family sign in
                   </Link>
                 </li>
@@ -65,7 +65,7 @@ export default function SiteFooter() {
         </div>
 
         <div className="mt-12 border-t border-white/10 pt-8">
-          <p className="text-xs leading-relaxed text-white/40">
+          <p className="text-xs leading-relaxed text-white/75">
             CareLoop is a prototype and is not a medical device. It does not provide
             medical advice, diagnosis, or emergency response, and it is not a substitute
             for professional care. In an emergency, call your local emergency number.

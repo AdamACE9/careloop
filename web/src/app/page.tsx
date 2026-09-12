@@ -87,7 +87,7 @@ export default function Home() {
             </h1>
 
             <Reveal delay={420}>
-              <p className="mt-8 max-w-xl text-lg leading-relaxed text-white/65 md:text-xl">
+              <p className="mt-8 max-w-xl text-lg leading-relaxed text-white/80 md:text-xl">
                 CareLoop calls her, has an actual conversation, and tells you when
                 something is genuinely wrong, not every time she is five minutes late.
               </p>
@@ -105,7 +105,7 @@ export default function Home() {
             </Reveal>
 
             <Reveal delay={640}>
-              <p className="mt-7 text-sm text-white/40">
+              <p className="mt-7 text-sm text-white/78">
                 No call charges. It rings over wifi, like a video call.
               </p>
             </Reveal>
@@ -288,7 +288,7 @@ export default function Home() {
             <h2 className="font-display text-4xl leading-tight text-white md:text-5xl">
               It takes about four minutes to set up.
             </h2>
-            <p className="mt-6 text-lg leading-relaxed text-white/65">
+            <p className="mt-6 text-lg leading-relaxed text-white/80">
               Most people do it sitting next to their parent, once, so the two of
               them can pick the call time together. After that it runs on its own.
             </p>
@@ -297,7 +297,7 @@ export default function Home() {
                 Download CareLoop
               </MagneticButton>
             </div>
-            <p className="mt-5 text-sm text-white/40">
+            <p className="mt-5 text-sm text-white/78">
               Android, free while in early access
             </p>
           </Reveal>
