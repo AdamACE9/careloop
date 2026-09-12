@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.PhoneInTalk
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material3.Icon
@@ -117,15 +118,41 @@ fun HomeScreen(
 
             if (today != null) {
                 Spacer(Modifier.height(CareDimens.SpaceMd))
+
+                // The pill used to be hardcoded green with a tick whatever the
+                // status was, so a day with a missed dose was announced in
+                // success colours under a checkmark, with only the words
+                // disagreeing. Colour is never the only carrier of meaning on
+                // this screen, but it must not actively contradict the words.
+                //
+                // And a completed call where nothing was confirmed and nothing
+                // was missed is not a day everything was taken. It is a day
+                // nothing was established, which is neutral, not good.
+                val establishedNothing = today.status == CheckInStatus.COMPLETED &&
+                    today.medicationsConfirmed.isEmpty() &&
+                    today.medicationsMissed.isEmpty()
+
                 StatusPill(
-                    text = if (today.status == CheckInStatus.COMPLETED) {
-                        "All medications taken"
-                    } else {
-                        today.status.label
+                    text = when {
+                        establishedNothing -> "Medications not covered"
+                        today.status == CheckInStatus.COMPLETED -> "All medications taken"
+                        else -> today.status.label
                     },
-                    icon = Icons.Rounded.CheckCircle,
-                    contentColor = CareColors.Good,
-                    containerColor = CareColors.GoodSurface,
+                    icon = when {
+                        establishedNothing -> Icons.Rounded.Schedule
+                        today.status == CheckInStatus.COMPLETED -> Icons.Rounded.CheckCircle
+                        else -> Icons.Rounded.ErrorOutline
+                    },
+                    contentColor = when {
+                        establishedNothing -> CareColors.Slate
+                        today.status == CheckInStatus.COMPLETED -> CareColors.Good
+                        else -> CareColors.Concern
+                    },
+                    containerColor = when {
+                        establishedNothing -> CareColors.Cloud
+                        today.status == CheckInStatus.COMPLETED -> CareColors.GoodSurface
+                        else -> CareColors.ConcernSurface
+                    },
                 )
                 if (today.caraSummary.isNotBlank()) {
                     Spacer(Modifier.height(CareDimens.SpaceMd))

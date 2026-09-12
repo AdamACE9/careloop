@@ -222,9 +222,9 @@ private fun CheckInRow(
 
                 StatusPill(
                     text = checkIn.warmPillText(caretakerName),
-                    icon = checkIn.status.icon(),
-                    contentColor = checkIn.status.pillContentColor(),
-                    containerColor = checkIn.status.pillContainerColor(),
+                    icon = checkIn.pillIcon(),
+                    contentColor = checkIn.pillContentColor(),
+                    containerColor = checkIn.pillContainerColor(),
                 )
 
                 Spacer(Modifier.height(CareDimens.SpaceMd))
@@ -304,6 +304,31 @@ private fun CheckInStatus.warmPillText(caretakerName: String): String = when (th
     CheckInStatus.NO_ANSWER -> "No answer"
     CheckInStatus.ESCALATED -> "Cara let $caretakerName know"
 }
+
+/**
+ * The three pill properties, read from the check-in rather than the status.
+ *
+ * A completed call where nothing was confirmed and nothing was missed kept the
+ * COMPLETED styling: a green tick beside the words "Medications not covered".
+ * The label was honest and everything around it still said the day had gone
+ * well, which is the reading most people take from a pill at a glance.
+ *
+ * Neutral, not a warning. Nothing went wrong; the conversation simply did not
+ * reach the medications.
+ */
+private fun CheckIn.establishedNothing(): Boolean =
+    status == CheckInStatus.COMPLETED &&
+        medicationsConfirmed.isEmpty() &&
+        medicationsMissed.isEmpty()
+
+private fun CheckIn.pillIcon(): ImageVector =
+    if (establishedNothing()) Icons.Filled.Phone else status.icon()
+
+private fun CheckIn.pillContentColor(): Color =
+    if (establishedNothing()) CareColors.Slate else status.pillContentColor()
+
+private fun CheckIn.pillContainerColor(): Color =
+    if (establishedNothing()) CareColors.Cloud else status.pillContainerColor()
 
 private fun CheckInStatus.icon(): ImageVector = when (this) {
     CheckInStatus.COMPLETED -> Icons.Filled.Check
