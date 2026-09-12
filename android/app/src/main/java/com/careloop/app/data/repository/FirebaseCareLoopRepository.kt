@@ -8,6 +8,7 @@ import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
+import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.functions.FirebaseFunctionsException
 import kotlinx.coroutines.channels.awaitClose
@@ -378,6 +379,23 @@ class FirebaseCareLoopRepository(
                 ),
             ).await()
         }
+        // Register the push token here, not only in onNewToken.
+        //
+        // FCM issues its token while the app is starting, which is before
+        // anonymous sign-in has finished, so onNewToken's registration failed
+        // with UNAUTHENTICATED and was never retried. The device then had no
+        // token on record and a scheduled call would have gone nowhere: FCM
+        // accepts a send to a missing token and the phone simply never rings,
+        // which from the outside looks like the person ignored their check-in.
+        //
+        // Deliberately does not fail the whole provisioning step. A person
+        // without push can still open the app and be called by tapping; a person
+        // without an account cannot do anything at all.
+        runCatching {
+            val fcmToken = FirebaseMessaging.getInstance().token.await()
+            registerDeviceToken(fcmToken)
+        }.onFailure { Log.w(TAG, "Push token not registered yet") }
+
         Unit
     }.onFailure { Log.w(TAG, "Could not establish patient session") }
 
