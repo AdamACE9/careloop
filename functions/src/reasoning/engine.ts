@@ -534,7 +534,7 @@ function buildExplanation(params: {
 
     if (missed > 1) {
       parts.push(
-        `${name} missed her ${med} on ${formatDates(worst.missedDates)}. ` +
+        `${name} missed her ${med} ${datePhrase(worst.missedDates)}. ` +
         (unsure > 0
           ? `On ${unsure === missed ? 'both' : 'one'} of those calls she wasn't sure whether she'd taken it. `
           : '') +
@@ -545,7 +545,7 @@ function buildExplanation(params: {
       );
     } else {
       parts.push(
-        `${name} missed her ${med} on ${formatDates(worst.missedDates)}. ` +
+        `${name} missed her ${med} ${datePhrase(worst.missedDates)}. ` +
         `On its own that's normal and I wouldn't normally mention it, but ${med} is the one ` +
         `I watch most closely for her.`,
       );
@@ -616,6 +616,27 @@ function formatDate(iso: string): string {
   if (diff === 0) return 'today';
   if (diff === 1) return 'yesterday';
   return d.toLocaleDateString('en-GB', { weekday: 'long' });
+}
+
+/**
+ * The same dates, with the preposition built in.
+ *
+ * "on" is right in front of a weekday and wrong in front of "today" or
+ * "yesterday", which produced the line "Eleanor missed her warfarin on today."
+ * in the first real escalation this engine ever wrote. That sentence is the
+ * headline a worried adult child reads first, so it has to be written by
+ * somebody who speaks English.
+ *
+ * Mixed lists resolve to no preposition, since "today and on Thursday" is worse
+ * than "today and Thursday".
+ */
+function datePhrase(dates: string[]): string {
+  const formatted = dates.map(formatDate);
+  const needsNoPreposition = formatted.some(
+    (d) => d === 'today' || d === 'yesterday',
+  );
+  const joined = formatDates(dates);
+  return needsNoPreposition ? joined : `on ${joined}`;
 }
 
 function formatDates(dates: string[]): string {

@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Card
@@ -468,6 +469,9 @@ private fun ShareCategory.icon(): ImageVector = when (this) {
     ShareCategory.CONFUSION -> Icons.Filled.ChatBubbleOutline
     ShareCategory.VITALS -> Icons.Filled.Info
     ShareCategory.REFILLS -> Icons.Filled.Schedule
+    // A person, not a warning. Somebody being connected or disconnected is a
+    // fact about who can see this record, not something going wrong.
+    ShareCategory.ACCESS_CHANGE -> Icons.Filled.Person
 }
 
 // ---------------------------------------------------------------------------
