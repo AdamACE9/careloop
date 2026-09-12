@@ -418,6 +418,85 @@ discards the offset. Everything the backend writes is UTC, so every timestamp
 displayed four hours early on a UTC+4 phone, under a heading saying "Today".
 Parse as `OffsetDateTime` and convert to `ZoneId.systemDefault()`.
 
+### The mistake this codebase keeps making: counting calls where it means days
+
+Three separate instances of one bug, found in a single night, all invisible until
+real data went through:
+
+1. **The reasoning engine** counted missed doses per check-in. Cara told a family
+   "missed on 2 of the last 7 days" about a single morning, and wrote the
+   sentence "Eleanor missed her warfarin today and today".
+2. **The adherence strip** on the elder's health screen took the last seven
+   check-ins. It drew two dots both labelled "Sat" with a gap where the rest of
+   the week should have been.
+3. **The web dashboard** counted "days with a missed dose" across every loaded
+   check-in, up to sixty of them, under a label saying "this week".
+
+They were all correct while there was one call a day. A retry after no answer, or
+a tap on "have Cara call me now", breaks that assumption everywhere at once.
+
+**Before writing anything that counts check-ins, ask whether the product means
+days.** It almost always does, because the reasoning engine's entire claim is
+that it weighs a pattern across days rather than reacting to a moment.
+
+### A threshold that was decided by a millisecond
+
+`recencyFactor` decayed off a continuous age in days. A single missed
+anticoagulant scores exactly 1.0 against a threshold of exactly 1.0, so it
+escalated only when the check-in's timestamp and the moment it was reasoned about
+landed in the same millisecond.
+
+Running the evaluation harness five times on unchanged code gave **two failures
+and three passes.** In production that means whether a family is told about a
+missed blood thinner could turn on how long the callable took to reach that line.
+
+Recency now decays by whole days. Evidence from today is today's evidence.
+Invariant R11 asserts the same evidence at different moments of the same day
+produces the same decision and the same score.
+
+The general lesson: **when a score is compared against a threshold, check what
+happens when they are equal**, and whether anything in the inputs is continuous
+and unstable.
+
+### Composition-scoped coroutines lose writes, and this has now bitten three times
+
+Disconnecting a caretaker failed on its first real run with
+`ForgottenCoroutineScopeException`. The server log showed the unlink had actually
+**succeeded**: the request landed, then the composable left composition and the
+result had nowhere to return to, so the UI reported failure while the access was
+already gone.
+
+Previous instances: `LaunchedEffect(step)` cancelling account creation, and
+`rememberCoroutineScope` cancelling it again.
+
+**A network write that must not be lost cannot live on a scope owned by the thing
+on screen.** Use `AppContainer.applicationScope` and hop back to
+`Dispatchers.Main` for the state update. This applies to the end of a call, to
+unlinking, and to minting a linking code.
+
+### Tailwind display utilities do not resolve by class order
+
+Adding `inline-flex` to a base class silently beat the `hidden` in a conditional,
+because both are display utilities and which one wins is decided by their order
+in the generated stylesheet, not their order in the `className` string. Three
+items then fought over a 375px header and pushed the whole page sideways.
+
+**Put display utilities in the conditional, never in the base**, when anything
+about the element is responsive.
+
+### Measuring contrast: walk the whole ancestor chain and composite it
+
+A first pass at auditing the rebuilt site reported 47 contrast failures. Nearly
+all were the measurement's fault: it took the first non-transparent ancestor
+background, which for a semi-transparent overlay is not what the eye sees, and it
+counted wrapper elements whose text actually lives in a child.
+
+A correct audit looks at **leaf text nodes only**, and composites every
+`rgba` background down the chain before comparing. That pass reported zero
+failures on the same page. Two of the original 47 looked real and were worth the
+check, so the exercise was not wasted, but do not act on a raw number from a
+naive script.
+
 ### Other environment notes
 
 - Android SDK is installed but **not on `PATH`** and `ANDROID_HOME` is unset. Point at
@@ -598,67 +677,83 @@ here so nobody rediscovers them:
   likely places to need adjustment.
 
 ### Open
-- No medication detail screen; `onMedicationClick` is wired but lands nowhere.
+- ~~No medication detail screen.~~ Wrong, it exists and works: route, screen,
+  and an edit path, all reachable from the medication list.
 - ~~Elder-side linking~~ **Done (Day 7).** The elder generates a code during
   onboarding and the caretaker redeems it on the dashboard. This was wired
   backwards before: the dashboard called generateLinkingCode, which the backend
   only ever permits from the patient themselves, so it could not have worked.
 - Escalations are not yet pushed to the caretaker (no email or web push). They
   appear on the dashboard when it is open.
-- Agent threads are written and read by the backend and steer Cara's prompt, but
-  neither dashboard renders them yet. That is the "what Cara is keeping an eye
-  on" surface, and it is the visible-reasoning feature judges score for.
+- ~~Agent threads are rendered by neither dashboard.~~ Both render them now. The
+  web dashboard already did, on `/dashboard/reasoning`; the elder's phone did
+  not, which meant the agent kept notes on a person that only that person's
+  family could see. There is now a screen for it in the app, reachable from
+  Settings beside "What I share".
 - ~~No rules unit tests.~~ Done: 31 cases in `functions/src/rules.test.mts`, run
   on CI by `firebase emulators:exec` because the emulator cannot start on this
   machine (see section 9).
 
 ---
 
-## 14. Status after the production pass
+## 14. Status board, current
 
 ### Verified end to end, on real accounts, against the deployed backend
 
-- **The call loop closes.** Server logs for one answered call show
-  `call.deliver.sent` -> `gemini.token.minted` -> `checkin.submitted` ->
-  `call.outcome.reported`, and the check-in then appears on the phone AND on a
-  separate caretaker's dashboard.
-- **The scheduler fires.** Check-in time set to 15:15 through the app's own
-  Settings; at 11:16:06 UTC `scheduledcheckincalls` logged
-  `call.deliver.sent, attemptNumber: 2` and the phone rang 1.3 seconds later.
-  `sweepStaleCalls` then closed out the call nobody answered, which is the
-  retry ledger working.
-- **Two accounts, linked for real.** Code minted on Adam's phone from Settings,
-  read out, typed into a freshly created caretaker account on the web. The
-  dashboard went from "You are not connected to anyone yet" to "Connected to
-  Adam" and started showing his actual check-ins.
-- **Cara speaks and is transcribed.** Real Gemini Live audio, zero underruns.
-- **The reasoning engine runs** on submitted check-ins.
-- **Firestore rules**: 31 cases green on CI.
+- **The autonomous escalation fires.** Seeded a throwaway elder with warfarin,
+  submitted one check-in where it was missed and she sounded unsure, and the
+  engine escalated on its own: `action: escalate`, concern score 1.7, three
+  reasoning steps each traceable to real evidence including a direct quote. A
+  second missed dose escalated again at `urgent` with higher confidence, so the
+  ladder works rather than just the trigger. The linked family member could read
+  it and the elder was told in the same moment.
+- **The call loop closes.** `call.deliver.sent` -> `gemini.token.minted` ->
+  `checkin.submitted` -> `call.outcome.reported`, and the check-in then appears
+  on the phone and on a separate caretaker's dashboard.
+- **The scheduler fires.** Check-in time set through the app's own Settings; the
+  scheduler sent at 11:16:06 UTC and the phone rang 1.3 seconds later.
+  `sweepStaleCalls` then closed out the unanswered call.
+- **Two accounts, linked and unlinked for real**, both directions, including the
+  `array-contains` list query the rules used to refuse.
+- **Recording a reading works**, persists, and renders with the right time and a
+  plain-language reading of whether it is in range.
+- **Agent threads** are created through the real callable, readable by both the
+  elder and the family, and rendered on both surfaces.
+- **The website is live** at https://careloop--careloop-adam.europe-west4.hosted.app
+  with automatic builds from main, and `/careloop.apk` redirects to a real
+  downloadable APK that needs no login.
+- **Firestore rules**: 31 cases green on CI. **Evaluation harness**: 16 green.
 
 ### Not verified
 
-- **Talking back to Cara.** The emulator cannot capture microphone audio; the
-  call screen says so plainly rather than appearing broken. Needs a real phone.
-  This is the single largest remaining gap.
-- **Escalation reaching a caretaker.** No check-in has yet produced an
-  escalation, so the dashboard's escalation view has only ever shown example
-  data. Needs a run of missed doses to trigger one.
+- **Talking back to Cara.** The emulator cannot capture microphone audio, so she
+  speaks and is transcribed but has never heard an answer. The call screen says
+  so plainly rather than appearing broken. This is the single largest remaining
+  gap and it needs ten minutes on a real handset.
+- **The agent-threads screen with data in it.** The empty state is verified on
+  device; the populated state is not, because threads can only be written for the
+  account the phone is signed into and there is no way to seed that account from
+  here. The mapper is the same shape as six collections that do work, and the
+  identical data renders correctly on the web dashboard.
 
 ### Left behind by testing
 
-- A caretaker account `careloop-test-caretaker@example.com` is linked to Adam's
-  patient record. It was created to prove the linking round trip. Nothing
-  removes a caretaker link yet, so unlinking means editing `caretakerIds` in the
-  console, and deleting the auth user separately.
+- A throwaway elder, Eleanor, with two escalations and two agent threads, linked
+  to `careloop-test-caretaker@example.com`. Useful as a populated demo account;
+  delete both from the console when it stops being useful.
+- Adam's own account has real check-ins from testing, correctly labelled
+  "Medications not covered" because nothing was established on those calls. They
+  are genuine records of calls that happened, so they were left alone rather than
+  tidied away.
 
 ### The rule this pass kept proving
 
-Three separate bugs this session shared one shape: **a screen that looked right
+Several separate bugs this session shared one shape: **a screen that looked right
 while the thing behind it had not happened.** The call that transcribed
-beautifully and saved nothing. The dashboard that showed a name with no data.
-The summary that said "All medications taken" after a call where nothing was
-established.
+beautifully and saved nothing. The dashboard that showed a name with no data. The
+summary that said "All medications taken" after a call where nothing was
+established. The disconnect that reported failure after succeeding.
 
 The screen is not the evidence. For the call loop the evidence is the Cloud
 Functions log chain; for the rules it is the exact query the app runs; for
-adherence it is what was actually confirmed, not what was not missed.
+adherence it is what was actually confirmed, not what was merely not missed.
