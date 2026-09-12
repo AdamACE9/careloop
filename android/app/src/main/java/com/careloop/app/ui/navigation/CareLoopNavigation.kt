@@ -31,6 +31,7 @@ import com.careloop.app.ui.screens.threads.AgentThreadsScreen
 import com.careloop.app.ui.screens.vitals.RecordVitalScreen
 import com.careloop.app.ui.screens.vitals.VitalsScreen
 import com.careloop.app.ui.theme.CareColors
+import com.careloop.app.ui.theme.LocalTextScale
 
 /**
  * Top-level navigation.
@@ -87,10 +88,35 @@ fun CareLoopApp(
                             selected = currentRoute == destination.route,
                             onClick = { navController.navigateToTab(destination.route) },
                             icon = { Icon(destination.icon, contentDescription = null) },
-                            // Never icon-only — see the class comment.
+                            // Never icon-only, see the class comment.
                             label = {
+                                // The nav labels stop growing before the
+                                // content does.
+                                //
+                                // At the Largest text size five labels no
+                                // longer fit across the bar, and because they
+                                // are deliberately single line and non-wrapping
+                                // they were simply clipped: "Medici" and
+                                // "Setting", with the last one running off the
+                                // edge of the screen. The person most likely to
+                                // choose the largest text is exactly the person
+                                // who can least afford unreadable navigation.
+                                //
+                                // Wrapping is not the answer, for the reason in
+                                // the note below. Capping is: this is persistent
+                                // chrome rather than content, and it only has to
+                                // stay legible, not keep pace with the body
+                                // text. The shrink is computed against the
+                                // current style, which already carries the app's
+                                // scale, so it works whatever the base size is.
+                                val scale = LocalTextScale.current
+                                val cap = 1.15f
+                                val shrink = if (scale > cap) cap / scale else 1f
+                                val base = MaterialTheme.typography.labelMedium
+
                                 Text(
                                     destination.label,
+                                    style = base.copy(fontSize = base.fontSize * shrink),
                                     // One line, always. A wrapped nav label
                                     // reflows the whole bar and shifts every
                                     // other tab's tap target sideways.
