@@ -693,38 +693,129 @@ private fun WhoCaraCallsCard(
     CareCard(modifier = modifier) {
         CardHeader(icon = Icons.Rounded.Person, title = "Who Cara calls if she's worried")
         Spacer(Modifier.height(CareDimens.SpaceXs))
+        if (caretaker.name.isNotBlank()) {
+            Text(
+                "The person you've chosen, not someone assigned to you.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        Spacer(Modifier.height(CareDimens.SpaceLg))
+
+        if (caretaker.name.isBlank()) {
+            ConnectSomeoneSection()
+        } else {
+            Text(caretaker.name, style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(CareDimens.SpaceXs))
+            Text(
+                caretaker.relationship,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            if (caretaker.phone.isNotBlank()) {
+                Spacer(Modifier.height(CareDimens.SpaceMd))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Rounded.Phone,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Spacer(Modifier.width(CareDimens.SpaceSm))
+                    Text(
+                        caretaker.phone,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Getting a code to the person who will watch over you.
+ *
+ * This existed only inside onboarding, which is a one-time flow, so anyone whose
+ * family joined later had no way to produce a code and no way to ever connect
+ * them. Onboarding's own failure message said "You can do this later from
+ * Settings", which was a promise this screen did not keep.
+ *
+ * The direction matters and is stated on screen, because it is the thing people
+ * get wrong: the code is made HERE, on the elder's phone, and read out to the
+ * family member. Only this device can mint one, which is what stops anyone
+ * attaching themselves to a stranger's health record.
+ *
+ * The code is shown large and spaced out, because it is going to be read aloud
+ * down a telephone by someone who may not see it well.
+ */
+@Composable
+private fun ConnectSomeoneSection() {
+    val scope = rememberCoroutineScope()
+    var code by remember { mutableStateOf<String?>(null) }
+    var loading by remember { mutableStateOf(false) }
+    var failed by remember { mutableStateOf(false) }
+
+    Column {
         Text(
-            "The person you've chosen, not someone assigned to you.",
-            style = MaterialTheme.typography.bodyMedium,
+            "Nobody is connected yet. When you are ready, make a code and read " +
+                "it out to them. They type it into CareLoop on their computer.",
+            style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
         Spacer(Modifier.height(CareDimens.SpaceLg))
 
-        Text(caretaker.name, style = MaterialTheme.typography.titleMedium)
-        Spacer(Modifier.height(CareDimens.SpaceXs))
-        Text(
-            caretaker.relationship,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        Spacer(Modifier.height(CareDimens.SpaceMd))
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = Icons.Rounded.Phone,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp),
-            )
-            Spacer(Modifier.width(CareDimens.SpaceSm))
+        code?.let { value ->
             Text(
-                caretaker.phone,
+                // Spaced so it can be read aloud a character at a time.
+                text = value.toCharArray().joinToString("  "),
+                style = MaterialTheme.typography.displaySmall,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(CareDimens.SpaceSm))
+            Text(
+                "Read this to them. It works once, and only for a little while.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
             )
+            Spacer(Modifier.height(CareDimens.SpaceLg))
         }
+
+        if (failed) {
+            Text(
+                "Could not make a code just now. Please try again in a moment.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.error,
+            )
+            Spacer(Modifier.height(CareDimens.SpaceMd))
+        }
+
+        CarePrimaryButton(
+            text = when {
+                loading -> "Making a code"
+                code != null -> "Make a new code"
+                else -> "Make a code"
+            },
+            // enabled rather than an early return: a non-local return out of a
+            // lambda is the construct that broke this codebase once already.
+            enabled = !loading,
+            onClick = {
+                loading = true
+                failed = false
+                scope.launch {
+                    AppContainer.repository.generateLinkingCode()
+                        .onSuccess { code = it.code }
+                        .onFailure { failed = true }
+                    loading = false
+                }
+            },
+        )
     }
 }
 
