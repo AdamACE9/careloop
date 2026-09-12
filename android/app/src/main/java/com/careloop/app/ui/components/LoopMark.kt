@@ -98,9 +98,15 @@ fun LoopMark(
             center = centre,
         )
 
-        // The ring itself — always unbroken.
+        // The ring itself
+        //
+        // The alpha floor is 0.55 rather than 0.30 because gold at a third
+        // opacity over navy composites to a murky olive, not to gold. Held
+        // still, which is what previews and reduced-motion users get, the ring
+        // sat at its dimmest and the brand mark was very nearly invisible on
+        // every dark screen and every empty state. — always unbroken.
         drawCircle(
-            color = color.copy(alpha = 0.30f + 0.25f * breathValue),
+            color = color.copy(alpha = 0.55f + 0.25f * breathValue),
             radius = radius,
             center = centre,
             style = Stroke(width = stroke),
