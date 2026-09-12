@@ -721,13 +721,33 @@ private fun PeriodToggle(
     onChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Each option takes half the row by weight.
+    //
+    // Without that, the first one swallowed the whole width and the second got
+    // none, so "PM" did not render at all: a single full-width navy bar reading
+    // "AM", sitting directly above an identically styled "This time works". An
+    // evening call time was unselectable during setup, and the toggle looked
+    // like the primary action.
+    //
+    // Labels match the Settings screen, which asks the same question. "Morning"
+    // and "Evening" say what is being chosen; AM and PM are a clock convention
+    // that a tired person reads past.
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.Center,
+        horizontalArrangement = Arrangement.spacedBy(CareDimens.SpaceMd),
     ) {
-        PeriodOption(label = "AM", selected = isAm, onClick = { onChange(true) })
-        Spacer(Modifier.width(CareDimens.SpaceMd))
-        PeriodOption(label = "PM", selected = !isAm, onClick = { onChange(false) })
+        PeriodOption(
+            label = "Morning",
+            selected = isAm,
+            onClick = { onChange(true) },
+            modifier = Modifier.weight(1f),
+        )
+        PeriodOption(
+            label = "Evening",
+            selected = !isAm,
+            onClick = { onChange(false) },
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 
@@ -748,11 +768,18 @@ private fun PeriodOption(
         contentColor = if (selected) CareColors.White else MaterialTheme.colorScheme.onSurfaceVariant,
         border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-            // AM/PM is state communicated by fill colour AND the label text itself is
-            // never ambiguous on its own — satisfies "never colour alone" without needing
-            // an extra icon.
-            Text(text = label, style = MaterialTheme.typography.labelLarge)
+        Box(
+            contentAlignment = Alignment.Center,
+            // Padding rather than fillMaxSize. fillMaxSize inside a Surface with
+            // no width of its own is what made the first option eat the row.
+            modifier = Modifier.padding(CareDimens.SpaceMd),
+        ) {
+            // A tick as well as the fill, so the choice never rests on telling
+            // two colours apart.
+            Text(
+                text = if (selected) "$label \u2713" else label,
+                style = MaterialTheme.typography.labelLarge,
+            )
         }
     }
 }
