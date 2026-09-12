@@ -1,5 +1,7 @@
 package com.careloop.app.ui.screens.settings
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -743,13 +745,30 @@ private fun HelpCard(
 
         Spacer(Modifier.height(CareDimens.SpaceLg))
 
+        val context = LocalContext.current
         CarePrimaryButton(
             text = "Call my ${caretaker.relationship.lowercase()}",
             icon = Icons.Rounded.Phone,
-            // TODO(backend): launch an ACTION_DIAL (or ACTION_CALL, if CALL_PHONE is ever
-            // requested) intent with caretaker.phone. UI-only for now — no telephony calls
-            // are placed from this screen.
-            onClick = {},
+            // Only shown when there is a number to dial. A button that is always
+            // there and sometimes does nothing is worse than one that appears
+            // when it can work, and this one is pressed by someone who wants
+            // their daughter right now.
+            enabled = caretaker.phone.isNotBlank(),
+            onClick = {
+                // ACTION_DIAL, not ACTION_CALL. It opens the dialler with the
+                // number filled in and lets the person press call themselves.
+                // ACTION_CALL would place the call instantly and needs the
+                // CALL_PHONE permission, which is a large thing to ask for and
+                // a bad idea on a screen where a mis-tap is likely.
+                runCatching {
+                    context.startActivity(
+                        Intent(
+                            Intent.ACTION_DIAL,
+                            Uri.fromParts("tel", caretaker.phone, null),
+                        ),
+                    )
+                }
+            },
         )
     }
 }
