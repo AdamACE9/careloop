@@ -70,7 +70,9 @@ import com.careloop.app.di.AppContainer
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Settings — the screen where Margaret is in charge.
@@ -858,7 +860,6 @@ private fun WhoCaraCallsCard(
  */
 @Composable
 private fun DisconnectSection(caretaker: Caretaker) {
-    val scope = rememberCoroutineScope()
     var confirming by remember { mutableStateOf(false) }
     var working by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
@@ -915,12 +916,28 @@ private fun DisconnectSection(caretaker: Caretaker) {
             onClick = {
                 working = true
                 failed = false
-                scope.launch {
+
+                // Application scope, not rememberCoroutineScope.
+                //
+                // The first real run of this failed with
+                // ForgottenCoroutineScopeException: the composable left
+                // composition between the tap and the call, and took the
+                // request with it. This codebase has now been bitten by exactly
+                // this three times, and the rule it keeps learning is that a
+                // network write which must not be lost cannot live on a scope
+                // owned by the thing on screen.
+                //
+                // Worse here than elsewhere, because the failure is silent and
+                // asymmetric: the person believes they revoked somebody's
+                // access to their health record, and they did not.
+                AppContainer.applicationScope.launch {
                     val result = AppContainer.repository.unlinkCaretaker(caretaker.id)
-                    working = false
-                    result
-                        .onSuccess { confirming = false }
-                        .onFailure { failed = true }
+                    withContext(Dispatchers.Main) {
+                        working = false
+                        result
+                            .onSuccess { confirming = false }
+                            .onFailure { failed = true }
+                    }
                 }
             },
         )
@@ -945,7 +962,6 @@ private fun DisconnectSection(caretaker: Caretaker) {
  */
 @Composable
 private fun ConnectSomeoneSection() {
-    val scope = rememberCoroutineScope()
     var code by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
@@ -1000,11 +1016,19 @@ private fun ConnectSomeoneSection() {
             onClick = {
                 loading = true
                 failed = false
-                scope.launch {
-                    AppContainer.repository.generateLinkingCode()
-                        .onSuccess { code = it.code }
-                        .onFailure { failed = true }
-                    loading = false
+                // Application scope for the same reason as DisconnectSection.
+                // A code minted on the server but lost before it reaches the
+                // screen is worse than no code: it is a real, valid code the
+                // person never sees, and the one they eventually read out is a
+                // different one.
+                AppContainer.applicationScope.launch {
+                    val result = AppContainer.repository.generateLinkingCode()
+                    withContext(Dispatchers.Main) {
+                        result
+                            .onSuccess { code = it.code }
+                            .onFailure { failed = true }
+                        loading = false
+                    }
                 }
             },
         )
