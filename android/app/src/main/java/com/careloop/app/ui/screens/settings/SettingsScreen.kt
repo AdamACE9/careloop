@@ -966,40 +966,57 @@ private fun HelpCard(
     CareCard(modifier = modifier) {
         CardHeader(icon = Icons.Rounded.Help, title = "Need a hand?")
         Spacer(Modifier.height(CareDimens.SpaceXs))
+
+        // With nobody linked, every version of this card was broken. It read
+        // "If anything on this screen is confusing,  is one tap away", with the
+        // name simply missing, above a greyed-out button labelled "Call my ".
+        // Say the true thing instead.
+        val firstName = caretaker.name.substringBefore(' ').trim()
+        val relationship = caretaker.relationship.lowercase().trim()
+
         Text(
-            "If anything on this screen is confusing, ${caretaker.name.substringBefore(' ')} " +
-                "is one tap away.",
+            if (firstName.isBlank()) {
+                "Once somebody is connected to your CareLoop, you can reach them " +
+                    "from here in one tap."
+            } else {
+                "If anything on this screen is confusing, $firstName is one tap away."
+            },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        Spacer(Modifier.height(CareDimens.SpaceLg))
+        // An `if`, not an early return. A non-local return out of a lambda is
+        // the construct that broke this codebase once already.
+        //
+        // The button appears only when there is a number to dial. One that is
+        // always there and sometimes does nothing is worse than one that shows
+        // up when it can work, and this one is pressed by somebody who wants
+        // their daughter right now.
+        if (caretaker.phone.isNotBlank()) {
+            Spacer(Modifier.height(CareDimens.SpaceLg))
 
-        val context = LocalContext.current
-        CarePrimaryButton(
-            text = "Call my ${caretaker.relationship.lowercase()}",
-            icon = Icons.Rounded.Phone,
-            // Only shown when there is a number to dial. A button that is always
-            // there and sometimes does nothing is worse than one that appears
-            // when it can work, and this one is pressed by someone who wants
-            // their daughter right now.
-            enabled = caretaker.phone.isNotBlank(),
-            onClick = {
-                // ACTION_DIAL, not ACTION_CALL. It opens the dialler with the
-                // number filled in and lets the person press call themselves.
-                // ACTION_CALL would place the call instantly and needs the
-                // CALL_PHONE permission, which is a large thing to ask for and
-                // a bad idea on a screen where a mis-tap is likely.
-                runCatching {
-                    context.startActivity(
-                        Intent(
-                            Intent.ACTION_DIAL,
-                            Uri.fromParts("tel", caretaker.phone, null),
-                        ),
-                    )
-                }
-            },
-        )
+            val context = LocalContext.current
+            CarePrimaryButton(
+                text = if (relationship.isBlank()) "Call $firstName" else "Call my $relationship",
+                icon = Icons.Rounded.Phone,
+                onClick = {
+                    // ACTION_DIAL, not ACTION_CALL. It opens the dialler with
+                    // the number filled in and lets the person press call
+                    // themselves. ACTION_CALL would place the call instantly and
+                    // needs the CALL_PHONE permission, which is a large thing to
+                    // ask for and a bad idea on a screen where a mis-tap is
+                    // likely.
+                    runCatching {
+                        context.startActivity(
+                            Intent(
+                                Intent.ACTION_DIAL,
+                                Uri.fromParts("tel", caretaker.phone, null),
+                            ),
+                        )
+                    }
+                },
+            )
+        }
     }
 }
 
