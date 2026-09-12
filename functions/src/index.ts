@@ -803,12 +803,27 @@ async function runReasoning(
   const recentVitals = vitalsSnap.docs.map((d) => d.data() as VitalDoc);
 
   // Count consecutive unanswered attempts from most recent backwards.
+  //
+  // A DECLINE breaks the streak, exactly as an answer does, and that is a
+  // judgement worth stating. This number drives one specific conclusion: that
+  // the person cannot be reached and something may be wrong. Somebody pressing
+  // decline is direct evidence against it. They had the phone in their hand and
+  // made a choice, which is the choice this product insists they are allowed to
+  // make.
+  //
+  // Previously a declined attempt matched neither branch and fell through, so
+  // the loop kept counting past it. A run of missed, declined, missed reported
+  // "has not answered the last 3 calls" to a family, when the middle one was
+  // proof she was fine.
+  //
+  // Repeatedly declining is worth noticing too, but it is a different worry
+  // from being unreachable and it does not belong in this counter.
   let consecutiveNoAnswers = 0;
   for (const doc of attemptsSnap.docs) {
     const attempt = doc.data() as CallAttemptDoc;
     if (attempt.outcome === 'missed' || attempt.outcome === 'undeliverable') {
       consecutiveNoAnswers += 1;
-    } else if (attempt.outcome === 'answered') {
+    } else if (attempt.outcome === 'answered' || attempt.outcome === 'declined') {
       break;
     }
   }
