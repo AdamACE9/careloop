@@ -11,6 +11,7 @@ import android.media.MediaRecorder
 import android.util.Base64
 import android.util.Log
 import androidx.annotation.RequiresPermission
+import com.careloop.app.BuildConfig
 import com.careloop.app.data.model.CaraActivity
 import com.careloop.app.data.model.Speaker
 import com.careloop.app.data.model.TranscriptFlag
@@ -379,6 +380,21 @@ class GeminiLiveClient(
 
     private fun handleServerMessage(raw: String) {
         val message = runCatching { JSONObject(raw) }.getOrNull() ?: return
+
+        // Structure only, never content.
+        //
+        // The transcript stayed empty through a call where Cara was audibly
+        // talking, which means either the transcription frames are not arriving
+        // or they are arriving under different field names. Guessing at names
+        // from documentation is what produced three wrong ones already, so this
+        // logs the SHAPE of what the server actually sends: top-level keys, and
+        // the keys inside serverContent. No text, no audio, no values.
+        if (BuildConfig.DEBUG) {
+            val top = message.keys().asSequence().toList().joinToString(",")
+            val inner = message.optJSONObject("serverContent")
+                ?.keys()?.asSequence()?.toList()?.joinToString(",") ?: "-"
+            Log.d(TAG, "frame keys=[$top] serverContent=[$inner]")
+        }
 
         // Tool calls come first: they are time-sensitive and must not wait behind
         // audio handling.
