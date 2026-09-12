@@ -173,7 +173,9 @@ fun HomeScreen(
                 Icon(
                     Icons.Rounded.Schedule,
                     contentDescription = null,
-                    tint = CareColors.Navy,
+                    // Theme-aware: a navy icon on a navy card in dark mode
+                    // simply was not there.
+                    tint = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier.size(28.dp),
                 )
                 Spacer(Modifier.width(CareDimens.SpaceMd))
@@ -254,8 +256,17 @@ fun HomeScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    // The theme's surface, not a hardcoded light one.
+                    //
+                    // This was CareColors.Cloud, a fixed pale colour, under
+                    // text that takes its colour from the theme. In dark mode
+                    // the text turned light and the card did not, so the whole
+                    // paragraph was near-white on cream and could not be read.
+                    // A hardcoded colour on one side of a foreground and
+                    // background pair will always break the other side
+                    // eventually.
                     .background(
-                        CareColors.Cloud,
+                        MaterialTheme.colorScheme.surfaceVariant,
                         RoundedCornerShape(CareDimens.CardRadius),
                     )
                     .padding(CareDimens.SpaceLg),

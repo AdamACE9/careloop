@@ -125,10 +125,15 @@ fun CareLoopApp(
                                 )
                             },
                             alwaysShowLabel = true,
+                            // A matched pair from the theme, not two fixed
+                            // colours. Navy on pale yellow is right in light
+                            // mode and invisible in dark, where the indicator
+                            // becomes a dark olive: the selected tab lost its
+                            // label entirely while the other four kept theirs.
                             colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = CareColors.Navy,
-                                selectedTextColor = CareColors.Navy,
-                                indicatorColor = CareColors.Yellow.copy(alpha = 0.35f),
+                                selectedIconColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                selectedTextColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                indicatorColor = MaterialTheme.colorScheme.secondaryContainer,
                             ),
                         )
                     }

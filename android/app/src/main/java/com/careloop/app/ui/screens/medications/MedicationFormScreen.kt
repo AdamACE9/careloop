@@ -394,7 +394,7 @@ private fun SelectableRow(title: String, subtitle: String?, selected: Boolean) {
         }
         if (selected) {
             Spacer(Modifier.width(CareDimens.SpaceSm))
-            Icon(Icons.Rounded.Check, contentDescription = null, tint = CareColors.Navy)
+            Icon(Icons.Rounded.Check, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
         }
     }
 }
@@ -433,7 +433,7 @@ private fun StepperButton(
             .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
             .semantics { contentDescription = description },
     ) {
-        Icon(icon, contentDescription = null, tint = CareColors.Navy, modifier = Modifier.size(28.dp))
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(28.dp))
     }
 }
 

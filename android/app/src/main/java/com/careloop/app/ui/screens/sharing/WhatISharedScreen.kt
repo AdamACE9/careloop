@@ -541,7 +541,7 @@ private fun CategoryToggleRow(
         Icon(
             category.icon(),
             contentDescription = null,
-            tint = CareColors.Navy,
+            tint = MaterialTheme.colorScheme.secondary,
             modifier = Modifier.size(28.dp),
         )
         Spacer(Modifier.width(CareDimens.SpaceMd))
@@ -581,7 +581,7 @@ private fun SafetyFloorCard(caretakerName: String) {
             Icon(
                 Icons.Filled.Lock,
                 contentDescription = null,
-                tint = CareColors.Navy,
+                tint = MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.size(28.dp),
             )
             Spacer(Modifier.width(CareDimens.SpaceMd))

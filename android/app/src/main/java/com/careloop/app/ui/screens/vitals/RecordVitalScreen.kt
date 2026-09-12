@@ -159,7 +159,7 @@ private fun RecordVitalScreenContent(
                             )
                         }
                         if (selected) {
-                            Icon(Icons.Rounded.Check, contentDescription = null, tint = CareColors.Navy)
+                            Icon(Icons.Rounded.Check, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
                         }
                     }
                 }

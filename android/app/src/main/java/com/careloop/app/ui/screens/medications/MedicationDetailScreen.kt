@@ -349,7 +349,7 @@ private fun StatTile(
         Icon(
             icon,
             contentDescription = null,
-            tint = CareColors.Navy,
+            tint = MaterialTheme.colorScheme.secondary,
             modifier = Modifier.size(28.dp),
         )
         Spacer(Modifier.height(CareDimens.SpaceSm))
