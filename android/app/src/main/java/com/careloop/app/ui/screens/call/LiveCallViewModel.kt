@@ -91,6 +91,19 @@ class LiveCallViewModel(
     private val _elapsedSeconds = MutableStateFlow(0)
     val elapsedSeconds: StateFlow<Int> = _elapsedSeconds.asStateFlow()
 
+    private val _muted = MutableStateFlow(false)
+    val muted: StateFlow<Boolean> = _muted.asStateFlow()
+
+    /** null until known, false when the microphone is producing only silence. */
+    private val _microphoneWorking = MutableStateFlow<Boolean?>(null)
+    val microphoneWorking: StateFlow<Boolean?> = _microphoneWorking.asStateFlow()
+
+    fun toggleMute() {
+        val next = !_muted.value
+        _muted.value = next
+        client?.setMuted(next)
+    }
+
     // ---- What the call produced ---------------------------------------------
     // Accumulated from Cara's tool calls and submitted as one check-in at the
     // end. Writing each one to Firestore as it arrives would mean a call that
@@ -154,6 +167,9 @@ class LiveCallViewModel(
         }
         viewModelScope.launch {
             live.transcript.collect { lines -> _transcript.value = lines }
+        }
+        viewModelScope.launch {
+            live.microphoneHeardSomething.collect { _microphoneWorking.value = it }
         }
 
         // The clock ticks on its own.

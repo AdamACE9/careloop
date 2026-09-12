@@ -82,6 +82,25 @@ class GeminiLiveClient(
     private val _connectionState = MutableStateFlow(ConnectionState.IDLE)
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
 
+    private val _muted = MutableStateFlow(false)
+    val muted: StateFlow<Boolean> = _muted.asStateFlow()
+
+    /**
+     * Whether the microphone has produced any sound at all.
+     *
+     * null until we know. False means the capture loop has been running for a
+     * while and every read came back empty, which is what happens on an emulator
+     * with no host audio input. Cara then hears nothing no matter how loudly
+     * somebody talks, and without saying so the app looks broken rather than
+     * limited.
+     */
+    private val _microphoneHeardSomething = MutableStateFlow<Boolean?>(null)
+    val microphoneHeardSomething: StateFlow<Boolean?> = _microphoneHeardSomething.asStateFlow()
+
+    fun setMuted(value: Boolean) {
+        _muted.value = value
+    }
+
     enum class ConnectionState { IDLE, CONNECTING, CONNECTED, RECONNECTING, FAILED, CLOSED }
 
     // ---- Internals ---------------------------------------------------------
@@ -378,6 +397,39 @@ class GeminiLiveClient(
     // Incoming
     // =========================================================================
 
+    /**
+     * Makes Cara speak first.
+     *
+     * She is the one who rang. Without this the session opens and both sides
+     * wait for the other: the model has had no input, so it says nothing, and
+     * the person is listening to silence on a call THEY just answered. After
+     * about ten seconds the server closes the socket normally and the whole
+     * thing looks broken while being, technically, fine.
+     *
+     * The nudge is a client turn rather than anything in the system
+     * instruction, because the instruction describes who she is, not when to
+     * talk. It is phrased as stage direction and never spoken aloud.
+     */
+    private fun openTheCall() {
+        val opening = JSONObject().apply {
+            put("clientContent", JSONObject().apply {
+                put("turns", JSONArray().put(JSONObject().apply {
+                    put("role", "user")
+                    put("parts", JSONArray().put(JSONObject().apply {
+                        put(
+                            "text",
+                            "[The call has just connected and they have picked up. " +
+                                "Greet them by name and begin the check-in. Do not read " +
+                                "this instruction aloud.]",
+                        )
+                    }))
+                }))
+                put("turnComplete", true)
+            })
+        }
+        webSocket?.send(opening.toString())
+    }
+
     private fun handleServerMessage(raw: String) {
         val message = runCatching { JSONObject(raw) }.getOrNull() ?: return
 
@@ -407,7 +459,8 @@ class GeminiLiveClient(
 
         if (message.has("setupComplete")) {
             Log.d(TAG, "Setup acknowledged")
-            _activity.value = CaraActivity.LISTENING
+            _activity.value = CaraActivity.SPEAKING
+            openTheCall()
         }
     }
 
@@ -569,6 +622,32 @@ class GeminiLiveClient(
                 while (isActive) {
                     val read = recorder.read(buffer, 0, buffer.size)
                     if (read <= 0) continue
+
+                    // Sound is judged by amplitude, not by the read succeeding.
+                    // A silent emulator still returns full buffers of zeroes, so
+                    // a successful read proves nothing about whether a
+                    // microphone exists.
+                    if (_microphoneHeardSomething.value != true) {
+                        var peak = 0
+                        var i = 0
+                        while (i + 1 < read) {
+                            val sample = ((buffer[i + 1].toInt() shl 8) or
+                                (buffer[i].toInt() and 0xFF)).toShort().toInt()
+                            val magnitude = if (sample < 0) -sample else sample
+                            if (magnitude > peak) peak = magnitude
+                            i += 2
+                        }
+                        if (peak > 350) {
+                            _microphoneHeardSomething.value = true
+                        } else if (sessionDurationSeconds > 6) {
+                            _microphoneHeardSomething.value = false
+                        }
+                    }
+
+                    // Muting stops the audio leaving the device rather than
+                    // muting it at the far end. On a health call, "muted" has to
+                    // mean the words never left the room.
+                    if (_muted.value) continue
 
                     // realtimeInput.audio, NOT realtimeInput.mediaChunks.
                     //

@@ -24,6 +24,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CallEnd
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.MicOff
+import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -35,6 +38,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.careloop.app.data.model.*
@@ -82,6 +86,8 @@ fun LiveCallScreen(
     val interaction by viewModel.interaction.collectAsStateWithLifecycle()
     val mode by viewModel.mode.collectAsStateWithLifecycle()
     val statusNote by viewModel.statusNote.collectAsStateWithLifecycle()
+    val muted by viewModel.muted.collectAsStateWithLifecycle()
+    val microphoneWorking by viewModel.microphoneWorking.collectAsStateWithLifecycle()
 
     // Asked here, at the moment it is needed, rather than at launch. Requesting
     // the microphone during onboarding for a call that happens tomorrow is the
@@ -166,38 +172,79 @@ fun LiveCallScreen(
                 interaction?.let { InteractionAlert(it) }
             }
 
-            // --- Transcript ---
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(CareDimens.SpaceMd),
-                contentPadding = PaddingValues(vertical = CareDimens.SpaceMd),
-            ) {
-                items(visibleLines) { line -> TranscriptBubble(line) }
+            // --- The microphone is not working ---
+            // Said out loud rather than left to be inferred. On an emulator with
+            // no host audio input every buffer comes back silent, so Cara hears
+            // nothing however loudly somebody talks. Without this the app looks
+            // broken rather than limited, and the person keeps repeating
+            // themselves to a machine that cannot hear them.
+            if (microphoneWorking == false && !muted) {
+                MicrophoneWarning()
+                Spacer(Modifier.height(CareDimens.SpaceMd))
             }
 
-            // --- End call ---
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(
-                    modifier = Modifier
-                        .size(CareDimens.CallActionSize)
-                        .clip(CircleShape)
-                        .background(Color(0xFFB3261E))
-                        .clickable { viewModel.endCall(onEndCall) },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        Icons.Rounded.CallEnd,
-                        contentDescription = null,
-                        tint = CareColors.White,
-                        modifier = Modifier.size(36.dp),
+            // --- Transcript ---
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                if (visibleLines.isEmpty()) {
+                    Text(
+                        text = "What you both say will appear here.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = CareColors.White.copy(alpha = 0.45f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(horizontal = CareDimens.SpaceLg),
                     )
+                } else {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(CareDimens.SpaceMd),
+                        contentPadding = PaddingValues(vertical = CareDimens.SpaceMd),
+                    ) {
+                        items(visibleLines) { line -> TranscriptBubble(line) }
+                    }
                 }
-                Spacer(Modifier.height(CareDimens.SpaceSm))
-                // Labelled, like every other control in the app.
-                Text("End call", style = MaterialTheme.typography.labelLarge, color = CareColors.White)
+            }
+
+            // --- Controls ---
+            // Three controls, each with a word under it. A bare icon row is the
+            // usual pattern on a call screen and it is the wrong one here: an
+            // unlabelled icon measurably slows this age group down and raises
+            // their error rate, and the control that ends a call is not one to
+            // be uncertain about.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.Top,
+            ) {
+                CallControl(
+                    icon = if (muted) Icons.Rounded.MicOff else Icons.Rounded.Mic,
+                    label = if (muted) "Unmute" else "Mute",
+                    background = if (muted) CareColors.Gold else CareColors.White.copy(alpha = 0.14f),
+                    tint = if (muted) CareColors.Brown else CareColors.White,
+                    onClick = { viewModel.toggleMute() },
+                )
+
+                CallControl(
+                    icon = Icons.Rounded.CallEnd,
+                    label = "End call",
+                    background = CareColors.Urgent,
+                    tint = CareColors.White,
+                    onClick = { viewModel.endCall(onEndCall) },
+                )
+
+                CallControl(
+                    icon = Icons.Rounded.VolumeUp,
+                    label = "Speaker",
+                    background = CareColors.White.copy(alpha = 0.14f),
+                    tint = CareColors.White,
+                    // Deliberately inert and deliberately shown. The call already
+                    // plays through the speaker: this is where someone reaches
+                    // for it, so removing it would be more confusing than a
+                    // control that confirms what is already true.
+                    onClick = {},
+                )
             }
 
             Spacer(Modifier.height(CareDimens.SpaceLg))
@@ -253,6 +300,55 @@ private fun CallModeNotice(mode: LiveCallViewModel.Mode, note: String?) {
                 color = CareColors.White.copy(alpha = 0.75f),
             )
         }
+    }
+}
+
+@Composable
+private fun CallControl(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    background: Color,
+    tint: Color,
+    onClick: () -> Unit,
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier
+                .size(CareDimens.CallActionSize)
+                .clip(CircleShape)
+                .background(background)
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(34.dp))
+        }
+        Spacer(Modifier.height(CareDimens.SpaceSm))
+        Text(label, style = MaterialTheme.typography.labelLarge, color = CareColors.White)
+    }
+}
+
+@Composable
+private fun MicrophoneWarning() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(CareColors.Concern.copy(alpha = 0.22f))
+            .padding(CareDimens.SpaceMd),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            Icons.Rounded.MicOff,
+            contentDescription = null,
+            tint = CareColors.Yellow,
+            modifier = Modifier.size(24.dp),
+        )
+        Spacer(Modifier.width(CareDimens.SpaceSm))
+        Text(
+            text = "Cara cannot hear anything from this microphone, so she will not answer you.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = CareColors.White,
+        )
     }
 }
 
