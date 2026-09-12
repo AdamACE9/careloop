@@ -20,6 +20,8 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.tasks.await
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import org.json.JSONArray
 
@@ -827,7 +829,24 @@ private fun MedicationInput.toUpdateMap(now: String): Map<String, Any?> = mapOf(
 private fun parseTime(value: String?): LocalTime? =
     value?.let { runCatching { LocalTime.parse(it) }.getOrNull() }
 
+/**
+ * A server timestamp, in the reader's own timezone.
+ *
+ * Every timestamp the backend writes is an ISO-8601 instant in UTC. This used
+ * to strip the trailing Z and parse the rest as a LocalDateTime, which throws
+ * the offset away and reads UTC as wall-clock time. A check-in that happened at
+ * 2:28pm was shown as 10:28 AM to a reader four hours ahead of UTC, on a screen
+ * headed "Today", and the phone's own clock was visible in the status bar two
+ * inches above it saying otherwise.
+ *
+ * The fallback handles a value written without an offset, which is how the
+ * bundled example data is stored: no offset means it is already local.
+ */
 private fun parseDateTime(value: String?): LocalDateTime? =
-    value?.let {
-        runCatching { LocalDateTime.parse(it.removeSuffix("Z")) }.getOrNull()
+    value?.let { raw ->
+        runCatching {
+            OffsetDateTime.parse(raw).atZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime()
+        }.recoverCatching {
+            LocalDateTime.parse(raw)
+        }.getOrNull()
     }
