@@ -188,6 +188,35 @@ fun HomeScreen(
             }
         }
 
+        // --- Nothing for Cara to ask about yet ---
+        //
+        // A brand new account finishes onboarding with an empty medication list,
+        // and nothing anywhere told them that. Cara would ring the next morning
+        // with nothing to check, which is the product failing on its first day
+        // in the quietest possible way.
+        //
+        // Onboarding is already seven steps, past the three to five the research
+        // supports, so this belongs here rather than as an eighth. It also only
+        // appears while it is true, and disappears the moment a medication
+        // exists.
+        if (medications.isEmpty()) {
+            Spacer(Modifier.height(CareDimens.SpaceMd))
+            CareCard {
+                Text(
+                    "Cara does not know your medications yet",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Spacer(Modifier.height(CareDimens.SpaceXs))
+                Text(
+                    text = "Add them under Medicine and she will ask about them on " +
+                        "her next call. Until then she can still ring, but there is " +
+                        "nothing for her to check.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
         // --- Proactive refill ---
         if (refillNeeded.isNotEmpty()) {
             Spacer(Modifier.height(CareDimens.SpaceMd))
