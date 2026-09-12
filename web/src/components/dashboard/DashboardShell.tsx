@@ -40,10 +40,19 @@ const TABS = [
 
 export default function DashboardShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+
+  // Settings is exempt from the not-linked panel, because Settings is where the
+  // code is entered. Replacing every page's content meant the panel's own
+  // "Enter their code" button led straight back to the panel: a caretaker who
+  // had just signed up could not link to anybody at all, which is the one thing
+  // a new account needs to do.
+  const onSettings = pathname?.startsWith('/dashboard/settings') ?? false;
   const { displayName, isDemo, signOut } = useAuth();
   // Renamed: useAuth already exports an isDemo meaning demo AUTH, which is a
   // different question from whether the DATA on screen is the example household.
   const { patients, loading, isDemo: showingExampleData } = useLinkedPatients();
+
+  const notLinked = !loading && !showingExampleData && patients.length === 0;
   const [menuOpen, setMenuOpen] = useState(false);
 
   const patient = patients[0];
@@ -166,11 +175,7 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
       </div>
 
       <main className="mx-auto max-w-7xl px-6 py-10 md:px-10">
-        {!loading && !showingExampleData && patients.length === 0 ? (
-          <NotLinkedYet />
-        ) : (
-          children
-        )}
+        {notLinked && !onSettings ? <NotLinkedYet /> : children}
       </main>
     </div>
   );

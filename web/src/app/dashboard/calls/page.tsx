@@ -105,7 +105,12 @@ export default function CallsPage() {
               </div>
 
               <div className="flex-1">
-                <StatusChip status={checkIn.status} />
+                <StatusChip
+                  status={checkIn.status}
+                  establishedNothing={
+                    checkIn.confirmed.length === 0 && checkIn.missed.length === 0
+                  }
+                />
                 <p className="mt-3 leading-relaxed text-slate-ink">{checkIn.caraSummary}</p>
 
                 {(checkIn.missed?.length ?? 0) > 0 && (
@@ -123,7 +128,29 @@ export default function CallsPage() {
   );
 }
 
-function StatusChip({ status }: { status: string }) {
+/**
+ * `establishedNothing` is not a status, it is a reading of the check-in.
+ *
+ * A completed call where nothing was confirmed and nothing was missed is not a
+ * day everything was taken; it is a day nothing was established. Showing "All
+ * taken" for it put a claim in front of the family that nobody had made.
+ */
+function StatusChip({
+  status,
+  establishedNothing = false,
+}: {
+  status: string;
+  establishedNothing?: boolean;
+}) {
+  if (status === 'completed' && establishedNothing) {
+    return (
+      <span className="inline-flex items-center gap-2 rounded-full bg-cloud px-3 py-1 text-xs font-semibold text-slate-ink">
+        <span aria-hidden>–</span>
+        Medications not covered
+      </span>
+    );
+  }
+
   const map: Record<string, { label: string; glyph: string; className: string }> = {
     completed: { label: 'All taken', glyph: '✓', className: 'bg-good-surface text-good' },
     missed_dose: {

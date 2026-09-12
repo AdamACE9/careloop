@@ -753,8 +753,11 @@ private fun WhatISharedCard(
                 )
                 Spacer(Modifier.height(CareDimens.SpaceXs))
                 Text(
-                    "See exactly what Cara's told her, and add your own note if she's " +
-                        "got it wrong.",
+                    // "them", not "her". The elder is whoever signed up on
+                    // this phone; the example household being a woman is not a
+                    // fact about the person holding it.
+                    "See exactly what Cara's told them, and add your own note " +
+                        "if she's got it wrong.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = CareColors.White.copy(alpha = 0.82f),
                 )

@@ -725,11 +725,34 @@ export const submitCheckIn = onCall(async (request: CallableRequest) => {
   };
 });
 
+/**
+ * Cara's one-line account of the call.
+ *
+ * The three cases are genuinely different and were collapsed into two. With
+ * nothing missed this returned "All medications taken." even when nothing had
+ * been confirmed either, so a call that ended before any medication was
+ * discussed, or where the line was too poor to make anything out, was written
+ * into the health record as a day the person took everything. That is the agent
+ * asserting something it does not know, on the record its own escalation
+ * reasoning is later built from, which is the precise failure this product
+ * claims to avoid.
+ *
+ * The reasoning engine was never fooled: it only ever scores explicit misses,
+ * so an unestablished call is neutral to it rather than a clean day. The lie was
+ * confined to what the family and the elder were shown, which is arguably worse,
+ * because that is the part a person acts on.
+ */
 function buildCallSummary(
   confirmed: string[],
   missed: string[],
   tone: { confusion: number; note: string | null } | null,
 ): string {
+  if (!missed.length && !confirmed.length) {
+    return tone?.note
+      ? `We spoke, but did not get through the medications. ${tone.note}.`
+      : 'We spoke, but did not get through the medications.';
+  }
+
   if (!missed.length) {
     return tone?.note
       ? `All medications taken. ${tone.note}.`

@@ -24,6 +24,10 @@ export default function SettingsPage() {
   const { patients } = useLinkedPatients();
   const patient = patients[0];
 
+  // Their name where we have it, "them" where we do not. Never "her": the
+  // elder is whoever signed up on the phone.
+  const them = patient?.preferredName || patient?.firstName || 'them';
+
   const [code, setCode] = useState('');
   const [linking, setLinking] = useState(false);
   const [linkedName, setLinkedName] = useState<string | null>(null);
@@ -118,19 +122,27 @@ export default function SettingsPage() {
         )}
       </section>
 
-      {/* --------------------------------------------------- What she sees */}
+      {/* ------------------------------------------------ What they can see */}
+      {/*
+        Written in they/them throughout. It used to be she/her, which is a
+        guess about a real person made from nothing: the elder is whoever
+        signed up on the phone, and the example household being a woman is not
+        a fact about the user. It read especially badly on the one panel whose
+        subject is treating that person as an equal.
+      */}
       <section className="rounded-3xl border border-ink/10 bg-white p-7 md:p-8">
         <h3 className="font-display text-xl text-ink">
-          What {patient?.firstName ?? 'she'} can see
+          What {them} can see
         </h3>
         <p className="mt-3 max-w-xl leading-relaxed text-slate-ink">
           Everything on this dashboard. Every time Cara tells you something, she
-          tells {patient?.firstName ?? 'her'} that she told you, and gives her the
-          chance to correct it.
+          tells {them} that she told you, and gives them the chance to correct
+          it.
         </p>
         <p className="mt-3 max-w-xl leading-relaxed text-slate-ink">
-          She can also mute routine categories. A genuine emergency still reaches
-          you regardless, and she knows that too. Nothing here is hidden from her.
+          They can also mute routine categories. A genuine emergency still
+          reaches you regardless, and they know that too. Nothing here is hidden
+          from them.
         </p>
       </section>
 

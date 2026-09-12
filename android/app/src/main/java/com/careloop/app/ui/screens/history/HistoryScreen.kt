@@ -221,7 +221,7 @@ private fun CheckInRow(
                 Spacer(Modifier.height(CareDimens.SpaceSm))
 
                 StatusPill(
-                    text = checkIn.status.warmPillText(caretakerName),
+                    text = checkIn.warmPillText(caretakerName),
                     icon = checkIn.status.icon(),
                     contentColor = checkIn.status.pillContentColor(),
                     containerColor = checkIn.status.pillContainerColor(),
@@ -280,6 +280,24 @@ private fun MedicationLine(icon: ImageVector, tint: Color, label: String) {
  * like an accusation; "Cara let your daughter know" describes the same fact as
  * something Cara did *for* them, not something that happened *to* them.
  */
+/**
+ * Reads the check-in, not just its status.
+ *
+ * A completed call where nothing was confirmed and nothing was missed is not a
+ * day everything was taken; it is a day nothing was established. Labelling it
+ * "All medications taken" put a claim on the person's own history that nobody
+ * had made.
+ */
+private fun CheckIn.warmPillText(caretakerName: String): String =
+    if (status == CheckInStatus.COMPLETED &&
+        medicationsConfirmed.isEmpty() &&
+        medicationsMissed.isEmpty()
+    ) {
+        "Medications not covered"
+    } else {
+        status.warmPillText(caretakerName)
+    }
+
 private fun CheckInStatus.warmPillText(caretakerName: String): String = when (this) {
     CheckInStatus.COMPLETED -> "All medications taken"
     CheckInStatus.MISSED_DOSE -> "A dose was missed"

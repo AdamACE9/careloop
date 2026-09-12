@@ -54,9 +54,15 @@ export default function DashboardOverview() {
           {loading
             ? 'Checking\u2026'
             : today
-              ? today.missed.length === 0
-                ? `${name} is doing well today.`
-                : `${name} missed something today.`
+              ? today.missed.length > 0
+                ? `${name} missed something today.`
+                : today.confirmed.length > 0
+                  ? `${name} is doing well today.`
+                  : // Spoke to them, but never got to the medications. Saying
+                    // they are doing well on the strength of a call where
+                    // nothing was established makes the family's most
+                    // load-bearing sentence a claim nobody checked.
+                    `Cara spoke to ${name} today.`
               : latest
                 ? `Cara has not reached ${name} yet today.`
                 : `Cara has not called ${name} yet.`}
@@ -92,7 +98,11 @@ export default function DashboardOverview() {
         <StatCard
           label="Medications taken today"
           value={
-            today ? `${today.confirmed.length} of ${medications.length}` : 'No call yet'
+            !today
+              ? 'No call yet'
+              : today.confirmed.length === 0 && today.missed.length === 0
+                ? 'Not covered'
+                : `${today.confirmed.length} of ${medications.length}`
           }
           href="/dashboard/health"
         />
