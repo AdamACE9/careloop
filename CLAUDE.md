@@ -339,6 +339,85 @@ from `gradle-wrapper-main-8.14.3.jar` inside the cached distribution, and
 hand-written scripts (see comments in them) rather than Gradle's stock 250-line
 versions, because those could not be generated or verified here.
 
+### The AF_UNIX fault is machine-wide, not a Gradle problem
+
+The Firestore emulator fails the **same way** Gradle does, with the same stack:
+`PipeImpl$Initializer$LoopbackConnector` -> `SocketChannel.open` ->
+`UnixDomainSockets.connect0`. So `firebase emulators:start` cannot run here
+either, on JDK 21 (Adoptium 21.0.12 at
+`/c/Program Files/Eclipse Adoptium/jdk-21.0.12.101-hotspot`).
+
+**Do not spend time on this again.** Anything that needs a JVM to open a socket
+pair runs on CI. The Firestore rules tests are wired into
+`.github/workflows/backend.yml` for exactly this reason and pass there (31 cases).
+
+### Two things this file used to say that were WRONG
+
+- **"The transcript never appears; the model emits no transcription frames."**
+  False. Logging frame shapes on a real call shows one
+  `serverContent=[outputTranscription]` frame per turn, carrying the whole
+  utterance, and it renders correctly on the call screen. The setup fields are
+  in the right place and are honoured.
+- **"Rules are fine because a linked caretaker can read the patient."** `allow
+  get` passing says nothing about `allow list`. A list rule cannot call `get()`
+  on each candidate document, so the dashboard's `array-contains` query was
+  refused for every correctly linked caretaker. Test the query the app runs,
+  not a document read that stands in for it.
+
+### The bug that made the whole thing feel like a prototype
+
+The only way to start a call posted the incoming-call notification **locally**
+and never told the server. Cloud Functions logs for a real answered call showed
+exactly one invocation: `mintLiveSessionToken`. No `triggerCall`, no
+`submitCheckIn`.
+
+No server call attempt means no attempt id, so `endCall` took a branch that
+returned **without logging anything**, and the conversation was discarded. Cara
+rang, spoke, the transcript appeared, the call ended, and nothing was written.
+The app's own Calls tab said "No check-ins yet" straight after a call.
+
+Three lessons worth keeping:
+
+1. **A ring must come from the server.** `requestManualCheckIn()` ->
+   `triggerCall` is the only correct way to make the phone ring.
+   `startIncomingCallDemo()` is deleted; see the note where it used to live.
+2. **Never return silently on a path that discards user data.** That single
+   missing log line is why this survived several "the call works" sessions.
+3. **A write at the end of a call cannot live on `viewModelScope`.** The call
+   Activity finishes 0.45s after the socket closes; two callables to
+   europe-west1 do not finish in that window. Use `AppContainer.applicationScope`.
+
+### Verifying the loop: check the server, not the screen
+
+The screen lies by omission. The authoritative check is:
+
+```bash
+npx firebase-tools@latest functions:log -n 120 --project careloop-adam
+```
+
+A healthy answered call logs, in order: `call.deliver.sent` ->
+`gemini.token.minted` -> `checkin.submitted` -> `call.outcome.reported`.
+Anything missing from that chain is a broken loop no matter what the app shows.
+
+### Field names: one shape, derived at the seam
+
+The web dashboard read `label`, `time`, `confirmed`, `missed` on a check-in.
+Firestore stores `startedAt`, `medicationsConfirmed`, `medicationsMissed`. The
+example dataset had the first set, so everything looked right and real data
+rendered blank dates and a permanently-zero missed count, meaning the overview
+told real caretakers their parent was fine on a day a dose was missed.
+
+Example data must be stored in **exactly** the shape Firestore uses, with
+display strings derived once in `careloop-service.ts`. The Android repository
+was already correct; only the web diverged.
+
+### Timestamps are instants, not wall clocks
+
+`parseDateTime` stripped the trailing `Z` and parsed a `LocalDateTime`, which
+discards the offset. Everything the backend writes is UTC, so every timestamp
+displayed four hours early on a UTC+4 phone, under a heading saying "Today".
+Parse as `OffsetDateTime` and convert to `ZoneId.systemDefault()`.
+
 ### Other environment notes
 
 - Android SDK is installed but **not on `PATH`** and `ANDROID_HOME` is unset. Point at
@@ -529,5 +608,35 @@ here so nobody rediscovers them:
 - Agent threads are written and read by the backend and steer Cara's prompt, but
   neither dashboard renders them yet. That is the "what Cara is keeping an eye
   on" surface, and it is the visible-reasoning feature judges score for.
-- No rules unit tests. `@firebase/rules-unit-testing` is in devDependencies and
-  the emulator is configured in `firebase.json`, so the setup cost is small.
+- ~~No rules unit tests.~~ Done: 31 cases in `functions/src/rules.test.mts`, run
+  on CI by `firebase emulators:exec` because the emulator cannot start on this
+  machine (see section 9).
+
+---
+
+## 14. Status after the production pass
+
+### Verified end to end, on a real account, against the deployed backend
+- **The call loop closes.** Server logs for one answered call show
+  `call.deliver.sent` -> `gemini.token.minted` -> `checkin.submitted`
+  (`escalated: false`, `action: "no_action"`) -> `call.outcome.reported`, and
+  the check-in then appears in the app's Calls tab.
+- **Cara speaks and is transcribed.** Real Gemini Live audio, no underruns, and
+  the transcript renders.
+- **FCM push delivery**, through `triggerCall`, to a real device token.
+- **The reasoning engine runs** on submitted check-ins.
+- **Firestore rules**: 31 cases green on CI.
+- **Two-sided linking**, as two real accounts, including the `array-contains`
+  list query that the rules used to refuse.
+- **Accounts**: anonymous sign-in on the phone, email/password on the web,
+  caretaker profiles readable by the linked elder.
+
+### Not verified
+- **Talking back to Cara.** The emulator cannot capture microphone audio; the
+  call screen says so plainly rather than appearing broken. Needs a real phone.
+- **The 9am scheduled call.** `scheduledCheckInCalls` runs every five minutes
+  and logs `count: 0`; it has never had a due patient at the moment it ran. The
+  manual trigger exercises the identical delivery path.
+- **Escalation reaching a caretaker.** No check-in has yet produced an
+  escalation, so the dashboard's escalation view has only ever shown example
+  data.
