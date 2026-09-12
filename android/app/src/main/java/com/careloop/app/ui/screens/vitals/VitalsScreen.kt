@@ -2,6 +2,7 @@ package com.careloop.app.ui.screens.vitals
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -64,6 +65,7 @@ import com.careloop.app.ui.components.initialSeed
 import com.careloop.app.ui.theme.CareColors
 import com.careloop.app.ui.theme.CareDimens
 import com.careloop.app.ui.theme.CareLoopTheme
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
@@ -733,12 +735,16 @@ private fun AdherenceDotIcon(status: CheckInStatus, size: Dp, modifier: Modifier
 private val dayLabelFormatter: TextStyle = TextStyle.SHORT
 
 @Composable
-private fun AdherenceDay(checkIn: CheckIn, modifier: Modifier = Modifier) {
+private fun AdherenceDay(day: LocalDate, status: CheckInStatus?, modifier: Modifier = Modifier) {
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        AdherenceDotIcon(status = checkIn.status, size = 40.dp)
+        if (status == null) {
+            NoCallDot(size = 40.dp)
+        } else {
+            AdherenceDotIcon(status = status, size = 40.dp)
+        }
         Spacer(Modifier.height(CareDimens.SpaceXs))
         Text(
-            text = checkIn.startedAt.dayOfWeek.getDisplayName(dayLabelFormatter, Locale.getDefault()),
+            text = day.dayOfWeek.getDisplayName(dayLabelFormatter, Locale.getDefault()),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -746,14 +752,47 @@ private fun AdherenceDay(checkIn: CheckIn, modifier: Modifier = Modifier) {
 }
 
 /**
- * The most recent seven check-ins, oldest first, so the strip reads left-to-right like a
- * week on a calendar rather than most-recent-first like [HistoryScreen]'s list.
+ * A day Cara did not call at all.
+ *
+ * An outline rather than a filled dot, and no icon, so it reads as absence rather than as a
+ * fourth kind of outcome. It is deliberately quiet: most people will have blank days early
+ * on, and a row of alarming markers on their first week would be both wrong and unkind.
+ */
+@Composable
+private fun NoCallDot(size: Dp, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(size)
+            .border(2.dp, CareColors.Cloud, CircleShape),
+    )
+}
+
+/**
+ * The last seven CALENDAR DAYS, oldest first, so the strip reads left to right like a week.
+ *
+ * It used to be the last seven check-ins, which was the same thing for exactly as long as
+ * there was one call a day. A retry after no answer, or a tap on "have Cara call me now",
+ * puts two check-ins on one date, and the strip then drew two dots both labelled "Sat" with
+ * a gap where the rest of the week should have been. A week with two days in it is not a
+ * week, and this sits on the elder's own health screen.
+ *
+ * A day with several calls takes its most concerning outcome. If a dose was missed that
+ * morning, the day was a missed-dose day, whatever a later call said.
+ *
+ * A day with no call at all is drawn faintly rather than skipped. The gaps are information:
+ * a week with three blank days is a different picture from a week of ticks, and hiding the
+ * blanks would make the strip flatter and more reassuring than the truth.
  */
 @Composable
 private fun AdherenceStrip(checkIns: List<CheckIn>, modifier: Modifier = Modifier) {
-    val lastWeek = checkIns.sortedByDescending { it.startedAt }.take(7).sortedBy { it.startedAt }
+    val today = LocalDate.now()
+    val week = (6 downTo 0).map { today.minusDays(it.toLong()) }
 
-    if (lastWeek.isEmpty()) {
+    val worstByDay: Map<LocalDate, CheckInStatus> = checkIns
+        .groupBy { it.startedAt.toLocalDate() }
+        .mapValues { (_, ofThatDay) -> ofThatDay.minOf { it.status.concernRank() }.toStatus() }
+
+    if (checkIns.isEmpty()) {
         Text(
             text = "Cara's first check-in will show up here.",
             style = MaterialTheme.typography.bodyMedium,
@@ -763,8 +802,27 @@ private fun AdherenceStrip(checkIns: List<CheckIn>, modifier: Modifier = Modifie
     }
 
     Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        lastWeek.forEach { checkIn -> AdherenceDay(checkIn) }
+        week.forEach { day -> AdherenceDay(day = day, status = worstByDay[day]) }
     }
+}
+
+/**
+ * Which outcome speaks for a day when there was more than one call.
+ *
+ * Lower is more concerning, so the day takes the minimum. A missed dose outranks a later
+ * clean call, because the dose was still missed.
+ */
+private fun CheckInStatus.concernRank(): Int = when (this) {
+    CheckInStatus.MISSED_DOSE -> 0
+    CheckInStatus.ESCALATED -> 0
+    CheckInStatus.NO_ANSWER -> 1
+    CheckInStatus.COMPLETED -> 2
+}
+
+private fun Int.toStatus(): CheckInStatus = when (this) {
+    0 -> CheckInStatus.MISSED_DOSE
+    1 -> CheckInStatus.NO_ANSWER
+    else -> CheckInStatus.COMPLETED
 }
 
 /**
@@ -783,6 +841,7 @@ private fun AdherenceLegend(modifier: Modifier = Modifier) {
         LegendRow(swatch = { AdherenceDotIcon(CheckInStatus.COMPLETED, size = 18.dp) }, label = "Taken")
         LegendRow(swatch = { AdherenceDotIcon(CheckInStatus.MISSED_DOSE, size = 18.dp) }, label = "Missed")
         LegendRow(swatch = { AdherenceDotIcon(CheckInStatus.NO_ANSWER, size = 18.dp) }, label = "No answer")
+        LegendRow(swatch = { NoCallDot(size = 18.dp) }, label = "No call")
     }
 }
 
