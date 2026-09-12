@@ -15,6 +15,17 @@ import Link from "next/link";
  *  - it never says the warning is meaningless (it is not; it exists for good reason)
  *  - it never uses jargon like "sideloading" or "APK" without saying what it means
  */
+/**
+ * The published build.
+ *
+ * A GitHub release rather than a file served from this site: App Hosting
+ * rebuilds and redeploys on every push, and shipping a 23 MB binary through that
+ * pipeline on every copy change is the wrong place for it. The release is also
+ * versioned, which a file in /public would not be.
+ */
+const APK_URL =
+  "https://github.com/AdamACE9/careloop/releases/download/v0.2.0/careloop.apk";
+
 export default function DownloadFlow() {
   const [step, setStep] = useState<"explain" | "download">("explain");
 
@@ -103,25 +114,38 @@ export default function DownloadFlow() {
           </h1>
           <p className="mt-7 text-lg leading-relaxed text-slate-ink">
             CareLoop runs on Android phones running Android 8 or newer. The download is
-            about 12 MB.
+            about 23 MB.
           </p>
 
           {/*
-            TODO(backend): point this at the signed release APK once there is a build.
-            Blocked tonight: Gradle cannot execute builds on the development machine
-            (see CLAUDE.md section 9), so no APK exists to link yet. Deliberately not
-            faking a download, a button that pretends to work is worse than one that
-            says what it is waiting for.
+            A real file, built by CI and published as a GitHub release. The size
+            above is the actual size of that build, not a guess: this page used to
+            claim 12 MB for a file that did not exist.
           */}
-          <div className="mt-10 rounded-3xl border border-dashed border-ink/25 bg-white p-8 text-center">
-            <p className="font-semibold text-ink">APK not yet published</p>
-            <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-ink">
-              The Android build is not attached to this site yet. When it is, this
-              becomes a direct download and the rest of this flow stays exactly as it is.
+          <div className="mt-10 rounded-3xl border border-gold/40 bg-white p-8 text-center">
+            <a
+              href={APK_URL}
+              className="inline-flex items-center justify-center gap-3 rounded-2xl bg-navy px-9 py-5 text-lg font-semibold text-white transition hover:bg-navy-soft"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                className="h-6 w-6"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M12 3v12" />
+                <path d="m7 12 5 5 5-5" />
+                <path d="M5 21h14" />
+              </svg>
+              Download CareLoop for Android
+            </a>
+            <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-slate-ink">
+              Version 0.2.0, about 23 MB. Android 8 or newer.
             </p>
-            <span className="mt-6 inline-flex cursor-not-allowed items-center justify-center rounded-2xl bg-ink/10 px-8 py-4 text-base font-semibold text-ink/40">
-              Download CareLoop.apk
-            </span>
           </div>
 
           <ol className="mt-12 space-y-6">
