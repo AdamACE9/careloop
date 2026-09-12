@@ -616,27 +616,49 @@ here so nobody rediscovers them:
 
 ## 14. Status after the production pass
 
-### Verified end to end, on a real account, against the deployed backend
+### Verified end to end, on real accounts, against the deployed backend
+
 - **The call loop closes.** Server logs for one answered call show
-  `call.deliver.sent` -> `gemini.token.minted` -> `checkin.submitted`
-  (`escalated: false`, `action: "no_action"`) -> `call.outcome.reported`, and
-  the check-in then appears in the app's Calls tab.
-- **Cara speaks and is transcribed.** Real Gemini Live audio, no underruns, and
-  the transcript renders.
-- **FCM push delivery**, through `triggerCall`, to a real device token.
+  `call.deliver.sent` -> `gemini.token.minted` -> `checkin.submitted` ->
+  `call.outcome.reported`, and the check-in then appears on the phone AND on a
+  separate caretaker's dashboard.
+- **The scheduler fires.** Check-in time set to 15:15 through the app's own
+  Settings; at 11:16:06 UTC `scheduledcheckincalls` logged
+  `call.deliver.sent, attemptNumber: 2` and the phone rang 1.3 seconds later.
+  `sweepStaleCalls` then closed out the call nobody answered, which is the
+  retry ledger working.
+- **Two accounts, linked for real.** Code minted on Adam's phone from Settings,
+  read out, typed into a freshly created caretaker account on the web. The
+  dashboard went from "You are not connected to anyone yet" to "Connected to
+  Adam" and started showing his actual check-ins.
+- **Cara speaks and is transcribed.** Real Gemini Live audio, zero underruns.
 - **The reasoning engine runs** on submitted check-ins.
 - **Firestore rules**: 31 cases green on CI.
-- **Two-sided linking**, as two real accounts, including the `array-contains`
-  list query that the rules used to refuse.
-- **Accounts**: anonymous sign-in on the phone, email/password on the web,
-  caretaker profiles readable by the linked elder.
 
 ### Not verified
+
 - **Talking back to Cara.** The emulator cannot capture microphone audio; the
   call screen says so plainly rather than appearing broken. Needs a real phone.
-- **The 9am scheduled call.** `scheduledCheckInCalls` runs every five minutes
-  and logs `count: 0`; it has never had a due patient at the moment it ran. The
-  manual trigger exercises the identical delivery path.
+  This is the single largest remaining gap.
 - **Escalation reaching a caretaker.** No check-in has yet produced an
   escalation, so the dashboard's escalation view has only ever shown example
-  data.
+  data. Needs a run of missed doses to trigger one.
+
+### Left behind by testing
+
+- A caretaker account `careloop-test-caretaker@example.com` is linked to Adam's
+  patient record. It was created to prove the linking round trip. Nothing
+  removes a caretaker link yet, so unlinking means editing `caretakerIds` in the
+  console, and deleting the auth user separately.
+
+### The rule this pass kept proving
+
+Three separate bugs this session shared one shape: **a screen that looked right
+while the thing behind it had not happened.** The call that transcribed
+beautifully and saved nothing. The dashboard that showed a name with no data.
+The summary that said "All medications taken" after a call where nothing was
+established.
+
+The screen is not the evidence. For the call loop the evidence is the Cloud
+Functions log chain; for the rules it is the exact query the app runs; for
+adherence it is what was actually confirmed, not what was not missed.
