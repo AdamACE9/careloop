@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.core.content.getSystemService
@@ -56,6 +57,17 @@ class IncomingCallActivity : ComponentActivity() {
                     mutableStateOf(
                         if (answeredImmediately) CallState.IN_PROGRESS else CallState.RINGING
                     )
+                }
+
+                // Cancelled whenever the call is in progress, however it got
+                // there. It used to be cancelled only by the Answer button on
+                // our own ringing screen, so answering from the NOTIFICATION
+                // left the notification sitting on top of the live call with
+                // its own Answer and Decline buttons still offered.
+                LaunchedEffect(state) {
+                    if (state == CallState.IN_PROGRESS) {
+                        CallNotifier.cancel(this@IncomingCallActivity)
+                    }
                 }
 
                 when (state) {
