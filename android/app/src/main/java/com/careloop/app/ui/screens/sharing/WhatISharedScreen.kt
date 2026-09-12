@@ -211,7 +211,12 @@ private fun WhatISharedScreenContent(
                 Text("What I've told $caretakerName", style = MaterialTheme.typography.headlineLarge)
                 Spacer(Modifier.height(CareDimens.SpaceSm))
                 Text(
-                    "$caretakerName only ever sees what's written here, the same " +
+                    // Capitalised for the sentence start. The name is a real
+                    // first name when somebody is linked and the phrase "your
+                    // family" when nobody is, and the second one rendered a
+                    // sentence beginning in lowercase.
+                    caretakerName.replaceFirstChar { it.uppercase() } +
+                        " only ever sees what's written here, the same " +
                         "words, at the same time as you. If something's not quite right, " +
                         "you can say so.",
                     style = MaterialTheme.typography.bodyLarge,
@@ -225,8 +230,9 @@ private fun WhatISharedScreenContent(
             item(key = "empty") {
                 CareEmptyState(
                     title = "Nothing shared with $caretakerName yet",
-                    whatHappensNext = "As soon as Cara has something to tell her, it will " +
-                        "show up here first, in the same words, for you to see too.",
+                    whatHappensNext = "As soon as Cara has something to tell " +
+                        "$caretakerName, it will show up here first, in the same words, " +
+                        "for you to see too.",
                 )
             }
         }
