@@ -270,6 +270,40 @@ service cloud.firestore {
     //
     // Completely opaque to clients. If a client could read this collection it
     // could enumerate valid codes and link itself to arbitrary patients, which is
+    // -------------------------------------------------------------------------
+    // Caretaker profiles.
+    //
+    // The elder's phone needs a NAME and a PHONE NUMBER for the person it is
+    // about to tell something to, and for the "call my daughter" button. All it
+    // has is a list of uids, so those fields were simply blank on every real
+    // account and the app quietly fell back to demo values.
+    //
+    // Readable by exactly two parties: the owner, and an elder who has this uid
+    // in their own caretakerIds. Not "any signed-in user", which would hand
+    // every account holder a directory of names and phone numbers.
+    // -------------------------------------------------------------------------
+    match /users/{userId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == userId
+        || (
+          exists(/databases/$(database)/documents/patients/$(request.auth.uid))
+          && userId in get(
+               /databases/$(database)/documents/patients/$(request.auth.uid)
+             ).data.caretakerIds
+        )
+      );
+
+      // Only ever your own, and only these fields. Nothing here grants access to
+      // anything: being named in a profile is not what links a caretaker to a
+      // patient, the server-written caretakerIds array is.
+      allow create, update: if isSelf(userId)
+        && request.resource.data.keys().hasOnly(
+             ['displayName', 'email', 'phone', 'relationship', 'updatedAt']
+           );
+
+      allow delete: if false;
+    }
+
     // a total compromise of the access model. Both generation and redemption go
     // through Cloud Functions.
     // -------------------------------------------------------------------------

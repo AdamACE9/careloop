@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { doc, setDoc } from 'firebase/firestore';
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -16,7 +17,7 @@ import {
   updateProfile,
   type User,
 } from 'firebase/auth';
-import { getFirebaseAuth, isFirebaseConfigured } from './firebase';
+import { getFirebaseAuth, isFirebaseConfigured, getDb } from './firebase';
 
 /**
  * Caretaker authentication.
@@ -76,6 +77,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return onAuthStateChanged(auth, (next) => {
       setUser(next);
       setLoading(false);
+      // Publish the parts of this account the elder's phone needs.
+      //
+      // Their phone holds a list of caretaker uids and nothing else, so the
+      // name and number were blank on every real account and the app fell back
+      // to demo values. Written on every sign-in rather than only at sign-up,
+      // so an existing account and a changed name both end up correct.
+      if (next) void publishCaretakerProfile(next);
     });
   }, []);
 
@@ -146,5 +154,34 @@ export function friendlyAuthError(error: unknown): string {
       return 'Could not reach the network. Check your connection and try again.';
     default:
       return 'Something went wrong signing in. Please try again.';
+  }
+}
+
+/**
+ * Upserts `/users/{uid}` with the fields the elder's device reads.
+ *
+ * Deliberately best-effort: failing to publish a display name must never stop
+ * somebody signing in. The rules allow only these fields and only your own
+ * document, and being named here grants nothing. What links a caretaker to a
+ * patient is the server-written caretakerIds array, not this.
+ */
+async function publishCaretakerProfile(user: User): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+
+  try {
+    await setDoc(
+      doc(db, 'users', user.uid),
+      {
+        displayName: user.displayName ?? user.email ?? '',
+        email: user.email ?? '',
+        phone: user.phoneNumber ?? '',
+        relationship: 'family',
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true },
+    );
+  } catch {
+    // Nothing to do and nothing to say: the dashboard works without it.
   }
 }

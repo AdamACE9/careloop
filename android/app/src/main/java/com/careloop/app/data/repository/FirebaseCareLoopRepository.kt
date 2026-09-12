@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.tasks.await
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -45,6 +47,7 @@ import org.json.JSONArray
  * `firestore.rules`, and mirrored here so the client cannot even construct a path
  * to somebody else's data by accident.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class FirebaseCareLoopRepository(
     private val db: FirebaseFirestore,
     private val auth: FirebaseAuth,
@@ -59,10 +62,60 @@ class FirebaseCareLoopRepository(
     // Reads
     // =========================================================================
 
+    /**
+     * The elder, with their caretaker's real name and number filled in.
+     *
+     * The patient document holds caretakerIds and nothing else, so the name and
+     * phone were blank on every real account and the "call my daughter" button
+     * had nothing to dial. Those details live in /users/{caretakerId}, written
+     * by the dashboard when that person signs in, and readable here because the
+     * rules let an elder read the profile of anyone in their own caretakerIds.
+     *
+     * The second read is folded in with flatMapLatest rather than fetched once,
+     * so a caretaker who changes their name does not leave a stale one on the
+     * phone forever. It fails soft: a profile that cannot be read leaves the
+     * fields empty, which the UI already handles, rather than blanking the
+     * elder.
+     */
     override fun observeElder(): Flow<ElderProfile> = documentFlow(
+        // The flow carries the profile AND the caretaker id together, because
+        // the id is on the patient document and the name is on another one.
         path = patientPath(),
-        empty = EmptyElderProfile,
-    ) { snapshot -> snapshot.toElderProfile() }
+        empty = EmptyElderProfile to null,
+    ) { snapshot ->
+        snapshot.toElderProfile()?.let { profile ->
+            profile to (snapshot.get("caretakerIds") as? List<*>)
+                ?.firstOrNull() as? String
+        }
+    }.flatMapLatest { pair ->
+        val (profile, caretakerId) = pair
+        if (caretakerId.isNullOrBlank()) {
+            flowOf(profile)
+        } else {
+            caretakerFlow(caretakerId).map { caretaker -> profile.copy(caretaker = caretaker) }
+        }
+    }
+
+    /** Live view of one caretaker's published profile. */
+    private fun caretakerFlow(caretakerId: String): Flow<Caretaker> = callbackFlow {
+        val registration = db.document("users/" + caretakerId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null || snapshot == null || !snapshot.exists()) {
+                    trySend(EmptyElderProfile.caretaker)
+                    return@addSnapshotListener
+                }
+                trySend(
+                    Caretaker(
+                        id = caretakerId,
+                        name = snapshot.getString("displayName").orEmpty(),
+                        relationship = snapshot.getString("relationship") ?: "family",
+                        phone = snapshot.getString("phone").orEmpty(),
+                        email = snapshot.getString("email").orEmpty(),
+                    ),
+                )
+            }
+        awaitClose { registration.remove() }
+    }
 
     override fun observeMedications(): Flow<List<Medication>> = collectionFlow(
         path = patientPath()?.let { "$it/medications" },
@@ -584,11 +637,9 @@ private fun DocumentSnapshot.toElderProfile(): ElderProfile? {
             Condition.entries.firstOrNull { it.name.equals(value as? String, ignoreCase = true) }
         },
         dailyCheckInTime = parseTime(getString("dailyCheckInTime")) ?: LocalTime.of(9, 0),
-        // TODO(backend): the patient document only stores caretakerIds (uids), not a
-        // caretaker's name/phone/email -- see firestore.rules. Resolving those needs a
-        // second read of /users/{caretakerId} per linked caretaker, which nothing calls
-        // yet. Until then this is a real empty caretaker, never MockData.caretaker: a
-        // fabricated "Sarah" here would be exactly the bug TASK 1 exists to remove.
+        // Left empty here on purpose. observeElder fills it in from
+        // /users/{caretakerId}, because this mapper sees one document and the
+        // caretaker's details live in another.
         caretaker = EmptyElderProfile.caretaker,
     )
 }
