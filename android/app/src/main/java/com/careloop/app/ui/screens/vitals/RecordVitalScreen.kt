@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -115,7 +116,14 @@ private fun RecordVitalScreenContent(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            // imePadding, because the keyboard covers the bottom of this form.
+            // Both of these forms end in the control that saves the thing, and
+            // on a real device the keyboard sat over it: the criticality options
+            // and the save button were unreachable, and scrolling could not
+            // reveal them because the scroll area itself ended behind the IME.
+            // Found by filling the form on a device rather than reading it.
             .verticalScroll(rememberScrollState())
+            .imePadding()
             .padding(CareDimens.ScreenPadding),
     ) {
         CareBackRow(label = "Back to your readings", onBack = onBack)
