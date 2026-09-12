@@ -267,16 +267,7 @@ class GeminiLiveClient(
                 put("model", "models/${token.model}")
                 put("generationConfig", JSONObject().apply {
                     put("responseModalities", JSONArray().put("AUDIO"))
-                    // Inside generationConfig, not beside it.
-                    //
-                    // At the top level of `setup` these were accepted and then
-                    // silently ignored: the session opened, Cara spoke, and not
-                    // one transcription frame ever arrived. The socket does not
-                    // reject unknown setup fields the way the token endpoint
-                    // does, so a misplaced field looks exactly like a working
-                    // one until you notice the transcript is always empty.
-                    put("inputAudioTranscription", JSONObject())
-                    put("outputAudioTranscription", JSONObject())
+
                     put("speechConfig", JSONObject().apply {
                         put("languageCode", token.languageCode)
                         put("voiceConfig", JSONObject().apply {
@@ -293,6 +284,17 @@ class GeminiLiveClient(
                     )
                 })
                 put("tools", tools)
+                // These belong HERE, directly under setup, and nowhere else.
+                //
+                // Moving them into generationConfig broke every call outright:
+                //   Unknown name "inputAudioTranscription" at
+                //   'setup.generation_config'
+                // which also settled a question worth recording: the socket DOES
+                // reject unknown setup fields. So these names are valid and are
+                // being honoured, and the reason no transcription arrives is the
+                // model, not the request.
+                put("inputAudioTranscription", JSONObject())
+                put("outputAudioTranscription", JSONObject())
             })
         }
         socket.send(setup.toString())
