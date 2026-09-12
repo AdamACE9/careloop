@@ -160,6 +160,54 @@ object MockData {
 
     val drugInteractions = listOf(warfarinIbuprofen)
 
+    // -----------------------------------------------------------------------
+    // What Cara is keeping an eye on
+    // -----------------------------------------------------------------------
+
+    /**
+     * Deliberately written the way Margaret would describe it, not the way a
+     * chart would. She reads this screen too, and a record kept about you in
+     * language you cannot follow is not transparency.
+     */
+    val agentThreads = listOf(
+        AgentThread(
+            id = "th-knee",
+            topic = "Her left knee",
+            why = "She mentioned it hurt on Tuesday and again on Thursday, and it is " +
+                "why she started taking ibuprofen. Worth knowing whether it has settled.",
+            status = ThreadStatus.OPEN,
+            raisedAt = LocalDateTime.now().minusDays(4),
+            followUpAfter = LocalDateTime.now().plusDays(1),
+            timesRaised = 2,
+            resolution = null,
+            resolvedAt = null,
+        ),
+        AgentThread(
+            id = "th-warfarin",
+            topic = "Being unsure about the warfarin",
+            why = "Twice this week she was not certain whether she had taken it. Not a " +
+                "clean miss either time, which is the part worth watching.",
+            status = ThreadStatus.OPEN,
+            raisedAt = LocalDateTime.now().minusDays(2),
+            followUpAfter = LocalDateTime.now(),
+            timesRaised = 2,
+            resolution = null,
+            resolvedAt = null,
+        ),
+        AgentThread(
+            id = "th-sleep",
+            topic = "Sleeping badly",
+            why = "She sounded tired for a few mornings running and said she was not " +
+                "sleeping well.",
+            status = ThreadStatus.RESOLVED,
+            raisedAt = LocalDateTime.now().minusDays(10),
+            followUpAfter = null,
+            timesRaised = 3,
+            resolution = "She said it settled once the weather cooled down.",
+            resolvedAt = LocalDateTime.now().minusDays(6),
+        ),
+    )
+
     val foodInteractions = listOf(
         FoodInteraction(
             id = "food-iron-calcium",

@@ -152,6 +152,11 @@ class FirebaseCareLoopRepository(
         orderBy = "sharedAt" to Query.Direction.DESCENDING,
     ) { it.toSharedItem() }
 
+    override fun observeAgentThreads(): Flow<List<AgentThread>> = collectionFlow(
+        path = patientPath()?.let { "$it/agentThreads" },
+        orderBy = "raisedAt" to Query.Direction.DESCENDING,
+    ) { it.toAgentThread() }
+
     override suspend fun getCheckIn(id: String): CheckIn? {
         val path = patientPath() ?: return null
         return runCatching {
@@ -759,6 +764,26 @@ private fun DocumentSnapshot.toSharingPreferences(): SharingPreferences? {
             }.toSet(),
         alwaysShareUrgent = prefs["alwaysShareUrgent"] as? Boolean ?: true,
         privacyHoldUntil = parseDateTime(prefs["privacyHoldUntil"] as? String),
+    )
+}
+
+private fun DocumentSnapshot.toAgentThread(): AgentThread? {
+    val raisedAt = parseDateTime(getString("raisedAt")) ?: return null
+    val topic = getString("topic") ?: return null
+    return AgentThread(
+        id = id,
+        topic = topic,
+        why = getString("why") ?: "",
+        status = if (getString("status").equals("resolved", ignoreCase = true)) {
+            ThreadStatus.RESOLVED
+        } else {
+            ThreadStatus.OPEN
+        },
+        raisedAt = raisedAt,
+        followUpAfter = parseDateTime(getString("followUpAfter")),
+        timesRaised = (get("timesRaised") as? Number)?.toInt() ?: 1,
+        resolution = getString("resolution"),
+        resolvedAt = parseDateTime(getString("resolvedAt")),
     )
 }
 

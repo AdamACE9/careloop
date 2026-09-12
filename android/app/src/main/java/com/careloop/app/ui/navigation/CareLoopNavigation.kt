@@ -27,6 +27,7 @@ import com.careloop.app.ui.screens.medications.MedicationFormScreen
 import com.careloop.app.ui.screens.medications.MedicationsScreen
 import com.careloop.app.ui.screens.settings.SettingsScreen
 import com.careloop.app.ui.screens.sharing.WhatISharedScreen
+import com.careloop.app.ui.screens.threads.AgentThreadsScreen
 import com.careloop.app.ui.screens.vitals.RecordVitalScreen
 import com.careloop.app.ui.screens.vitals.VitalsScreen
 import com.careloop.app.ui.theme.CareColors
@@ -61,6 +62,7 @@ sealed class Destination(
     companion object {
         val bottomBar = listOf(Home, Medications, Vitals, History, Settings)
         const val WHAT_I_SHARED = "what_i_shared"
+        const val AGENT_THREADS = "agent_threads"
         const val MEDICATION_DETAIL = "medication_detail"
         const val MEDICATION_ADD = "medication_add"
         const val MEDICATION_EDIT = "medication_edit"
@@ -172,10 +174,13 @@ fun CareLoopApp(
             composable(Destination.Settings.route) {
                 SettingsScreen(
                     onOpenWhatIShared = { navController.navigate(Destination.WHAT_I_SHARED) },
+                    onOpenAgentThreads = { navController.navigate(Destination.AGENT_THREADS) },
                 )
             }
 
             composable(Destination.WHAT_I_SHARED) { WhatISharedScreen() }
+
+            composable(Destination.AGENT_THREADS) { AgentThreadsScreen() }
         }
     }
 }

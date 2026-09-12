@@ -322,6 +322,35 @@ data class Escalation(
 // Sharing / elder control
 // ---------------------------------------------------------------------------
 
+/**
+ * Something Cara decided to come back to.
+ *
+ * The agent's memory of a person, in that person's own terms. "Her knee has
+ * been bothering her" rather than a clinical label, because the elder reads
+ * this too and a record written about you in language you cannot follow is not
+ * transparency.
+ *
+ * [why] is shown verbatim to both sides. It is Cara's own reason for keeping
+ * hold of something, and paraphrasing it on one side and not the other would
+ * quietly break the symmetry the whole product rests on.
+ *
+ * [followUpAfter] exists because asking about a sore knee every single morning
+ * is nagging, not care. Cara picks when it is worth raising again.
+ */
+data class AgentThread(
+    val id: String,
+    val topic: String,
+    val why: String,
+    val status: ThreadStatus,
+    val raisedAt: LocalDateTime,
+    val followUpAfter: LocalDateTime?,
+    val timesRaised: Int,
+    val resolution: String?,
+    val resolvedAt: LocalDateTime?,
+)
+
+enum class ThreadStatus { OPEN, RESOLVED }
+
 enum class ShareCategory(
     val label: String,
     val description: String,

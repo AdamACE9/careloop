@@ -32,6 +32,19 @@ interface CareLoopRepository {
     fun observeSharingPreferences(): Flow<SharingPreferences>
     fun observeSharedItems(): Flow<List<SharedItem>>
 
+    /**
+     * What Cara is currently keeping an eye on.
+     *
+     * The agent writes these during calls and reads them back to decide what to
+     * ask about next, so they genuinely steer its behaviour rather than
+     * describing it after the fact.
+     *
+     * Readable by the elder on purpose, and the security rules allow exactly
+     * that. An agent's memory of a person that the person cannot see is
+     * surveillance, however well intentioned the memory is.
+     */
+    fun observeAgentThreads(): Flow<List<AgentThread>>
+
     suspend fun getCheckIn(id: String): CheckIn?
     suspend fun getEscalation(id: String): Escalation?
 

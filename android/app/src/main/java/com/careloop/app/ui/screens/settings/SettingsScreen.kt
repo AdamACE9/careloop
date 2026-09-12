@@ -30,6 +30,7 @@ import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Phone
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.TextFields
+import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -105,6 +106,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun SettingsScreen(
     onOpenWhatIShared: () -> Unit = {},
+    onOpenAgentThreads: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     // Seeded EMPTY, not with the example household. Seeding with MockData.elder
@@ -173,6 +175,8 @@ fun SettingsScreen(
         )
 
         WhatISharedCard(caretakerName = carer, onClick = onOpenWhatIShared)
+
+        WhatCaraWatchesCard(onClick = onOpenAgentThreads)
 
         WhoCaraCallsCard(caretaker = elder.caretaker)
 
@@ -787,6 +791,55 @@ private fun WhatISharedCard(
  * screen should invite lightly, and it isn't something the mock repository exposes a
  * mutation for. Framed warmly, as the person Margaret picked, not an assigned supervisor.
  */
+/**
+ * The second half of the transparency pair.
+ *
+ * "What I share" answers what was said about you. This answers what is being
+ * remembered about you, which is the quieter and arguably more unsettling
+ * question, and until now the app had no answer to it at all: Cara kept notes
+ * on a person that only that person's family could see.
+ *
+ * Deliberately styled plainly rather than as a second hero row. Two competing
+ * hero cards next to each other cancel out, and this one is the calmer of the
+ * two: nothing here needs a response, it is simply available.
+ */
+@Composable
+private fun WhatCaraWatchesCard(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    CareCard(onClick = onClick, modifier = modifier) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Rounded.Visibility,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(28.dp),
+            )
+            Spacer(Modifier.width(CareDimens.SpaceMd))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "What Cara is keeping an eye on",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Spacer(Modifier.height(CareDimens.SpaceXs))
+                Text(
+                    "The few things she remembers between calls, in her words.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.width(CareDimens.SpaceSm))
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp),
+            )
+        }
+    }
+}
+
 @Composable
 private fun WhoCaraCallsCard(
     caretaker: Caretaker,

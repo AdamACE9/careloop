@@ -297,6 +297,9 @@ class MockCareLoopRepository : CareLoopRepository {
         dailyCheckInTime: String,
     ): Result<Unit> = Result.success(Unit)
 
+    override fun observeAgentThreads(): Flow<List<AgentThread>> =
+        MutableStateFlow(MockData.agentThreads).asStateFlow()
+
     override suspend fun unlinkCaretaker(caretakerId: String): Result<Boolean> =
         Result.success(true)
 
