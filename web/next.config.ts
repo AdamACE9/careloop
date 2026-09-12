@@ -18,6 +18,30 @@ const nextConfig: NextConfig = {
    * directory down competes with it and misleads future sessions. Off.
    */
   agentRules: false,
+
+  /*
+   * /careloop.apk is the download button's target, and it is a redirect rather
+   * than a file in this repo.
+   *
+   * The APK is 23MB. Committing one on every build would add 23MB to git
+   * history permanently, and history is forever. CI publishes each main build
+   * to a rolling GitHub release tag instead, which on a public repo downloads
+   * with no login, and this keeps the URL we hand out first-party so the
+   * hosting can move later without breaking the link anyone has saved.
+   *
+   * Not permanent: the destination is expected to change, and a 308 would be
+   * cached by browsers long after it did.
+   */
+  async redirects() {
+    return [
+      {
+        source: '/careloop.apk',
+        destination:
+          'https://github.com/AdamACE9/careloop/releases/download/latest-apk/careloop.apk',
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
