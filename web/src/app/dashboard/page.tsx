@@ -131,7 +131,19 @@ export default function DashboardOverview() {
                     : 'bg-cloud text-slate-ink'
               }`}
             >
-              {topEscalation.severity === 'fyi' ? 'Worth knowing' : 'Needs attention'}
+              {/*
+                Three labels, not two. This said "Needs attention" for both
+                concern and urgent, so the most serious thing Cara can tell a
+                family read in exactly the same words as a routine one, with
+                only the colour separating them. Nothing in this product is
+                allowed to carry meaning in hue alone, and this was the one
+                place it mattered most.
+              */}
+              {topEscalation.severity === 'urgent'
+                ? 'Urgent'
+                : topEscalation.severity === 'concern'
+                  ? 'Needs attention'
+                  : 'Worth knowing'}
             </span>
             <span className="text-sm text-slate-ink">{dayLabel(topEscalation.raisedAt)}</span>
           </div>

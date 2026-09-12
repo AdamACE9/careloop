@@ -353,11 +353,39 @@ export function useAgentThreads(patientId: string) {
   return useCollection<AgentThread>(patientId, 'agentThreads', 'raisedAt', demo.agentThreads);
 }
 
-export function useMedications(patientId: string) {
+export function useMedications(patientId: string): {
+  data: Medication[];
+  live: boolean;
+  loading: boolean;
+} {
   // Ascending, because this one is ordered by name and a list running Z to A
   // reads as broken. Every other collection here is ordered by time, where
   // newest first is what you want.
-  return useCollection<Medication>(patientId, 'medications', 'name', demo.medications, 60, 'asc');
+  const { data, live, loading } = useCollection<Medication>(
+    patientId, 'medications', 'name', demo.medications, 60, 'asc',
+  );
+
+  // Days of supply is derived, not stored.
+  //
+  // A medication document holds dosesRemaining and dosesPerDay, because that is
+  // what the phone can actually count down as doses are taken. Nothing writes
+  // daysRemaining, which is the field every screen here reads, so real
+  // medications all reported "Supply not tracked" while the example household
+  // showed numbers. Another instance of the two datasets having different
+  // shapes, which is the bug this file exists to stop.
+  const withSupply = useMemo(
+    () =>
+      data.map((m) => {
+        if (typeof m.daysRemaining === 'number') return m;
+        const doses = (m as Medication & { dosesRemaining?: number }).dosesRemaining;
+        const perDay = (m as Medication & { dosesPerDay?: number }).dosesPerDay;
+        if (typeof doses !== 'number' || !perDay) return m;
+        return { ...m, daysRemaining: Math.floor(doses / perDay) };
+      }),
+    [data],
+  );
+
+  return { data: withSupply, live, loading };
 }
 
 /**
