@@ -75,7 +75,7 @@ export default function SiteHeader() {
         animate={{ paddingTop: scrolled ? 10 : 16, paddingBottom: scrolled ? 10 : 16 }}
         transition={{ duration: 0.35 }}
       >
-        <Link href="/" className="group flex items-center gap-3 text-white">
+        <Link href="/" className="group flex min-h-11 items-center gap-3 text-white">
           <motion.span
             className="text-gold"
             whileHover={{ rotate: 180, scale: 1.1 }}
@@ -97,8 +97,13 @@ export default function SiteHeader() {
               key={item.href}
               href={item.href}
               onMouseEnter={() => setHovered(item.href)}
-              className={`relative rounded-lg px-3 py-2 text-sm transition-colors ${
-                item.href === "/#how" ? "hidden sm:block" : ""
+              // Display lives in the conditional, not the base. `inline-flex`
+              // in the base silently beat the `hidden` that keeps this item off
+              // small screens, because they are both display utilities and
+              // class order in the attribute does not decide which wins. That
+              // put three items in a 375px header and pushed the page sideways.
+              className={`relative min-h-11 items-center rounded-lg px-3 text-sm transition-colors ${
+                item.href === "/#how" ? "hidden sm:inline-flex" : "inline-flex"
               } ${hovered === item.href ? "text-white" : "text-white/65"}`}
             >
               {/* One shared pill that slides between items, rather than a
@@ -121,7 +126,7 @@ export default function SiteHeader() {
           >
             <Link
               href="/download"
-              className="ml-2 block rounded-xl bg-gold px-5 py-2.5 text-sm font-semibold text-navy-deep shadow-[0_0_0_0_rgba(201,162,39,0.5)] transition-shadow duration-300 hover:shadow-[0_0_24px_-2px_rgba(201,162,39,0.6)]"
+              className="ml-2 inline-flex min-h-11 items-center rounded-xl bg-gold px-5 text-sm font-semibold text-navy-deep shadow-[0_0_0_0_rgba(201,162,39,0.5)] transition-shadow duration-300 hover:shadow-[0_0_24px_-2px_rgba(201,162,39,0.6)]"
             >
               Download
             </Link>

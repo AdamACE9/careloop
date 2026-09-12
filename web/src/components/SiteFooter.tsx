@@ -24,16 +24,16 @@ export default function SiteFooter() {
               <p className="text-xs tracking-[0.16em] text-white/40 uppercase">
                 Product
               </p>
-              <ul className="mt-4 space-y-3 text-sm">
+              <ul className="mt-2 text-sm">
                 <li>
-                  <Link href="/#how" className="text-white/70 transition hover:text-gold">
+                  <Link href="/#how" className="-my-1 inline-flex min-h-11 items-center text-white/70 transition hover:text-gold">
                     How it works
                   </Link>
                 </li>
                 <li>
                   <Link
                     href="/dashboard"
-                    className="text-white/70 transition hover:text-gold"
+                    className="-my-1 inline-flex min-h-11 items-center text-white/70 transition hover:text-gold"
                   >
                     Family dashboard
                   </Link>
@@ -41,7 +41,7 @@ export default function SiteFooter() {
                 <li>
                   <Link
                     href="/download"
-                    className="text-white/70 transition hover:text-gold"
+                    className="-my-1 inline-flex min-h-11 items-center text-white/70 transition hover:text-gold"
                   >
                     Download
                   </Link>
@@ -53,9 +53,9 @@ export default function SiteFooter() {
               <p className="text-xs tracking-[0.16em] text-white/40 uppercase">
                 Access
               </p>
-              <ul className="mt-4 space-y-3 text-sm">
+              <ul className="mt-2 text-sm">
                 <li>
-                  <Link href="/login" className="text-white/70 transition hover:text-gold">
+                  <Link href="/login" className="-my-1 inline-flex min-h-11 items-center text-white/70 transition hover:text-gold">
                     Family sign in
                   </Link>
                 </li>
