@@ -119,7 +119,25 @@ service cloud.firestore {
     // -------------------------------------------------------------------------
     match /patients/{patientId} {
 
-      allow read: if canRead(patientId);
+      // GET and LIST are split on purpose, and the split is not cosmetic.
+      //
+      // canRead() calls get() on the patient document, which Firestore cannot
+      // evaluate while running a COLLECTION QUERY: for a list, a rule has to be
+      // satisfiable from the query's own constraints, not by fetching each
+      // candidate document. So the dashboard's
+      //   where('caretakerIds', 'array-contains', uid)
+      // was refused outright with permission-denied, even for a caretaker who
+      // was correctly linked and could read the very same document by id. The
+      // dashboard would have shown an empty page to every real user.
+      //
+      // For list, the check reads caretakerIds off the document being returned,
+      // which is allowed and is exactly as strict: a caretaker still only ever
+      // sees documents that already name them.
+      allow get: if canRead(patientId);
+
+      allow list: if isSignedIn()
+        && (resource.id == request.auth.uid
+            || request.auth.uid in resource.data.caretakerIds);
 
       // Created by the elder's own device during onboarding, with no caretakers
       // attached. Links are added later, by the server only.
