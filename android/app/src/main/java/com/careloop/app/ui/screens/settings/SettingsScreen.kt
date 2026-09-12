@@ -52,8 +52,8 @@ import androidx.compose.ui.tooling.preview.PreviewFontScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.careloop.app.data.mock.MockData
 import com.careloop.app.data.model.Caretaker
+import com.careloop.app.data.repository.EmptyElderProfile
 import com.careloop.app.ui.components.CareCard
 import com.careloop.app.ui.components.CarePrimaryButton
 import com.careloop.app.ui.components.LoopMark
@@ -62,7 +62,6 @@ import com.careloop.app.ui.theme.CareDimens
 import com.careloop.app.ui.theme.CareLoopTheme
 import com.careloop.app.ui.theme.TextScaleStore
 import com.careloop.app.ui.theme.TextSize
-import com.careloop.app.ui.theme.rememberTextSize
 import com.careloop.app.di.AppContainer
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -102,10 +101,18 @@ fun SettingsScreen(
     onOpenWhatIShared: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    // MockData.elder as the seed value means the screen never flashes empty while the
-    // (instant, in-memory) flow catches up — same pattern as MedicationsScreen.
+    // Seeded EMPTY, not with the example household. Seeding with MockData.elder
+    // meant a real account was greeted as Margaret for as long as the read took,
+    // and every line below that names a person had "Margaret" and "Sarah"
+    // written into it regardless of who was signed in.
     val elder by AppContainer.repository.observeElder()
-        .collectAsStateWithLifecycle(initialValue = MockData.elder)
+        .collectAsStateWithLifecycle(initialValue = EmptyElderProfile)
+
+    // The names this screen speaks with. Blank until the read lands, and blank
+    // forever for someone with nobody linked, so every sentence below has to
+    // read correctly without them.
+    val you = elder.preferredName.ifBlank { elder.firstName }
+    val carer = elder.caretaker.name.substringBefore(' ').trim()
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -129,13 +136,18 @@ fun SettingsScreen(
             Text("Settings", style = MaterialTheme.typography.headlineLarge)
             Spacer(Modifier.height(CareDimens.SpaceSm))
             Text(
-                "Everything here is yours to change, Margaret.",
+                if (you.isBlank()) {
+                    "Everything here is yours to change."
+                } else {
+                    "Everything here is yours to change, $you."
+                },
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
         CallTimeCard(
+            caretakerName = carer,
             checkInTime = elder.dailyCheckInTime,
             onTimeChange = { newTime ->
                 scope.launch { AppContainer.repository.updateCheckInTime(newTime) }
@@ -154,11 +166,11 @@ fun SettingsScreen(
             },
         )
 
-        WhatISharedCard(onClick = onOpenWhatIShared)
+        WhatISharedCard(caretakerName = carer, onClick = onOpenWhatIShared)
 
         WhoCaraCallsCard(caretaker = elder.caretaker)
 
-        AboutCaraCard()
+        AboutCaraCard(caretakerName = carer)
 
         HelpCard(caretaker = elder.caretaker)
 
@@ -187,6 +199,7 @@ fun SettingsScreen(
  */
 @Composable
 private fun CallTimeCard(
+    caretakerName: String,
     checkInTime: LocalTime,
     onTimeChange: (LocalTime) -> Unit,
     modifier: Modifier = Modifier,
@@ -197,7 +210,15 @@ private fun CallTimeCard(
         CardHeader(icon = Icons.Rounded.Schedule, title = "When Cara calls")
         Spacer(Modifier.height(CareDimens.SpaceXs))
         Text(
-            "This is your call time, Margaret. Sarah can see it, but only you change it.",
+            // The second clause is only true once somebody is linked. Telling a
+            // person with no caretaker that "Sarah can see it" is both wrong and
+            // slightly alarming.
+            if (caretakerName.isBlank()) {
+                "This is your call time, and only you can change it."
+            } else {
+                "This is your call time. $caretakerName can see it, " +
+                    "but only you change it."
+            },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -213,9 +234,16 @@ private fun CallTimeCard(
 
         Spacer(Modifier.height(CareDimens.SpaceLg))
 
-        Row(
+        // Stacked, not side by side.
+        //
+        // Two steppers in one row do not fit at this screen's type sizes, let
+        // alone at the enlarged sizes the settings below offer: the minutes
+        // value wrapped onto two lines and pushed its "+" button off the card.
+        // One per row also gives each control the full width, which is the
+        // right answer for the reader anyway.
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalArrangement = Arrangement.spacedBy(CareDimens.SpaceLg),
         ) {
             TimeStepper(
                 label = "Hour",
@@ -256,7 +284,7 @@ private fun TimeStepper(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier,
+        modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
@@ -265,7 +293,11 @@ private fun TimeStepper(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(CareDimens.SpaceSm))
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
             StepperButton(
                 symbol = "−",
                 contentDescription = decrementDescription,
@@ -275,7 +307,12 @@ private fun TimeStepper(
                 text = value,
                 style = MaterialTheme.typography.displayMedium,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.widthIn(min = 84.dp),
+                maxLines = 1,
+                softWrap = false,
+                // weight, not a fixed width: the buttons keep their touch
+                // targets and the number takes whatever is left, so nothing is
+                // pushed off the card at any font scale.
+                modifier = Modifier.weight(1f),
             )
             StepperButton(
                 symbol = "+",
@@ -583,6 +620,7 @@ private fun textSizeDescription(size: TextSize): String = when (size) {
  */
 @Composable
 private fun WhatISharedCard(
+    caretakerName: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -610,7 +648,11 @@ private fun WhatISharedCard(
             Spacer(Modifier.width(CareDimens.SpaceMd))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    "What I share with Sarah",
+                    if (caretakerName.isBlank()) {
+                        "What I share with your family"
+                    } else {
+                        "What I share with $caretakerName"
+                    },
                     style = MaterialTheme.typography.titleLarge,
                     color = CareColors.White,
                 )
@@ -697,7 +739,7 @@ private fun WhoCaraCallsCard(
  * included for the same reason: it answers the privacy question before it has to be asked.
  */
 @Composable
-private fun AboutCaraCard(modifier: Modifier = Modifier) {
+private fun AboutCaraCard(caretakerName: String, modifier: Modifier = Modifier) {
     CareCard(modifier = modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             LoopMark(size = CareDimens.LoopSmall)
@@ -710,7 +752,9 @@ private fun AboutCaraCard(modifier: Modifier = Modifier) {
         Text(
             "Cara is a computer program. She is an AI companion, not a person. She " +
                 "calls you once a day to check in on your medications, listens, asks how " +
-                "you're doing, and lets Sarah know if something seems worrying.",
+                "you're doing, and lets " +
+                    caretakerName.ifBlank { "them" } +
+                    " know if something seems worrying.",
             style = MaterialTheme.typography.bodyLarge,
         )
 
@@ -862,7 +906,7 @@ private fun RingPermissionCardOffPreview() {
 private fun WhatISharedCardPreview() {
     CareLoopTheme(darkTheme = false) {
         Column(modifier = Modifier.padding(CareDimens.SpaceLg)) {
-            WhatISharedCard(onClick = {})
+            WhatISharedCard(caretakerName = "Sarah", onClick = {})
         }
     }
 }

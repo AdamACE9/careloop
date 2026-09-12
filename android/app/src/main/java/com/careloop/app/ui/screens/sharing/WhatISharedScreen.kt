@@ -129,9 +129,25 @@ fun WhatISharedScreen(
             ),
         )
 
+    val elder by AppContainer.repository.observeElder()
+        .collectAsStateWithLifecycle(initialValue = EmptyElderProfile)
+
+    // Whoever this person actually shares with.
+    //
+    // This screen is the product's position on dignity: the elder sees exactly
+    // what the family sees, named. It had "Sarah" written into eleven strings,
+    // so it told every real user about a person who does not exist, on the one
+    // screen whose whole job is being straight with them.
+    //
+    // The fallback is deliberately "your family" rather than a blank, because
+    // every sentence here needs a subject and nobody has a caretaker on day one.
+    val carer = elder.caretaker.name.substringBefore(' ').trim()
+        .ifBlank { "your family" }
+
     val scope = rememberCoroutineScope()
 
     WhatISharedScreenContent(
+        caretakerName = carer,
         sharedItems = sharedItems,
         preferences = preferences,
         modifier = modifier,
@@ -170,6 +186,7 @@ fun WhatISharedScreen(
 
 @Composable
 private fun WhatISharedScreenContent(
+    caretakerName: String,
     sharedItems: List<SharedItem>,
     preferences: SharingPreferences,
     onRespond: (itemId: String, response: ElderResponse, note: String?) -> Unit,
@@ -189,11 +206,12 @@ private fun WhatISharedScreenContent(
     ) {
         item(key = "header") {
             Column {
-                Text("What I've told Sarah", style = MaterialTheme.typography.headlineLarge)
+                Text("What I've told $caretakerName", style = MaterialTheme.typography.headlineLarge)
                 Spacer(Modifier.height(CareDimens.SpaceSm))
                 Text(
-                    "Sarah only ever sees what's written here, the same words, at the " +
-                        "same time as you. If something's not quite right, you can say so.",
+                    "$caretakerName only ever sees what's written here, the same " +
+                        "words, at the same time as you. If something's not quite right, " +
+                        "you can say so.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -204,7 +222,7 @@ private fun WhatISharedScreenContent(
         if (sortedItems.isEmpty()) {
             item(key = "empty") {
                 CareEmptyState(
-                    title = "Nothing shared with Sarah yet",
+                    title = "Nothing shared with $caretakerName yet",
                     whatHappensNext = "As soon as Cara has something to tell her, it will " +
                         "show up here first, in the same words, for you to see too.",
                 )
@@ -213,6 +231,7 @@ private fun WhatISharedScreenContent(
 
         items(sortedItems, key = { it.id }) { item ->
             SharedItemCard(
+                caretakerName = caretakerName,
                 item = item,
                 onConfirm = { onRespond(item.id, ElderResponse.CONFIRMED, null) },
                 onDispute = { note -> onRespond(item.id, ElderResponse.DISPUTED, note) },
@@ -225,7 +244,7 @@ private fun WhatISharedScreenContent(
                 SectionHeader(
                     title = "What you share automatically",
                     subtitle = "Turn any of these off whenever you like, Cara will simply " +
-                        "stay quiet about it with Sarah.",
+                        "stay quiet about it with $caretakerName.",
                 )
                 SharingPreferencesCard(
                     enabledCategories = preferences.enabledCategories,
@@ -238,12 +257,13 @@ private fun WhatISharedScreenContent(
         item(key = "safety-floor") {
             Column {
                 SectionHeader(title = "If something's seriously wrong")
-                SafetyFloorCard()
+                SafetyFloorCard(caretakerName = caretakerName)
             }
         }
 
         item(key = "privacy-hold") {
             PrivacyHoldSection(
+                caretakerName = caretakerName,
                 preferences = preferences,
                 onTogglePrivacyHold = onTogglePrivacyHold,
             )
@@ -268,6 +288,7 @@ private fun WhatISharedScreenContent(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SharedItemCard(
+    caretakerName: String,
     item: SharedItem,
     onConfirm: () -> Unit,
     onDispute: (note: String) -> Unit,
@@ -315,7 +336,7 @@ private fun SharedItemCard(
             Spacer(Modifier.height(CareDimens.SpaceMd))
 
             Text(
-                text = "Cara told Sarah:",
+                text = "Cara told $caretakerName:",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -357,7 +378,7 @@ private fun SharedItemCard(
                                 .heightIn(min = 96.dp),
                             placeholder = {
                                 Text(
-                                    "What would you like Sarah to know?",
+                                    "What would you like $caretakerName to know?",
                                     style = MaterialTheme.typography.bodyLarge,
                                 )
                             },
@@ -365,7 +386,7 @@ private fun SharedItemCard(
                         )
                         Spacer(Modifier.height(CareDimens.SpaceSm))
                         CarePrimaryButton(
-                            text = "Share this with Sarah",
+                            text = "Share this with $caretakerName",
                             icon = Icons.Filled.Check,
                             enabled = noteDraft.isNotBlank(),
                             onClick = {
@@ -534,7 +555,7 @@ private fun CategoryToggleRow(
  * safety guarantee a hidden one would give her anyway. She just also gets to know about it.
  */
 @Composable
-private fun SafetyFloorCard() {
+private fun SafetyFloorCard(caretakerName: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(CareDimens.CardRadius),
@@ -550,11 +571,15 @@ private fun SafetyFloorCard() {
             )
             Spacer(Modifier.width(CareDimens.SpaceMd))
             Column {
-                Text("Emergencies always reach Sarah", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "Emergencies always reach $caretakerName",
+                    style = MaterialTheme.typography.titleMedium,
+                )
                 Spacer(Modifier.height(CareDimens.SpaceSm))
                 Text(
                     "Even with everything above switched off, a genuine emergency still " +
-                        "reaches Sarah. That means Cara not being able to reach you, or " +
+                        "reaches $caretakerName. That means Cara not being able to " +
+                        "reach you, or " +
                         "something seriously wrong. It is not a setting you can turn off, " +
                         "and we would rather tell you plainly than have you find out by " +
                         "surprise.",
@@ -574,6 +599,7 @@ private fun SafetyFloorCard() {
  */
 @Composable
 private fun PrivacyHoldSection(
+    caretakerName: String,
     preferences: SharingPreferences,
     onTogglePrivacyHold: (pausing: Boolean) -> Unit,
 ) {
@@ -598,7 +624,7 @@ private fun PrivacyHoldSection(
             )
             Spacer(Modifier.height(CareDimens.SpaceSm))
             Text(
-                text = "Emergencies still reach Sarah even while paused.",
+                text = "Emergencies still reach $caretakerName even while paused.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -635,6 +661,7 @@ private fun formatHoldUntil(dateTime: LocalDateTime?): String {
 private fun WhatISharedScreenPreview() {
     CareLoopTheme {
         WhatISharedScreenContent(
+            caretakerName = "Sarah",
             sharedItems = MockData.sharedItems,
             preferences = MockData.sharingPreferences,
             onRespond = { _, _, _ -> },
@@ -650,6 +677,7 @@ private fun WhatISharedScreenPreview() {
 private fun WhatISharedScreenFontScalePreview() {
     CareLoopTheme {
         WhatISharedScreenContent(
+            caretakerName = "Sarah",
             sharedItems = MockData.sharedItems,
             preferences = MockData.sharingPreferences,
             onRespond = { _, _, _ -> },

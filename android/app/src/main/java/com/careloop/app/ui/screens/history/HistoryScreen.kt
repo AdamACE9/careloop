@@ -40,6 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.careloop.app.data.mock.MockData
 import com.careloop.app.data.model.CheckIn
 import com.careloop.app.data.model.CheckInStatus
+import com.careloop.app.data.repository.EmptyElderProfile
 import com.careloop.app.di.AppContainer
 import com.careloop.app.ui.components.CareEmptyState
 import com.careloop.app.ui.components.LoopMark
@@ -79,9 +80,18 @@ fun HistoryScreen(
             initialValue = initialSeed(empty = emptyList(), demo = MockData.checkIns),
         )
 
+    val elder by AppContainer.repository.observeElder()
+        .collectAsStateWithLifecycle(initialValue = EmptyElderProfile)
+
+    // "Cara let Sarah know" was written into the escalated row, so every real
+    // user was told about somebody else's daughter.
+    val carer = elder.caretaker.name.substringBefore(' ').trim()
+        .ifBlank { "your family" }
+
     val today = remember { LocalDate.now() }
 
     HistoryScreenContent(
+        caretakerName = carer,
         checkIns = checkIns,
         today = today,
         onCheckInClick = onCheckInClick,
@@ -91,6 +101,7 @@ fun HistoryScreen(
 
 @Composable
 private fun HistoryScreenContent(
+    caretakerName: String,
     checkIns: List<CheckIn>,
     today: LocalDate,
     onCheckInClick: (String) -> Unit,
@@ -138,6 +149,7 @@ private fun HistoryScreenContent(
             }
             items(group.checkIns, key = { it.id }) { checkIn ->
                 CheckInRow(
+                    caretakerName = caretakerName,
                     checkIn = checkIn,
                     onClick = { onCheckInClick(checkIn.id) },
                 )
@@ -164,6 +176,7 @@ private fun HistoryScreenContent(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CheckInRow(
+    caretakerName: String,
     checkIn: CheckIn,
     onClick: () -> Unit,
 ) {
@@ -208,7 +221,7 @@ private fun CheckInRow(
                 Spacer(Modifier.height(CareDimens.SpaceSm))
 
                 StatusPill(
-                    text = checkIn.status.warmPillText(),
+                    text = checkIn.status.warmPillText(caretakerName),
                     icon = checkIn.status.icon(),
                     contentColor = checkIn.status.pillContentColor(),
                     containerColor = checkIn.status.pillContainerColor(),
@@ -264,14 +277,14 @@ private fun MedicationLine(icon: ImageVector, tint: Color, label: String) {
 
 /**
  * Deliberately not [CheckInStatus.label] verbatim. "Family alerted" is accurate but reads
- * like an accusation; "Cara let Sarah know" describes the same fact as something Cara did
- * *for* Margaret, not something that happened *to* her.
+ * like an accusation; "Cara let your daughter know" describes the same fact as
+ * something Cara did *for* them, not something that happened *to* them.
  */
-private fun CheckInStatus.warmPillText(): String = when (this) {
+private fun CheckInStatus.warmPillText(caretakerName: String): String = when (this) {
     CheckInStatus.COMPLETED -> "All medications taken"
     CheckInStatus.MISSED_DOSE -> "A dose was missed"
     CheckInStatus.NO_ANSWER -> "No answer"
-    CheckInStatus.ESCALATED -> "Cara let Sarah know"
+    CheckInStatus.ESCALATED -> "Cara let $caretakerName know"
 }
 
 private fun CheckInStatus.icon(): ImageVector = when (this) {
@@ -342,6 +355,7 @@ private fun formatCallDuration(totalSeconds: Int): String {
 private fun HistoryScreenPreview() {
     CareLoopTheme {
         HistoryScreenContent(
+            caretakerName = "Sarah",
             checkIns = MockData.checkIns,
             today = LocalDate.now(),
             onCheckInClick = {},
@@ -355,6 +369,7 @@ private fun HistoryScreenPreview() {
 private fun HistoryScreenFontScalePreview() {
     CareLoopTheme {
         HistoryScreenContent(
+            caretakerName = "Sarah",
             checkIns = MockData.checkIns,
             today = LocalDate.now(),
             onCheckInClick = {},
