@@ -41,7 +41,9 @@ const TABS = [
 export default function DashboardShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { displayName, isDemo, signOut } = useAuth();
-  const { patients } = useLinkedPatients();
+  // Renamed: useAuth already exports an isDemo meaning demo AUTH, which is a
+  // different question from whether the DATA on screen is the example household.
+  const { patients, loading, isDemo: showingExampleData } = useLinkedPatients();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const patient = patients[0];
@@ -163,7 +165,13 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
         </div>
       </div>
 
-      <main className="mx-auto max-w-7xl px-6 py-10 md:px-10">{children}</main>
+      <main className="mx-auto max-w-7xl px-6 py-10 md:px-10">
+        {!loading && !showingExampleData && patients.length === 0 ? (
+          <NotLinkedYet />
+        ) : (
+          children
+        )}
+      </main>
     </div>
   );
 }
@@ -175,4 +183,56 @@ function initials(name: string): string {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? '')
     .join('');
+}
+
+/**
+ * Shown to a caretaker who has an account but is not linked to anyone.
+ *
+ * This used to be the example household, which meant somebody who had just
+ * signed up was shown a stranger's medication list and blood sugar as though it
+ * were their mother's. It looked like the product working and was the exact
+ * opposite, so this says plainly that there is nobody connected yet and gives
+ * the one instruction that fixes it.
+ *
+ * The direction of the code matters and is stated here because it is the thing
+ * people get wrong: it is generated on the ELDER's phone and read out to you.
+ * Only their own device can mint one.
+ */
+function NotLinkedYet() {
+  return (
+    <div className="mx-auto max-w-2xl rounded-3xl border border-ink/10 bg-white p-10 text-center">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gold/15 text-gold-ink">
+        <svg
+          viewBox="0 0 24 24"
+          className="h-8 w-8"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <rect x="6" y="2" width="12" height="20" rx="2.5" />
+          <path d="M11 18h2" />
+        </svg>
+      </div>
+
+      <h2 className="mt-6 font-display text-3xl text-ink">
+        You are not connected to anyone yet
+      </h2>
+
+      <p className="mx-auto mt-4 max-w-lg leading-relaxed text-slate-ink">
+        Ask them to open CareLoop on their phone and read you the code it shows.
+        Type it in under Settings and their check-ins will appear here. The code
+        comes from their phone, not from this page, because it is theirs to give.
+      </p>
+
+      <Link
+        href="/dashboard/settings"
+        className="mt-8 inline-flex items-center justify-center rounded-xl bg-navy px-7 py-4 font-semibold text-white transition hover:bg-navy-soft"
+      >
+        Enter their code
+      </Link>
+    </div>
+  );
 }

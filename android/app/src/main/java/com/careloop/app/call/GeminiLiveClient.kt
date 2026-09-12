@@ -108,6 +108,8 @@ class GeminiLiveClient(
     private var webSocket: WebSocket? = null
     private var captureJob: Job? = null
     private var audioTrack: AudioTrack? = null
+    private var playbackStarted = false
+    private var bufferedBytes = 0
     private var sessionStartedAt = 0L
     private var reconnectAttempts = 0
 
@@ -510,6 +512,12 @@ class GeminiLiveClient(
             }
         }
 
+        if (content.optBoolean("generationComplete", false) ||
+            content.optBoolean("turnComplete", false)
+        ) {
+            drainPlayback()
+        }
+
         if (content.optBoolean("turnComplete", false)) {
             turnEnded = true
             _activity.value = CaraActivity.LISTENING
@@ -731,10 +739,52 @@ class GeminiLiveClient(
      * for both is the classic bug here, and it makes her sound wrong in a way that
      * is instantly obvious but easy to misdiagnose.
      */
+    /**
+     * Buffers the start of a turn before letting it play.
+     *
+     * AudioTrack starts consuming the instant play() is called. Writing chunks
+     * straight through as they arrive meant playback was always racing the
+     * network: it caught up, underran, and repeated whatever was in the buffer,
+     * which is the stuttering "ehehehe" at the end of Cara's sentences. A bigger
+     * buffer alone did not fix it, because an empty big buffer underruns exactly
+     * like an empty small one.
+     *
+     * So the first fifth of a second of each turn is accumulated before playback
+     * starts. After that the buffer stays ahead of the stream and the rest plays
+     * continuously. The cost is 200ms of latency at the start of a turn, which
+     * on a phone call is imperceptible.
+     */
     private fun playAudio(pcm: ByteArray) {
         val track = audioTrack ?: createAudioTrack().also { audioTrack = it }
+
         runCatching { track.write(pcm, 0, pcm.size) }
             .onFailure { Log.w(TAG, "Audio write failed") }
+
+        if (!playbackStarted) {
+            bufferedBytes += pcm.size
+            if (bufferedBytes >= PREBUFFER_BYTES) {
+                playbackStarted = true
+                runCatching { track.play() }
+            }
+        }
+    }
+
+    /**
+     * Lets the tail of a turn play out instead of being cut off or looped.
+     *
+     * stop() on a streaming track plays what is already written and then stops,
+     * which is exactly what should happen when Cara finishes a sentence. Leaving
+     * the track running instead leaves it starved, and a starved track repeats
+     * its last buffer.
+     */
+    private fun drainPlayback() {
+        audioTrack?.let { track ->
+            runCatching { track.stop() }
+        }
+        audioTrack?.release()
+        audioTrack = null
+        playbackStarted = false
+        bufferedBytes = 0
     }
 
     private fun createAudioTrack(): AudioTrack {
@@ -778,7 +828,8 @@ class GeminiLiveClient(
             )
             .setTransferMode(AudioTrack.MODE_STREAM)
             .build()
-            .apply { play() }
+        // Deliberately not played here. playAudio starts it once enough of the
+        // turn has been buffered to survive a slow frame.
     }
 
     /** Drops queued audio so an interruption takes effect immediately. */
@@ -787,7 +838,11 @@ class GeminiLiveClient(
             runCatching {
                 track.pause()
                 track.flush()
-                track.play()
+                // Back to buffering: after a flush the track is empty, and
+                // playing an empty track is what caused the stutter in the
+                // first place.
+                playbackStarted = false
+                bufferedBytes = 0
             }
         }
     }
@@ -806,6 +861,9 @@ class GeminiLiveClient(
         /** Required by the Live API. Not adjustable. */
         const val INPUT_SAMPLE_RATE = 16_000
         const val OUTPUT_SAMPLE_RATE = 24_000
+
+        /** 200ms of 24kHz 16-bit mono, held back before playback starts. */
+        const val PREBUFFER_BYTES = 9_600
 
         /** ~64ms of audio per frame: small enough to feel responsive, large enough not to flood. */
         const val INPUT_CHUNK_BYTES = 2048

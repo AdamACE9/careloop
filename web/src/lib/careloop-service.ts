@@ -60,15 +60,42 @@ const DEMO_PATIENT: LinkedPatient = {
   checkInTime: demo.elder.checkInTime,
 };
 
-/** Patients this caretaker is linked to. Falls back to the demo persona. */
-export function useLinkedPatients(): { patients: LinkedPatient[]; loading: boolean } {
-  const [patients, setPatients] = useState<LinkedPatient[]>([DEMO_PATIENT]);
+/**
+ * Patients this caretaker is linked to.
+ *
+ * Three states, not two, and the difference matters.
+ *
+ *   - No Firebase project at all: show the example household. This is the
+ *     marketing case, where a visitor should see what the product does.
+ *   - Signed in and linked: show their real people.
+ *   - Signed in and linked to NOBODY: show nothing, and let the page ask them
+ *     to enter the code from the phone.
+ *
+ * That last case used to fall back to the example household too, which meant a
+ * caretaker who had just created an account was shown a stranger's medication
+ * list and blood sugar, presented as their mother's. It looked like the product
+ * working and was the opposite.
+ */
+export function useLinkedPatients(): {
+  patients: LinkedPatient[];
+  loading: boolean;
+  /** True when what is on screen is the example household, not real data. */
+  isDemo: boolean;
+} {
+  const [patients, setPatients] = useState<LinkedPatient[]>(
+    isFirebaseConfigured ? [] : [DEMO_PATIENT],
+  );
+  const [isDemo, setIsDemo] = useState(!isFirebaseConfigured);
   const [loading, setLoading] = useState(isFirebaseConfigured);
 
   useEffect(() => {
     const db = getDb();
     const auth = getFirebaseAuth();
     if (!db || !auth?.currentUser) {
+      // Not signed in. The example household is the right thing to show a
+      // visitor, and the wrong thing to show an account holder.
+      setPatients([DEMO_PATIENT]);
+      setIsDemo(true);
       setLoading(false);
       return;
     }
@@ -85,8 +112,11 @@ export function useLinkedPatients(): { patients: LinkedPatient[]; loading: boole
       q,
       (snap) => {
         if (snap.empty) {
-          setPatients([DEMO_PATIENT]);
+          // Signed in, linked to nobody. Empty is the truth.
+          setPatients([]);
+          setIsDemo(false);
         } else {
+          setIsDemo(false);
           setPatients(
             snap.docs.map((d) => {
               const data = d.data() as Record<string, never>;
@@ -106,15 +136,16 @@ export function useLinkedPatients(): { patients: LinkedPatient[]; loading: boole
         setLoading(false);
       },
       () => {
-        // A permission error here usually means the caretaker is not yet linked.
-        // Showing the demo persona is friendlier than an error screen.
-        setPatients([DEMO_PATIENT]);
+        // A permission error here means the caretaker is not linked to anyone.
+        // Treated the same as empty: ask them to link, do not invent a patient.
+        setPatients([]);
+        setIsDemo(false);
         setLoading(false);
       },
     );
   }, []);
 
-  return { patients, loading };
+  return { patients, loading, isDemo };
 }
 
 // -----------------------------------------------------------------------------
@@ -128,12 +159,15 @@ function useCollection<T>(
   fallback: T[],
   max = 60,
 ): { data: T[]; live: boolean } {
-  const [data, setData] = useState<T[]>(fallback);
+  // Seeded with the example data only when there is no backend to read from.
+  const [data, setData] = useState<T[]>(isFirebaseConfigured ? [] : fallback);
   const [live, setLive] = useState(false);
 
   useEffect(() => {
     const db = getDb();
-    if (!db || patientId === DEMO_PATIENT.id) return;
+    // The demo patient id belongs to no real document, so there is nothing to
+    // subscribe to and the seeded example data stands.
+    if (!db || !patientId || patientId === DEMO_PATIENT.id) return;
 
     const q = query(
       collection(db, `patients/${patientId}/${path}`),
@@ -145,14 +179,19 @@ function useCollection<T>(
       q,
       (snap) => {
         if (snap.empty) {
-          setData(fallback);
-          setLive(false);
+          setData([]);
+          setLive(true);
           return;
         }
+        // Real data, including when it is empty. An empty collection for a
+        // linked patient means nothing has happened yet, which the page says
+        // in words rather than papering over with somebody else's history.
         setData(snap.docs.map((d) => ({ id: d.id, ...d.data() })) as T[]);
         setLive(true);
       },
       () => {
+        // A read that fails is not the same as a read that returns nothing, so
+        // this keeps the seeded value and marks the data as not live.
         setData(fallback);
         setLive(false);
       },
