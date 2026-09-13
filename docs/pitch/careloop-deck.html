@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>CareLoop Pitch Deck</title>
+<style>
+  @font-face { font-family: "Instrument Serif"; font-weight: 400; src: url("fonts/instrument-serif-latin.woff2") format("woff2"); }
+  @font-face { font-family: "Inter"; font-weight: 100 900; src: url("fonts/inter-latin.woff2") format("woff2"); }
+
+  @page { size: 1920px 1080px; margin: 0; }
+  :root {
+    --navy-deep: #0f1a38; --navy: #16264d; --navy-soft: #243766; --navy-mist: #35497d;
+    --gold: #c9a227; --gold-glow: #eec25a; --gold-ink: #5f480a; --yellow: #ffd166;
+    --cream: #fffbf3; --bone: #faf3e7; --cloud: #f0e5d2; --ink: #241c13; --slate: #5c4d3b;
+    --mist: #b9c3dc; --brown: #3b2a17; --good: #12513b; --concern: #744208; --urgent: #8f1911;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #0a1330; }
+  body { font-family: "Inter", system-ui, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .serif { font-family: "Instrument Serif", Georgia, serif; font-weight: 400; letter-spacing: -0.015em; }
+  .mono { font-family: "JetBrains Mono", Consolas, monospace; letter-spacing: 0.16em; text-transform: uppercase; }
+
+  .slide {
+    position: relative; width: 1920px; height: 1080px; overflow: hidden;
+    page-break-after: always; break-after: page;
+    padding: 110px 140px; color: var(--cream); background: var(--navy-deep);
+  }
+  .slide:last-child { page-break-after: auto; break-after: auto; }
+  .slide.light { background: var(--cream); color: var(--ink); }
+  .slide.brown { background: var(--brown); color: var(--cream); }
+
+  /* Shared atmosphere */
+  .glow { position: absolute; border-radius: 50%; pointer-events: none; }
+  .glow.gold { background: radial-gradient(circle, rgba(201,162,39,0.24) 0%, rgba(201,162,39,0) 62%); }
+  .glow.blue { background: radial-gradient(circle, rgba(53,73,125,0.6) 0%, rgba(53,73,125,0) 60%); }
+  .grid-bg { position: absolute; inset: 0;
+    background-image: linear-gradient(rgba(185,195,220,0.06) 2px, transparent 2px), linear-gradient(90deg, rgba(185,195,220,0.06) 2px, transparent 2px);
+    background-size: 120px 120px; }
+  .light .grid-bg { background-image: linear-gradient(rgba(36,28,19,0.05) 2px, transparent 2px), linear-gradient(90deg, rgba(36,28,19,0.05) 2px, transparent 2px); }
+
+  .foot { position: absolute; left: 140px; right: 140px; bottom: 56px; display: flex; justify-content: space-between; align-items: center; font-size: 18px; color: var(--mist); }
+  .light .foot { color: var(--slate); }
+  .foot .brand { display: flex; align-items: center; gap: 12px; font-family: "Instrument Serif", Georgia, serif; font-size: 26px; letter-spacing: 0; text-transform: none; color: inherit; }
+  .foot .brand i { width: 22px; height: 22px; border-radius: 50%; border: 5px solid var(--gold); display: block; }
+
+  .eyebrow { font-size: 22px; color: var(--gold); margin-bottom: 26px; position: relative; }
+  .light .eyebrow { color: var(--gold-ink); }
+  h1, h2 { font-weight: 400; position: relative; }
+  h2 { font-size: 104px; line-height: 1.04; max-width: 1500px; }
+  h2 .gold, h1 .gold { color: var(--yellow); }
+  .light h2 .gold { color: var(--gold-ink); }
+  .lede { position: relative; margin-top: 30px; font-size: 36px; line-height: 1.45; color: var(--mist); max-width: 1180px; }
+  .light .lede { color: var(--slate); }
+  .rel { position: relative; }
+
+  .loop { border-radius: 50%; border-style: solid; border-color: var(--gold); }
+
+  /* ---------- 1 cover */
+  .cover-mark { position: absolute; right: 150px; top: 180px; width: 640px; height: 640px; border-width: 70px; box-shadow: 0 0 140px rgba(238,194,90,0.3); }
+  .cover-mark-inner { position: absolute; right: 330px; top: 360px; width: 280px; height: 280px; border-width: 5px; border-color: rgba(238,194,90,0.45); }
+  .cover h1 { font-size: 220px; line-height: 0.95; margin-top: 150px; }
+  .cover .tag { position: relative; font-size: 64px; margin-top: 20px; }
+  .cover .sub { position: relative; font-size: 34px; color: var(--mist); margin-top: 40px; max-width: 980px; line-height: 1.45; }
+
+  /* ---------- 2 problem */
+  .quote-pair { position: relative; margin-top: 44px; display: grid; grid-template-columns: 1fr 1fr; gap: 50px; }
+  .qcard { border-radius: 36px; padding: 38px 48px; }
+  .qcard.a { background: var(--cloud); }
+  .qcard.b { background: var(--navy); color: var(--cream); }
+  .qcard .who { font-size: 20px; }
+  .qcard.a .who { color: var(--slate); }
+  .qcard.b .who { color: var(--yellow); }
+  .qcard .say { font-size: 66px; margin-top: 18px; line-height: 1.05; }
+  .qcard .hear { font-size: 27px; margin-top: 16px; line-height: 1.45; }
+  .qcard.a .hear { color: var(--slate); }
+  .qcard.b .hear { color: var(--mist); }
+  .three { position: relative; margin-top: 40px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; }
+  .three > div { border-top: 4px solid var(--gold); padding-top: 18px; font-size: 26px; line-height: 1.4; color: var(--slate); }
+  .three b { display: block; color: var(--ink); font-weight: 700; margin-bottom: 6px; font-size: 29px; }
+
+  /* ---------- 3 the loop */
+  .loop-diagram { position: absolute; right: 150px; top: 170px; width: 760px; height: 760px; }
+  .loop-diagram .ring { position: absolute; inset: 90px; border-width: 30px; }
+  .node { position: absolute; width: 230px; margin-left: -115px; margin-top: -48px; text-align: center; }
+  .node b { display: block; font-family: "Instrument Serif", Georgia, serif; font-weight: 400; font-size: 52px; line-height: 1; color: var(--cream); background: var(--navy-deep); padding: 6px 8px; border-radius: 12px; }
+  .node span { display: block; font-size: 22px; color: var(--mist); margin-top: 6px; background: var(--navy-deep); }
+  .loop-left { position: relative; width: 820px; }
+  .loop-left h2 { font-size: 110px; }
+  .loop-center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align: center; }
+  .loop-center .serif { font-size: 64px; }
+
+  /* ---------- 4 call */
+  .phone { position: absolute; right: 190px; top: 110px; width: 430px; height: 860px; border-radius: 60px; background: #0a1330; border: 10px solid #2b3a63; box-shadow: 0 50px 120px rgba(0,0,0,0.5); overflow: hidden; padding: 90px 32px 30px; }
+  .phone .lab { text-align: center; font-size: 16px; color: var(--mist); }
+  .phone .pl { width: 190px; height: 190px; margin: 50px auto 0; border-width: 20px; box-shadow: 0 0 60px rgba(238,194,90,0.4); }
+  .phone .nm { text-align: center; font-size: 70px; margin-top: 40px; }
+  .phone .st { text-align: center; font-size: 24px; color: var(--mist); }
+  .phone .btns { position: absolute; left: 32px; right: 32px; bottom: 60px; display: flex; justify-content: space-between; }
+  .phone .btns div { width: 160px; height: 86px; border-radius: 43px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 26px; }
+  .steps { position: relative; margin-top: 50px; width: 1060px; display: flex; flex-direction: column; gap: 26px; }
+  .step { display: grid; grid-template-columns: 70px 1fr; gap: 28px; align-items: start; }
+  .step .n { width: 64px; height: 64px; border-radius: 50%; border: 4px solid var(--gold); display: flex; align-items: center; justify-content: center; font-family: "Instrument Serif", Georgia, serif; font-size: 36px; color: var(--yellow); }
+  .step .t { font-size: 38px; line-height: 1.15; }
+  .step .d { font-size: 26px; color: var(--mist); margin-top: 6px; line-height: 1.4; }
+
+  /* ---------- 5 interactions */
+  .ix { position: relative; margin-top: 40px; display: grid; grid-template-columns: 1.05fr 1fr; gap: 70px; align-items: start; }
+  .layers { display: flex; flex-direction: column; gap: 20px; }
+  .layer-row { display: grid; grid-template-columns: 110px 1fr; gap: 26px; align-items: center; background: var(--navy); border-radius: 26px; padding: 22px 30px; }
+  .layer-row .k { font-size: 18px; color: var(--yellow); }
+  .layer-row .t { font-size: 34px; }
+  .layer-row .d { font-size: 24px; color: var(--mist); margin-top: 4px; line-height: 1.35; }
+  .flag { background: #fff7e3; color: var(--brown); border-radius: 36px; padding: 36px 44px; box-shadow: 0 40px 100px rgba(0,0,0,0.45); transform: rotate(-1.5deg); }
+  .flag .k { font-size: 20px; color: var(--concern); font-weight: 700; }
+  .flag .t { font-size: 68px; margin-top: 10px; line-height: 1.02; }
+  .flag .d { font-size: 30px; margin-top: 18px; line-height: 1.45; color: var(--slate); }
+  .flag .tag { display: inline-block; margin-top: 24px; padding: 10px 22px; border-radius: 999px; background: var(--navy); color: var(--yellow); font-size: 18px; }
+  .chat { margin-top: 30px; display: flex; flex-direction: column; gap: 14px; }
+  .bub { max-width: 620px; padding: 18px 26px; border-radius: 26px; font-size: 28px; line-height: 1.35; }
+  .bub.c { background: var(--navy-soft); }
+  .bub.h { background: #eef0f6; color: var(--navy); align-self: flex-end; }
+
+  /* ---------- 6 engine */
+  .engine { position: relative; margin-top: 50px; display: grid; grid-template-columns: 1fr 1fr; gap: 70px; }
+  .factors { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
+  .factor { background: var(--bone); border-radius: 28px; padding: 30px 32px; }
+  .factor .k { font-size: 18px; color: var(--gold-ink); }
+  .factor .v { font-family: "Instrument Serif", Georgia, serif; font-size: 70px; line-height: 1; margin-top: 10px; color: var(--ink); }
+  .factor .d { font-size: 24px; color: var(--slate); margin-top: 10px; line-height: 1.35; }
+  .calib { display: flex; flex-direction: column; gap: 24px; }
+  .calib-row .top { display: flex; justify-content: space-between; font-size: 30px; color: var(--ink); }
+  .calib-row .top b { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .bar { position: relative; height: 26px; border-radius: 13px; background: var(--cloud); margin-top: 12px; }
+  .bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 13px; background: var(--slate); display: block; }
+  .bar i.hot { background: var(--gold); }
+  .bar .th { position: absolute; top: -10px; bottom: -10px; width: 4px; background: var(--urgent); }
+  .calib-row .res { font-size: 22px; color: var(--slate); margin-top: 8px; }
+  .calib-row .res.hot { color: var(--concern); font-weight: 700; }
+  .note-th { font-size: 22px; color: var(--urgent); }
+
+  /* ---------- 7 visible reasoning */
+  .esc { position: relative; margin-top: 44px; display: grid; grid-template-columns: 1.25fr 1fr; gap: 60px; }
+  .esc-card { background: var(--cream); color: var(--ink); border-radius: 40px; padding: 50px 56px; }
+  .esc-card .k { font-size: 20px; color: var(--concern); font-weight: 700; }
+  .esc-card .h { font-family: "Instrument Serif", Georgia, serif; font-size: 64px; line-height: 1.05; margin-top: 12px; }
+  .reason { display: grid; grid-template-columns: 50px 1fr; gap: 18px; margin-top: 24px; font-size: 28px; line-height: 1.35; }
+  .reason i { width: 44px; height: 44px; border-radius: 50%; background: var(--gold); display: block; margin-top: 2px; }
+  .reason small { display: block; font-size: 20px; color: var(--slate); margin-top: 4px; }
+  .esc-meta { margin-top: 30px; padding-top: 24px; border-top: 3px solid var(--cloud); display: flex; gap: 40px; font-size: 24px; color: var(--slate); }
+  .esc-meta b { color: var(--ink); }
+  .principles { display: flex; flex-direction: column; gap: 34px; }
+  .principle .t { font-family: "Instrument Serif", Georgia, serif; font-size: 50px; line-height: 1.05; }
+  .principle .d { font-size: 27px; color: var(--mist); margin-top: 8px; line-height: 1.45; }
+
+  /* ---------- 8 restraint */
+  .ladder { position: relative; margin-top: 60px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; }
+  .rung { position: relative; padding: 0 30px 0 0; }
+  .rung .dot { width: 34px; height: 34px; border-radius: 50%; background: var(--gold); position: relative; z-index: 2; }
+  .rung .line { position: absolute; left: 17px; right: 0; top: 15px; height: 4px; background: rgba(238,194,90,0.4); }
+  .rung:last-child .line { display: none; }
+  .rung .t { font-family: "Instrument Serif", Georgia, serif; font-size: 50px; margin-top: 30px; line-height: 1.05; }
+  .rung .d { font-size: 26px; color: var(--mist); margin-top: 12px; line-height: 1.45; }
+  .retry { position: relative; margin-top: 70px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 34px; }
+  .retry > div { border-radius: 30px; padding: 34px 38px; background: var(--navy); }
+  .retry .v { font-family: "Instrument Serif", Georgia, serif; font-size: 96px; line-height: 1; color: var(--yellow); }
+  .retry .v small { font-size: 40px; color: var(--cream); }
+  .retry .d { font-size: 26px; color: var(--mist); margin-top: 10px; line-height: 1.4; }
+
+  /* ---------- 9 dignity */
+  .dig { position: relative; margin-top: 50px; display: grid; grid-template-columns: 1fr 1fr; gap: 50px; }
+  .screen-card { border-radius: 36px; padding: 40px 46px; }
+  .screen-card.fam { background: var(--navy); color: var(--cream); }
+  .screen-card.her { background: var(--cream); color: var(--ink); border: 4px solid var(--gold); }
+  .screen-card .who { font-size: 20px; }
+  .screen-card.fam .who { color: var(--yellow); }
+  .screen-card.her .who { color: var(--gold-ink); }
+  .screen-card .msg { font-family: "Instrument Serif", Georgia, serif; font-size: 52px; line-height: 1.1; margin-top: 14px; }
+  .screen-card .acts { display: flex; gap: 16px; margin-top: 28px; }
+  .screen-card .acts span { padding: 14px 26px; border-radius: 999px; font-size: 24px; font-weight: 700; }
+  .acts .yes { background: var(--good); color: #fff; }
+  .acts .add { border: 3px solid var(--ink); }
+  .rights { position: relative; margin-top: 46px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 30px; }
+  .rights > div { font-size: 26px; line-height: 1.4; color: var(--slate); }
+  .rights b { display: block; font-size: 30px; color: var(--ink); margin-bottom: 6px; }
+
+  /* ---------- 10 memory */
+  .mem { position: relative; margin-top: 56px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 36px; }
+  .mem-col { background: var(--navy); border-radius: 34px; padding: 40px 42px; }
+  .mem-col .k { font-size: 18px; color: var(--yellow); }
+  .mem-col .t { font-family: "Instrument Serif", Georgia, serif; font-size: 56px; margin-top: 12px; line-height: 1.05; }
+  .mem-col .d { font-size: 26px; color: var(--mist); margin-top: 14px; line-height: 1.45; }
+  .mem-col .ex { margin-top: 22px; padding: 20px 24px; border-radius: 20px; background: var(--navy-deep); font-size: 24px; line-height: 1.4; color: var(--cream); }
+
+  /* ---------- 11 architecture */
+  .arch { position: relative; margin-top: 60px; height: 610px; }
+  .box { position: absolute; border-radius: 30px; padding: 30px 34px; background: var(--navy); border: 3px solid rgba(238,194,90,0.3); }
+  .box .k { font-size: 18px; color: var(--yellow); }
+  .box .t { font-family: "Instrument Serif", Georgia, serif; font-size: 46px; margin-top: 8px; line-height: 1.05; }
+  .box .d { font-size: 23px; color: var(--mist); margin-top: 10px; line-height: 1.4; }
+  .box.hub { background: var(--gold); color: var(--navy-deep); border: none; }
+  .box.hub .k { color: var(--navy); }
+  .box.hub .d { color: var(--navy); }
+  .wire { position: absolute; height: 4px; background: rgba(238,194,90,0.55); transform-origin: 0 50%; }
+  .wire-label { position: absolute; font-size: 18px; color: var(--gold-glow); background: var(--navy-deep); padding: 2px 10px; }
+
+  /* ---------- 12 proof */
+  .proof { position: relative; margin-top: 40px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+  .p { background: var(--bone); border-radius: 30px; padding: 28px 34px; }
+  .p .v { font-family: "Instrument Serif", Georgia, serif; font-size: 70px; line-height: 1; color: var(--ink); }
+  .p .t { font-size: 28px; font-weight: 700; color: var(--ink); margin-top: 12px; }
+  .p .d { font-size: 23px; color: var(--slate); margin-top: 8px; line-height: 1.4; }
+  .p code { font-family: "JetBrains Mono", Consolas, monospace; font-size: 20px; background: var(--cloud); padding: 2px 8px; border-radius: 6px; color: var(--brown); }
+
+  /* ---------- 13 safety */
+  .safe { position: relative; margin-top: 56px; display: grid; grid-template-columns: 1fr 1fr; gap: 30px 60px; }
+  .safe > div { display: grid; grid-template-columns: 60px 1fr; gap: 22px; }
+  .safe i { width: 52px; height: 52px; border-radius: 16px; border: 4px solid var(--gold); display: block; position: relative; }
+  .safe i::after { content: ""; position: absolute; left: 13px; top: 6px; width: 14px; height: 24px; border-right: 5px solid var(--yellow); border-bottom: 5px solid var(--yellow); transform: rotate(45deg); }
+  .safe .t { font-size: 34px; line-height: 1.2; }
+  .safe .d { font-size: 25px; color: var(--mist); margin-top: 6px; line-height: 1.45; }
+
+  /* ---------- 14 roadmap */
+  .road { position: relative; margin-top: 70px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 30px; }
+  .road > div { border-radius: 30px; padding: 36px 36px 40px; background: var(--navy); }
+  .road .when { font-size: 18px; color: var(--yellow); }
+  .road .t { font-family: "Instrument Serif", Georgia, serif; font-size: 48px; margin-top: 12px; line-height: 1.05; }
+  .road .d { font-size: 25px; color: var(--mist); margin-top: 14px; line-height: 1.45; }
+  .road > div.now { background: var(--gold); color: var(--navy-deep); }
+  .road > div.now .when, .road > div.now .d { color: var(--navy); }
+
+  /* ---------- 15 close */
+  .close { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .close .row { position: relative; display: flex; align-items: center; gap: 50px; }
+  .close .mk { width: 220px; height: 220px; border-width: 30px; box-shadow: 0 0 120px rgba(238,194,90,0.35); }
+  .close h1 { font-size: 230px; line-height: 1; }
+  .close .tag { position: relative; font-size: 66px; margin-top: 26px; }
+  .close .url { position: relative; margin-top: 50px; font-size: 30px; color: var(--gold-glow); text-transform: none; letter-spacing: 0.02em; }
+  .close .by { position: relative; margin-top: 18px; font-size: 22px; color: var(--mist); }
+</style>
+</head>
+<body>
+
+<!-- 1 COVER -->
+<section class="slide cover">
+  <div class="grid-bg"></div>
+  <div class="glow gold" style="width:1500px;height:1500px;right:-500px;top:-500px;"></div>
+  <div class="glow blue" style="width:1500px;height:1500px;left:-600px;bottom:-800px;"></div>
+  <div class="loop cover-mark"></div>
+  <div class="loop cover-mark-inner"></div>
+  <div class="eyebrow mono">DDS Agentic AI Challenge · Pitch</div>
+  <h1 class="serif">CareLoop</h1>
+  <div class="tag serif">The companion that <span style="color:var(--yellow)">actually checks in.</span></div>
+  <div class="sub">An agentic AI that phones older people about their medications, listens to how they answer, and decides on its own when their family needs to know.</div>
+  <div class="foot mono"><span>Built by Adam Ahmed</span><span>careloop--careloop-adam.europe-west4.hosted.app</span></div>
+</section>
+
+<!-- 2 PROBLEM -->
+<section class="slide light">
+  <div class="grid-bg"></div>
+  <div class="eyebrow mono">01 · The problem</div>
+  <h2 class="serif">Reminders can't hear <span class="gold">the one word</span> that matters.</h2>
+  <div class="quote-pair">
+    <div class="qcard a">
+      <div class="who mono">What a reminder app records</div>
+      <div class="say serif">“Yes, taken.”</div>
+      <div class="hear">A tap on a notification. No way to tell a confident yes from a guess, or a pill taken from a pill remembered.</div>
+    </div>
+    <div class="qcard b">
+      <div class="who mono">What she actually said</div>
+      <div class="say serif">“I <span style="color:var(--yellow)">think</span> I took it.”</div>
+      <div class="hear">On a blood thinner, that uncertainty is the signal. Twice in a week, it's a pattern someone should know about.</div>
+    </div>
+  </div>
+  <div class="three">
+    <div><b>Reminders only ping</b>They tell someone to do a thing. They never find out whether it happened.</div>
+    <div><b>Families find out late</b>A missed pattern usually surfaces at the pharmacy, or the hospital.</div>
+    <div><b>Monitoring feels like surveillance</b>Nearly half of older adults are uncomfortable being monitored, even when the safety benefit is clear.</div>
+  </div>
+  <div class="foot mono"><span class="brand"><i></i>CareLoop</span><span>02</span></div>
+</section>
+
+<!-- 3 THE LOOP -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="glow gold" style="width:1300px;height:1300px;right:-300px;top:-200px;"></div>
+  <div class="loop-left">
+    <div class="eyebrow mono">02 · The idea</div>
+    <h2 class="serif">Not a reminder. <span class="gold">A phone call</span> that thinks.</h2>
+    <p class="lede">Once a day, at a time she chose, her phone rings. Cara, the agent, runs a full loop on every call, and the loop is the product.</p>
+  </div>
+  <div class="loop-diagram">
+    <div class="loop ring"></div>
+    <div class="loop-center"><div class="serif" style="color:var(--yellow)">Cara</div><div class="mono" style="font-size:18px;color:var(--mist);margin-top:6px;">Agent loop</div></div>
+    <div class="node" style="left:380px;top:95px;"><b>Calls</b><span>at her chosen time</span></div>
+    <div class="node" style="left:670px;top:265px;"><b>Listens</b><span>to how she answers</span></div>
+    <div class="node" style="left:670px;top:505px;"><b>Checks</b><span>interactions, live</span></div>
+    <div class="node" style="left:380px;top:672px;"><b>Reasons</b><span>across days</span></div>
+    <div class="node" style="left:90px;top:505px;"><b>Decides</b><span>who needs to know</span></div>
+    <div class="node" style="left:90px;top:265px;"><b>Tells</b><span>family, and her</span></div>
+  </div>
+  <div class="foot mono"><span class="brand"><i></i>CareLoop</span><span>03</span></div>
+</section>
+
+<!-- 4 A CALL -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="glow blue" style="width:1400px;height:1400px;right:-500px;top:-300px;"></div>
+  <div class="eyebrow mono">03 · How a call works</div>
+  <h2 class="serif" style="max-width:1100px;">It rings like <span class="gold">a real call.</span></h2>
+  <div class="steps">
+    <div class="step"><div class="n">1</div><div><div class="t">The server rings the phone</div><div class="d">A scheduler sends a high-priority push. Android shows a full-screen incoming call, on the lock screen.</div></div></div>
+    <div class="step"><div class="n">2</div><div><div class="t">A live voice conversation</div><div class="d">Gemini Live, streamed directly from the phone with a single-use token that expires in 15 minutes. The API key never ships in the app.</div></div></div>
+    <div class="step"><div class="n">3</div><div><div class="t">Cara acts through tools, mid-sentence</div><div class="d">Check an interaction, record a dose, log a reading, note something for next time, report an emergency.</div></div></div>
+    <div class="step"><div class="n">4</div><div><div class="t">The call is written, then reasoned about</div><div class="d">The check-in is saved and the reasoning engine decides what happens next.</div></div></div>
+  </div>
+  <div class="phone">
+    <div class="lab mono">Incoming call</div>
+    <div class="loop pl"></div>
+    <div class="nm serif">Cara</div>
+    <div class="st">Your daily check-in</div>
+    <div class="btns"><div style="background:#8f1911;color:#fff">Decline</div><div style="background:#1f7a4a;color:#fff">Answer</div></div>
+  </div>
+  <div class="foot mono"><span class="brand"><i></i>CareLoop</span><span>04</span></div>
+</section>
+
+<!-- 5 INTERACTIONS -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="glow gold" style="width:1200px;height:1200px;right:-300px;bottom:-500px;"></div>
+  <div class="eyebrow mono">04 · Live interaction checking</div>
+  <h2 class="serif">It checks <span class="gold">while she's still talking.</span></h2>
+  <div class="ix">
+    <div>
+      <div class="layers">
+        <div class="layer-row"><div class="k mono">Layer 1</div><div><div class="t">Curated rules</div><div class="d">Deterministic and offline. Never missed on a timeout.</div></div></div>
+        <div class="layer-row"><div class="k mono">Layer 2</div><div><div class="t">openFDA label text</div><div class="d">Searched against her real medication list.</div></div></div>
+        <div class="layer-row"><div class="k mono">Layer 3</div><div><div class="t">RxNorm matching</div><div class="d">For drug names said imprecisely out loud.</div></div></div>
+      </div>
+      <p class="lede" style="font-size:28px;margin-top:30px;">Declared non-blocking, so Cara never goes silent while a lookup runs. A silent gap on a phone call sounds like the line dropped.</p>
+    </div>
+    <div>
+      <div class="flag">
+        <div class="k mono">Interaction found</div>
+        <div class="t serif">Warfarin + ibuprofen</div>
+        <div class="d">Together they raise the risk of bleeding. Cara explains why, and suggests asking her pharmacist. She never changes a dose.</div>
+        <div class="tag mono">Checked mid-sentence</div>
+      </div>
+      <div class="chat">
+        <div class="bub h">My knee's been bad, so I've taken ibuprofen.</div>
+        <div class="bub c">Thank you for telling me. Let me look at that alongside your other tablets while we talk.</div>
+      </div>
+    </div>
+  </div>
+  <div class="foot mono"><span class="brand"><i></i>CareLoop</span><span>05</span></div>
+</section>
+
+<!-- 6 ENGINE -->
+<section class="slide light">
+  <div class="grid-bg"></div>
+  <div class="eyebrow mono">05 · The reasoning engine</div>
+  <h2 class="serif">A concern score, <span class="gold">not a counter.</span></h2>
+  <div class="engine">
+    <div class="factors">
+      <div class="factor"><div class="k mono">Criticality</div><div class="v">1.0 → 0.15</div><div class="d">A missed blood thinner weighs almost seven times a routine tablet.</div></div>
+      <div class="factor"><div class="k mono">Repetition</div><div class="v">n<sup style="font-size:40px">1.35</sup></div><div class="d">Two misses is not twice one. It's where "forgot" stops being the best explanation.</div></div>
+      <div class="factor"><div class="k mono">Uncertainty</div><div class="v">+0.7</div><div class="d">"I think I took it" scores higher than a clean miss.</div></div>
+      <div class="factor"><div class="k mono">Recency</div><div class="v">7 days</div><div class="d">Evidence fades by whole days, so a bad week last month stops alerting.</div></div>
+    </div>
+    <div>
+      <div class="note-th mono" style="margin-bottom:22px;">Red line · tell the family at 1.00</div>
+      <div class="calib">
+        <div class="calib-row"><div class="top"><span>1 missed statin</span><b>0.15</b></div><div class="bar"><i style="width:12.5%"></i><span class="th" style="left:83.3%"></span></div><div class="res">Stays quiet</div></div>
+        <div class="calib-row"><div class="top"><span>3 missed statins in a row</span><b>0.55</b></div><div class="bar"><i style="width:45.8%"></i><span class="th" style="left:83.3%"></span></div><div class="res">Stays quiet, asks next call</div></div>
+        <div class="calib-row"><div class="top"><span>5 missed statins in a row</span><b>0.87</b></div><div class="bar"><i style="width:72.5%"></i><span class="th" style="left:83.3%"></span></div><div class="res">Still below the line</div></div>
+        <div class="calib-row"><div class="top"><span>1 missed blood thinner</span><b>1.00</b></div><div class="bar"><i class="hot" style="width:83.3%"></i><span class="th" style="left:83.3%"></span></div><div class="res hot">Tells the family</div></div>
+      </div>
+      <p style="font-size:22px;color:var(--slate);margin-top:22px;">Real outputs of the engine, from its own evaluation harness.</p>
+    </div>
+  </div>
+  <div class="foot mono"><span class="brand"><i></i>CareLoop</span><span>06</span></div>
+</section>
+
+<!-- 7 VISIBLE REASONING -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="glow gold" style="width:1300px;height:1300px;left:-400px;top:-400px;"></div>
+  <div class="eyebrow mono">06 · Visible reasoning</div>
+  <h2 class="serif">Every decision shows <span class="gold">its working.</span></h2>
+  <div class="esc">
+    <div class="esc-card">
+      <div class="k mono">Cara got in touch · Needs attention</div>
+      <div class="h">Margaret has missed her warfarin twice this week.</div>
+      <div class="reason"><i></i><div>Warfarin missed Tuesday and Thursday<small>Cites both check-ins</small></div></div>
+      <div class="reason"><i></i><div>Unsure both times, not a clean miss<small>Her words: "I'm not sure if I took it or not"</small></div></div>
+      <div class="reason"><i></i><div>A blood thinner, where waiting carries real risk<small>Criticality: critical</small></div></div>
+      <div class="esc-meta"><span>Confidence <b>quite sure</b></span><span>Considered <b>waiting one more day</b></span></div>
+    </div>
+    <div class="principles">
+      <div class="principle"><div class="t">At most three reasons</div><div class="d">Each tied to a specific check-in you can open. A trace you can't click through to the evidence is not a trace.</div></div>
+      <div class="principle"><div class="t">Confidence in words</div><div class="d">Never a percentage. And the alternatives it weighed are shown too.</div></div>
+      <div class="principle"><div class="t">Templated, not generated</div><div class="d">The explanation states exactly what the engine weighed. A fluent paraphrase that misstates the reasoning is the failure this product exists to avoid.</div></div>
+      <div class="principle"><div class="t">Restraint is recorded too</div><div class="d">Deciding not to tell anyone is written down, with the score and why.</div></div>
+    </div>
+  </div>
+  <div class="foot mono"><span class="brand"><i></i>CareLoop</span><span>07</span></div>
+</section>
+
+<!-- 8 AUTONOMY WITH RESTRAINT -->
+<section class="slide brown">
+  <div class="grid-bg"></div>
+  <div class="eyebrow mono">07 · Autonomy with restraint</div>
+  <h2 class="serif">It knows when to chase, <span class="gold">and when to stop.</span></h2>
+  <div class="ladder">
+    <div class="rung"><div class="line"></div><div class="dot"></div><div class="t">No answer</div><div class="d">Phones get left in kitchens. Weak evidence on its own.</div></div>
+    <div class="rung"><div class="line"></div><div class="dot"></div><div class="t">It retries</div><div class="d">Sooner when what she might have missed matters more.</div></div>
+    <div class="rung"><div class="line"></div><div class="dot"></div><div class="t">It follows up</div><div class="d">Missed an important medication today? Cara books her own call back.</div></div>
+    <div class="rung"><div class="line"></div><div class="dot"></div><div class="t">It hands over</div><div class="d">After four calls in a day, more calls are harassment. A person takes it from there.</div></div>
+  </div>
+  <div class="retry">
+    <div><div class="v">10 <small>min</small></div><div class="d">Retry after a missed call, when a critical medication is at stake</div></div>
+    <div><div class="v">30 <small>min</small></div><div class="d">Retry for an important medication</div></div>
+    <div><div class="v">90 <small>min</small></div><div class="d">Retry for everything else. A missed routine tablet never triggers a callback.</div></div>
+  </div>
+  <div class="foot mono"><span class="brand"><i></i>CareLoop</span><span>08</span></div>
+</section>
+
+<!-- 9 DIGNITY -->
+<section class="slide light">
+  <div class="grid-bg"></div>
+  <div class="eyebrow mono">08 · Dignity by design</div>
+  <h2 class="serif">Never <span class="gold">behind her back.</span></h2>
+  <div class="dig">
+    <div class="screen-card fam">
+      <div class="who mono">Sarah's dashboard</div>
+      <div class="msg">Margaret has missed her warfarin twice this week.</div>
+      <div style="font-size:24px;color:var(--mist);margin-top:24px;">She confirmed this in her own app.</div>
+    </div>
+    <div class="screen-card her">
+      <div class="who mono">Margaret's phone, same moment</div>
+      <div class="msg">I told Sarah you'd missed your warfarin on Tuesday and Thursday.</div>
+      <div class="acts"><span class="yes">That's right</span><span class="add">I'd add something</span></div>
+    </div>
+  </div>
+  <div class="rights">
+    <div><b>Same words, same moment</b>The family's alert and her copy are one database write. One cannot exist without the other.</div>
+    <div><b>Her side of the story</b>She can agree, or add her account, and it appears beside Cara's.</div>
+    <div><b>Her choice what's shared</b>Mute routine categories. A genuine emergency always reaches family, and she knows that.</div>
+    <div><b>Access she can take back</b>She removes anyone, any time, and sees what Cara remembers about her.</div>
+  </div>
+  <div class="foot mono"><span class="brand"><i></i>CareLoop</span><span>09</span></div>
+</section>
+
+<!-- 10 MEMORY -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="glow blue" style="width:1400px;height:1400px;left:-500px;bottom:-700px;"></div>
+  <div class="eyebrow mono">09 · Memory</div>
+  <h2 class="serif">It remembers her, <span class="gold">not just her pill box.</span></h2>
+  <div class="mem">
+    <div class="mem-col"><div class="k mono">Her own threads</div><div class="t">What Cara said she'd come back to</div><div class="d">Cara opens and closes her own follow-ups, and chooses when to raise each one again.</div><div class="ex">Knee pain after starting ibuprofen · follow up in 2 days</div></div>
+    <div class="mem-col"><div class="k mono">Conversation memory</div><div class="t">What the call was actually about</div><div class="d">Each call is summarised into what she talked about, written so she'd be comfortable reading it.</div><div class="ex">Sleeping badly this week. Daughter visiting on Sunday.</div></div>
+    <div class="mem-col"><div class="k mono">Getting to know her</div><div class="t">Conditions, learned by asking</div><div class="d">She's asked once, gently, what she keeps an eye on, then Cara asks the right things: blood pressure, sugar, breathing.</div><div class="ex">"Last time you said your knee was playing up. How is it today?"</div></div>
+  </div>
+  <div class="foot mono"><span class="brand"><i></i>CareLoop</span><span>10</span></div>
+</section>
+
+<!-- 11 ARCHITECTURE -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="eyebrow mono">10 · Architecture</div>
+  <h2 class="serif" style="font-size:92px;">Built for a <span class="gold">real call</span>, not a demo.</h2>
+  <div class="arch">
+    <div class="box" style="left:0;top:40px;width:470px;"><div class="k mono">Elder's phone</div><div class="t">Android app</div><div class="d">Kotlin + Jetpack Compose. Native full-screen call UI. Large type, tap-only.</div></div>
+    <div class="box" style="left:0;top:340px;width:470px;"><div class="k mono">Voice</div><div class="t">Gemini Live</div><div class="d">Direct audio stream from the phone, with a jitter buffer and echo cancellation.</div></div>
+    <div class="box hub" style="left:640px;top:170px;width:360px;"><div class="k mono">Backend</div><div class="t">17 Cloud Functions</div><div class="d">Calls, tokens, check-ins, the reasoning engine, schedulers, linking.</div></div>
+    <div class="box" style="left:1170px;top:40px;width:470px;"><div class="k mono">Data</div><div class="t">Firestore</div><div class="d">Two-sided security rules: she owns her record, family reads only what she links.</div></div>
+    <div class="box" style="left:1170px;top:340px;width:470px;"><div class="k mono">Family</div><div class="t">Web dashboard</div><div class="d">Next.js, live listeners, visible reasoning, notifications.</div></div>
+    <div class="wire" style="left:470px;top:150px;width:170px;"></div>
+    <div class="wire" style="left:470px;top:450px;width:170px;"></div>
+    <div class="wire" style="left:1000px;top:150px;width:170px;"></div>
+    <div class="wire" style="left:1000px;top:450px;width:170px;"></div>
+    <div class="wire-label mono" style="left:486px;top:108px;">push call</div>
+    <div class="wire-label mono" style="left:486px;top:470px;">15-min token</div>
+    <div class="wire-label mono" style="left:1010px;top:108px;">rules</div>
+    <div class="wire-label mono" style="left:1010px;top:470px;">live</div>
+  </div>
+  <div class="foot mono"><span class="brand"><i></i>CareLoop</span><span>11</span></div>
+</section>
+
+<!-- 12 PROOF -->
+<section class="slide light">
+  <div class="grid-bg"></div>
+  <div class="eyebrow mono">11 · Proven, not claimed</div>
+  <h2 class="serif">Verified <span class="gold">on real accounts,</span> against the live backend.</h2>
+  <div class="proof">
+    <div class="p"><div class="v">1.3s</div><div class="t">Scheduler to ringing phone</div><div class="d">The daily scheduler fired and the phone rang 1.3 seconds later.</div></div>
+    <div class="p"><div class="v">1.7 → 3.94</div><div class="t">Autonomous escalation</div><div class="d">One missed blood thinner escalated on its own. A second escalated harder, to urgent.</div></div>
+    <div class="p"><div class="v">4 steps</div><div class="t">The call loop closes</div><div class="d"><code>deliver</code> → <code>token</code> → <code>check-in</code> → <code>outcome</code>, every call.</div></div>
+    <div class="p"><div class="v">31</div><div class="t">Security-rules tests</div><div class="d">Run on CI against the Firestore emulator, including the exact query the dashboard runs.</div></div>
+    <div class="p"><div class="v">19</div><div class="t">Reasoning invariants</div><div class="d">Never escalates on a routine miss, always cites evidence, same evidence gives the same decision.</div></div>
+    <div class="p"><div class="v">Real phone</div><div class="t">She heard him</div><div class="d">A live call on a physical handset: speech understood, missed dose recorded, memory thread opened by the agent.</div></div>
+  </div>
+  <div class="foot mono"><span class="brand"><i></i>CareLoop</span><span>12</span></div>
+</section>
+
+<!-- 13 SAFETY -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="glow gold" style="width:1200px;height:1200px;right:-400px;top:-300px;"></div>
+  <div class="eyebrow mono">12 · Safety and honesty</div>
+  <h2 class="serif">Hard lines <span class="gold">it never crosses.</span></h2>
+  <div class="safe">
+    <div><i></i><div><div class="t">Never diagnoses, never changes a dose</div><div class="d">It surfaces known interactions and routes to a pharmacist or GP.</div></div></div>
+    <div><i></i><div><div class="t">Emergencies stop the check-in</div><div class="d">Chest pain or a fall: tell her to call emergency services, and alert family at once.</div></div></div>
+    <div><i></i><div><div class="t">Never invents what it doesn't know</div><div class="d">With no medications on record, it asks what she takes instead of guessing.</div></div></div>
+    <div><i></i><div><div class="t">Honest about being an AI</div><div class="d">If asked, Cara says so plainly. Warm, never "sweetie".</div></div></div>
+    <div><i></i><div><div class="t">Private by construction</div><div class="d">No names, medications or transcripts ever reach the logs. The API key never leaves the server.</div></div></div>
+    <div><i></i><div><div class="t">Example data is always labelled</div><div class="d">A health record that could be fake must say so. Real data is the default.</div></div></div>
+  </div>
+  <div class="foot mono"><span class="brand"><i></i>CareLoop</span><span>13</span></div>
+</section>
+
+<!-- 14 ROADMAP -->
+<section class="slide">
+  <div class="grid-bg"></div>
+  <div class="glow blue" style="width:1400px;height:1400px;right:-400px;bottom:-700px;"></div>
+  <div class="eyebrow mono">13 · What's next</div>
+  <h2 class="serif">From working prototype <span class="gold">to real families.</span></h2>
+  <div class="road">
+    <div class="now"><div class="when mono">Today</div><div class="t">Live and working</div><div class="d">Android app, live calls, reasoning, escalation and the family dashboard, all deployed.</div></div>
+    <div><div class="when mono">Next</div><div class="t">Alerts anywhere</div><div class="d">Push notifications that reach family with the browser closed.</div></div>
+    <div><div class="when mono">Then</div><div class="t">A pilot</div><div class="d">A small group of families, measuring whether patterns are caught earlier.</div></div>
+    <div><div class="when mono">Later</div><div class="t">Care teams</div><div class="d">A shareable summary for pharmacists and GPs, with her consent.</div></div>
+  </div>
+  <div class="foot mono"><span class="brand"><i></i>CareLoop</span><span>14</span></div>
+</section>
+
+<!-- 15 CLOSE -->
+<section class="slide close">
+  <div class="grid-bg"></div>
+  <div class="glow gold" style="width:1400px;height:1400px;left:260px;top:-160px;"></div>
+  <div class="row"><div class="loop mk"></div><h1 class="serif">CareLoop</h1></div>
+  <div class="tag serif">Someone checks on your mother <span style="color:var(--yellow)">every morning.</span></div>
+  <div class="url mono">careloop--careloop-adam.europe-west4.hosted.app</div>
+  <div class="by mono">Built by Adam Ahmed · DDS Agentic AI Challenge</div>
+</section>
+
+</body>
+</html>
