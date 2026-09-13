@@ -34,6 +34,7 @@ import com.careloop.app.ui.components.*
 import com.careloop.app.ui.theme.CareColors
 import com.careloop.app.ui.theme.CareDimens
 import com.careloop.app.ui.theme.CareLoopTheme
+import com.google.firebase.functions.FirebaseFunctionsException
 import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
 
@@ -292,9 +293,7 @@ fun HomeScreen(
                         scope.launch {
                             val result = AppContainer.repository.requestManualCheckIn()
                             requesting = false
-                            requestError = result.exceptionOrNull()?.let {
-                                "Cara could not be reached just now. Please try again."
-                            }
+                            requestError = result.exceptionOrNull()?.let(::callFailureMessage)
                         }
                     },
                 )
@@ -322,6 +321,32 @@ private fun greeting(): String {
         else -> "Good evening"
     }
 }
+
+
+/**
+ * Turns a failed call request into something true.
+ *
+ * Every failure used to read "Cara could not be reached just now", which is a
+ * statement about the network. The most common failure here is not a network
+ * one: it is the server's own rate limit, six manual calls an hour, and it
+ * means the opposite of unreachable. Telling someone the service is down when
+ * it is in fact working and deliberately holding them off is the same class of
+ * lie as a screen that looks right while nothing happened behind it.
+ *
+ * The codes are FirebaseFunctionsException's, so they say what the server
+ * decided rather than what the client guessed.
+ */
+private fun callFailureMessage(error: Throwable): String =
+    when ((error as? FirebaseFunctionsException)?.code) {
+        FirebaseFunctionsException.Code.RESOURCE_EXHAUSTED ->
+            "That's several calls in a short time. Cara will wait a little before ringing again."
+        FirebaseFunctionsException.Code.UNAUTHENTICATED ->
+            "You are signed out. Open Settings to sign back in."
+        FirebaseFunctionsException.Code.FAILED_PRECONDITION ->
+            "Cara needs notification permission before she can ring. Settings has the switch."
+        else ->
+            "Cara could not be reached just now. Please try again."
+    }
 
 @Preview(showBackground = true, widthDp = 400, heightDp = 900)
 @Composable
