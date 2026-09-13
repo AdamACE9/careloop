@@ -255,7 +255,7 @@ Persona rules, each traced to a stated rationale in the prompt itself:
 | `record_vital` | blocking | Records a reading (blood sugar, blood pressure, heart rate, weight), carrying the unit (`mmol_l`/`mg_dl`) for blood sugar so it is never guessed or rounded. |
 | `record_health_condition` | blocking | Records a long-term condition, only ever from something the person said themselves - never inferred from a medication. |
 | `report_urgent_concern` | blocking, immediate | For chest pain, breathing difficulty, a fall, sudden weakness or confusion. Bypasses the scored reasoning engine entirely: writes an escalation and the elder's shared-item copy in the same batch, unscored, because the model has already been told to say "call emergency services" out loud before calling this. |
-| `remember_for_next_time` | blocking | Opens an agent thread: a topic, why it matters, and a follow-up interval Cara herself chooses (clamped 1–30 days). |
+| `remember_for_next_time` | blocking | Opens an agent thread: a topic, why it matters, and a follow-up interval Cara herself chooses (clamped 1 to 30 days). |
 | `close_open_thread` | blocking | Closes a thread by matching its topic text (not an opaque id, which the model cannot reliably echo back correctly mid-call) and records what happened. |
 
 Voice: `Aoede`, a warm, mid-range voice chosen because age-related hearing loss
@@ -425,7 +425,7 @@ Three distinct layers of memory, deliberately kept separate:
 
 - **Agent threads** (`agentThreads`) - Cara's own record of something she decided,
   on her own initiative during a call, to come back to later: a topic, why it
-  matters, and a follow-up interval she chooses herself (clamped 1–30 days).
+  matters, and a follow-up interval she chooses herself (clamped 1 to 30 days).
   Explicitly not a free-form memory blob: a thread must name one thing and say why
   it matters, kept legible to both the elder and family. Cheaply deduplicated
   (case-insensitive topic match against open threads) because the model cannot be
