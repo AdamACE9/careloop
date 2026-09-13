@@ -1,0 +1,5 @@
+renders/
+snapshots/
+snapshots-v2/
+.hyperframes/
+*.hf-transaction-*

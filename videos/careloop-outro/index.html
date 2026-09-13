@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>CareLoop outro</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      /* The brand display face, taken from the website's own build. */
+      @font-face { font-family: "Instrument Serif"; font-style: normal; font-weight: 400; src: url("assets/fonts/instrument-serif-latin.woff2") format("woff2"); }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #0f1a38; }
+      body { font-family: "Inter", sans-serif; color: #fffbf3; }
+      :root { --gold: #c9a227; --gold-glow: #eec25a; --yellow: #ffd166; --cream: #fffbf3; --mist: #b9c3dc; --navy: #16264d; }
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #0f1a38; }
+      .serif { font-family: "Instrument Serif", Georgia, serif; font-weight: 400; }
+      .mono { font-family: "JetBrains Mono", monospace; }
+      .layer { position: absolute; inset: 0; }
+
+      #glow-a, #glow-b { position: absolute; border-radius: 50%; will-change: transform; }
+      #glow-a { width: 1500px; height: 1500px; right: -420px; top: -560px; background: radial-gradient(circle, rgba(201,162,39,0.22) 0%, rgba(201,162,39,0) 62%); }
+      #glow-b { width: 1500px; height: 1500px; left: -600px; bottom: -760px; background: radial-gradient(circle, rgba(53,73,125,0.55) 0%, rgba(53,73,125,0) 60%); }
+      #grid { position: absolute; inset: -60px;
+        background-image: linear-gradient(rgba(185,195,220,0.07) 2px, transparent 2px), linear-gradient(90deg, rgba(185,195,220,0.07) 2px, transparent 2px);
+        background-size: 120px 120px; }
+
+      /* Beats */
+      #beats { position: absolute; left: 150px; top: 200px; width: 1100px; display: flex; flex-direction: column; gap: 10px; }
+      .beat { font-size: 124px; line-height: 1.14; letter-spacing: -0.02em; opacity: 0; will-change: transform; display: block; }
+      .beat .gold { color: var(--yellow); }
+      #beat-sub { margin-top: 26px; font-size: 44px; color: var(--mist); opacity: 0; will-change: transform; display: block; }
+
+      #big-loop { position: absolute; right: 190px; top: 250px; width: 580px; height: 580px; will-change: transform; }
+      #big-loop svg { width: 580px; height: 580px; display: block; }
+      #loop-track { fill: none; stroke: rgba(185,195,220,0.16); stroke-width: 44; }
+      #loop-fill { fill: none; stroke: var(--gold); stroke-width: 44; stroke-linecap: round; }
+      #loop-count { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 30px; letter-spacing: 0.2em; color: var(--mist); }
+
+      /* Lockup */
+      #lockup { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+      #lock-row { display: flex; align-items: center; gap: 44px; }
+      #lock-mark { width: 190px; height: 190px; display: block; will-change: transform; }
+      #lock-ring { fill: none; stroke: var(--gold); stroke-width: 26; stroke-linecap: round; }
+      #lock-word { font-size: 200px; letter-spacing: -0.02em; opacity: 0; will-change: transform; }
+      #lock-tag { margin-top: 20px; font-size: 56px; opacity: 0; will-change: transform; }
+      #lock-tag .gold { color: var(--yellow); }
+      #pills { margin-top: 48px; display: flex; gap: 22px; }
+      .pill { padding: 16px 30px; border-radius: 999px; border: 3px solid rgba(238,194,90,0.45); font-size: 30px; opacity: 0; will-change: transform; }
+      #url { margin-top: 36px; font-size: 30px; color: var(--gold-glow); letter-spacing: 0.02em; opacity: 0; }
+      #byline { position: absolute; left: 0; right: 0; bottom: 90px; text-align: center; font-size: 26px; letter-spacing: 0.22em; color: var(--mist); opacity: 0; }
+      #flash { position: absolute; left: 50%; top: 50%; width: 1000px; height: 1000px; margin: -500px 0 0 -500px; border-radius: 50%;
+        background: radial-gradient(circle, rgba(238,194,90,0.32) 0%, rgba(238,194,90,0) 60%); opacity: 0; will-change: transform; }
+      #fade { position: absolute; inset: 0; background: #0a1330; opacity: 0; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="15" data-width="1920" data-height="1080">
+      <div id="atmos" class="layer clip" data-start="0" data-duration="15" data-track-index="0">
+        <div id="grid"></div>
+        <div id="glow-a"></div>
+        <div id="glow-b"></div>
+      </div>
+
+      <section id="scene-beats" class="layer clip" data-start="0" data-duration="8.9" data-track-index="1">
+        <div id="beats">
+          <span class="beat serif" id="k1">It calls.</span>
+          <span class="beat serif" id="k2">It listens.</span>
+          <span class="beat serif" id="k3">It reasons <span class="gold">across days.</span></span>
+          <span class="beat serif" id="k4">It tells the family.</span>
+          <span id="beat-sub">Never behind her back.</span>
+        </div>
+        <div id="big-loop">
+          <svg viewBox="0 0 580 580">
+            <circle id="loop-track" cx="290" cy="290" r="240"></circle>
+            <circle id="loop-fill" cx="290" cy="290" r="240" style="transform-origin: 290px 290px; transform: rotate(-90deg);"></circle>
+          </svg>
+          <div id="loop-count" class="mono">THE LOOP</div>
+        </div>
+      </section>
+
+      <section id="scene-lock" class="layer clip" data-start="8.4" data-duration="6.6" data-track-index="2">
+        <div id="flash"></div>
+        <div id="lockup">
+          <div id="lock-row">
+            <svg id="lock-mark" viewBox="0 0 200 200"><circle id="lock-ring" cx="100" cy="100" r="80" style="transform-origin: 100px 100px; transform: rotate(-90deg);"></circle></svg>
+            <div id="lock-word" class="serif">CareLoop</div>
+          </div>
+          <div id="lock-tag" class="serif">Someone checks on your mother <span class="gold">every morning.</span></div>
+          <div id="pills">
+            <div class="pill" id="p1">Android app</div>
+            <div class="pill" id="p2">Family dashboard</div>
+            <div class="pill" id="p3">Live today</div>
+          </div>
+          <div id="url" class="mono">careloop--careloop-adam.europe-west4.hosted.app</div>
+        </div>
+        <div id="byline" class="mono">BUILT BY ADAM AHMED · DDS AGENTIC AI CHALLENGE</div>
+      </section>
+
+      <div id="fade-layer" class="layer clip" data-start="14.3" data-duration="0.7" data-track-index="8"><div id="fade"></div></div>
+
+      <audio id="sfx-in" src="assets/sfx/whoosh.mp3" data-start="0.15" data-duration="0.57" data-track-index="20" data-volume="0.6"></audio>
+      <audio id="sfx-k1" src="assets/sfx/pop.mp3" data-start="1.4" data-duration="0.7" data-track-index="21" data-volume="0.6"></audio>
+      <audio id="sfx-k2" src="assets/sfx/pop.mp3" data-start="2.9" data-duration="0.7" data-track-index="22" data-volume="0.6"></audio>
+      <audio id="sfx-k3" src="assets/sfx/pop.mp3" data-start="4.4" data-duration="0.7" data-track-index="23" data-volume="0.6"></audio>
+      <audio id="sfx-k4" src="assets/sfx/impact-bass-2.mp3" data-start="5.9" data-duration="2.5" data-track-index="24" data-volume="0.55"></audio>
+      <audio id="sfx-out" src="assets/sfx/whoosh-cinematic.mp3" data-start="8.2" data-duration="2.0" data-track-index="25" data-volume="0.45"></audio>
+      <audio id="sfx-lock" src="assets/sfx/impact-bass-1.mp3" data-start="9.1" data-duration="2.1" data-track-index="26" data-volume="0.6"></audio>
+      <audio id="sfx-chime" src="assets/sfx/chime.mp3" data-start="9.6" data-duration="2.5" data-track-index="27" data-volume="0.4"></audio>
+      <audio id="sfx-sparkle" src="assets/sfx/sparkle.mp3" data-start="10.6" data-duration="1.8" data-track-index="28" data-volume="0.3"></audio>
+
+      <!-- ============================================ music bed (original, synthesized) -->
+      <audio id="bgm" src="assets/music/bed.mp3" data-start="0" data-duration="15" data-track-index="19" data-volume="0.4"></audio>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      const q = (s) => document.querySelector(s);
+
+      tl.fromTo("#glow-a", { x: 0, y: 0, scale: 1 }, { x: -200, y: 140, scale: 1.15, duration: 15, ease: "sine.inOut" }, 0);
+      tl.fromTo("#glow-b", { x: 0, y: 0, scale: 1 }, { x: 240, y: -120, scale: 1.1, duration: 15, ease: "sine.inOut" }, 0);
+      tl.fromTo("#grid", { x: 0, y: 0 }, { x: -120, y: -40, duration: 15, ease: "none" }, 0);
+
+      // The Loop arrives, then fills a quarter per beat: the four things it does.
+      const fill = q("#loop-fill");
+      const C = 2 * Math.PI * 240;
+      fill.style.strokeDasharray = `${C}`;
+      tl.fromTo("#big-loop", { scale: 0.5, opacity: 0, rotation: -120 }, { scale: 1, opacity: 1, rotation: 0, duration: 1.2, ease: "expo.out" }, 0.15);
+      tl.fromTo(fill, { strokeDashoffset: C }, { strokeDashoffset: C * 0.75, duration: 0.5, ease: "power3.out" }, 1.4);
+      tl.to(fill, { strokeDashoffset: C * 0.5, duration: 0.5, ease: "power3.out" }, 2.9);
+      tl.to(fill, { strokeDashoffset: C * 0.25, duration: 0.5, ease: "power3.out" }, 4.4);
+      tl.to(fill, { strokeDashoffset: 0, duration: 0.6, ease: "power3.out" }, 5.9);
+      tl.to(fill, { stroke: "#ffd166", duration: 0.3 }, 6.3);
+      tl.fromTo("#big-loop", { y: 0 }, { y: -14, duration: 1.1, ease: "sine.inOut", yoyo: true, repeat: 1, immediateRender: false }, 6.1);
+
+      const entries = [
+        ["#k1", 1.3, { opacity: 0, scale: 1.6, filter: "blur(12px)" }],
+        ["#k2", 2.8, { opacity: 0, x: -140 }],
+        ["#k3", 4.3, { opacity: 0, y: 90, rotation: -3 }],
+        ["#k4", 5.8, { opacity: 0, scale: 0.6 }],
+      ];
+      entries.forEach(([id, at, from], i) => {
+        const to = { opacity: 1, scale: 1, x: 0, y: 0, rotation: 0, filter: "blur(0px)", duration: 0.45, ease: "expo.out" };
+        tl.fromTo(id, Object.assign({ scale: 1, x: 0, y: 0, rotation: 0, filter: "blur(0px)" }, from), to, at);
+        if (i > 0) tl.to(entries[i - 1][0], { opacity: 0.32, duration: 0.3, ease: "power2.out" }, at);
+      });
+      tl.fromTo("#beat-sub", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 6.5);
+      tl.to(["#k1", "#k2", "#k3"], { opacity: 0.32, duration: 0.01 }, 6.4);
+
+      // Handoff to the lockup.
+      tl.to("#beats", { x: -200, opacity: 0, filter: "blur(12px)", duration: 0.5, ease: "power3.in" }, 8.3);
+      tl.to("#big-loop", { scale: 0.3, opacity: 0, x: -520, y: -60, duration: 0.6, ease: "power3.in" }, 8.3);
+
+      const ring = q("#lock-ring");
+      const RC = 2 * Math.PI * 80;
+      ring.style.strokeDasharray = `${RC}`;
+      tl.fromTo("#lock-mark", { scale: 0.5, rotation: -120 }, { scale: 1, rotation: 0, duration: 0.9, ease: "expo.out" }, 8.75);
+      tl.fromTo(ring, { strokeDashoffset: RC }, { strokeDashoffset: 0, duration: 0.8, ease: "power2.inOut" }, 8.8);
+      tl.fromTo("#flash", { opacity: 0, scale: 0.4 }, { opacity: 1, scale: 1.2, duration: 0.7, ease: "expo.out" }, 9.1);
+      tl.to("#flash", { opacity: 0.3, scale: 1, duration: 2, ease: "sine.inOut" }, 9.8);
+      tl.fromTo("#lock-word", { opacity: 0, x: -40, filter: "blur(10px)" }, { opacity: 1, x: 0, filter: "blur(0px)", duration: 0.7, ease: "expo.out" }, 9.15);
+      tl.fromTo("#lock-tag", { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 9.7);
+      ["#p1", "#p2", "#p3"].forEach((p, i) => {
+        tl.fromTo(p, { opacity: 0, scale: 0.6, y: 20 }, { opacity: 1, scale: 1, y: 0, duration: 0.5, ease: "power3.out" }, 10.3 + i * 0.12);
+      });
+      tl.fromTo("#url", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "power1.out" }, 10.9);
+      tl.fromTo("#byline", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 11.3);
+      tl.fromTo("#lock-row", { scale: 1 }, { scale: 1.03, duration: 4.5, ease: "sine.out" }, 9.6);
+      tl.fromTo("#fade", { opacity: 0 }, { opacity: 1, duration: 0.7, ease: "power2.in" }, 14.3);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

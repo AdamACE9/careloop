@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>CareLoop intro</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      /* The brand display face, taken from the website's own build so the
+         video and the site are set in exactly the same letters. */
+      @font-face { font-family: "Instrument Serif"; font-style: normal; font-weight: 400; src: url("assets/fonts/instrument-serif-latin.woff2") format("woff2"); }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #0f1a38; }
+      body { font-family: "Inter", sans-serif; color: #fffbf3; }
+
+      :root {
+        --navy-deep: #0f1a38;
+        --navy: #16264d;
+        --navy-soft: #243766;
+        --gold: #c9a227;
+        --gold-glow: #eec25a;
+        --yellow: #ffd166;
+        --cream: #fffbf3;
+        --mist: #b9c3dc;
+      }
+
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: var(--navy-deep); }
+
+      .serif { font-family: "Instrument Serif", Georgia, serif; font-weight: 400; }
+      .mono { font-family: "JetBrains Mono", monospace; }
+
+      /* ------------------------------------------------ persistent atmosphere */
+      .layer { position: absolute; inset: 0; }
+      #glow-a, #glow-b { position: absolute; border-radius: 50%; will-change: transform; }
+      #glow-a {
+        width: 1400px; height: 1400px; left: -380px; top: -520px;
+        background: radial-gradient(circle, rgba(201,162,39,0.22) 0%, rgba(201,162,39,0) 62%);
+      }
+      #glow-b {
+        width: 1500px; height: 1500px; right: -520px; bottom: -700px;
+        background: radial-gradient(circle, rgba(53,73,125,0.55) 0%, rgba(53,73,125,0) 60%);
+      }
+      #grid {
+        position: absolute; inset: -60px;
+        background-image:
+          linear-gradient(rgba(185,195,220,0.07) 2px, transparent 2px),
+          linear-gradient(90deg, rgba(185,195,220,0.07) 2px, transparent 2px);
+        background-size: 120px 120px;
+      }
+      #frame-meta {
+        position: absolute; left: 96px; right: 96px; top: 64px;
+        display: flex; justify-content: space-between; align-items: center;
+        font-size: 22px; letter-spacing: 0.16em; color: var(--mist);
+      }
+      #frame-meta .brand { display: flex; align-items: center; gap: 16px; color: var(--cream); letter-spacing: 0.02em; font-size: 30px; }
+      #frame-meta .dot { width: 28px; height: 28px; border-radius: 50%; border: 6px solid var(--gold); display: block; }
+      #progress-rail { position: absolute; left: 96px; right: 96px; bottom: 64px; height: 4px; background: rgba(185,195,220,0.18); }
+      #progress-fill { width: 100%; height: 100%; background: var(--gold); transform-origin: 0 50%; display: block; }
+
+      /* ------------------------------------------------ scenes */
+      .scene { position: absolute; inset: 0; }
+
+      /* Scene 1: hook */
+      #hook-wrap { position: absolute; left: 150px; right: 150px; top: 360px; }
+      #hook-loop { position: absolute; right: -260px; top: 90px; width: 900px; height: 900px; border-radius: 50%;
+        border: 90px solid rgba(201,162,39,0.16); will-change: transform; }
+      #hook-loop-inner { position: absolute; right: -40px; top: 310px; width: 460px; height: 460px; border-radius: 50%;
+        border: 6px solid rgba(238,194,90,0.28); will-change: transform; }
+      #hook-label { font-size: 26px; letter-spacing: 0.2em; color: var(--gold); margin-bottom: 36px; }
+      .quote { font-size: 168px; line-height: 1.02; letter-spacing: -0.02em; }
+      .quote .w { display: inline-block; opacity: 0; will-change: transform; }
+      #quote-b { position: absolute; left: 0; top: 0; }
+      #quote-b .gold { color: var(--yellow); }
+      #strike { position: absolute; left: 0; top: 96px; width: 1450px; height: 10px; background: var(--gold); transform-origin: 0 50%; display: block; }
+      #hook-sub { margin-top: 64px; font-size: 44px; color: var(--mist); font-weight: 400; max-width: 1500px; }
+      #hook-sub b { color: var(--cream); font-weight: 700; }
+
+      /* Shared phone (scenes 2 and 3) */
+      #phone {
+        position: absolute; right: 250px; top: 110px; width: 470px; height: 880px;
+        border-radius: 64px; background: #0a1330; border: 10px solid #2b3a63;
+        box-shadow: 0 60px 140px rgba(0,0,0,0.55), 0 0 0 2px rgba(238,194,90,0.15);
+        overflow: hidden; will-change: transform;
+      }
+      #phone .notch { position: absolute; left: 50%; top: 18px; width: 140px; height: 34px; margin-left: -70px; border-radius: 20px; background: #050a1c; }
+      .screen { position: absolute; inset: 0; padding: 96px 36px 40px; }
+      #ring-screen { display: flex; flex-direction: column; align-items: center; }
+      #call-label { font-size: 20px; letter-spacing: 0.18em; color: var(--mist); margin-bottom: 70px; }
+      #call-loop { position: relative; width: 220px; height: 220px; }
+      #call-loop .core { position: absolute; inset: 0; border-radius: 50%; border: 22px solid var(--gold); box-shadow: 0 0 60px rgba(238,194,90,0.45); }
+      #call-loop .ripple { position: absolute; inset: 0; border-radius: 50%; border: 4px solid var(--gold-glow); opacity: 0; will-change: transform; }
+      #call-name { margin-top: 56px; font-size: 76px; }
+      #call-sub { margin-top: 8px; font-size: 28px; color: var(--mist); }
+      #call-buttons { position: absolute; left: 36px; right: 36px; bottom: 70px; display: flex; justify-content: space-between; }
+      .btn { width: 176px; height: 96px; border-radius: 48px; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 700; }
+      #btn-decline { background: #8f1911; }
+      #btn-answer { background: #1f7a4a; will-change: transform; }
+
+      #live-screen { opacity: 0; }
+      #live-top { text-align: center; }
+      #live-loop { width: 110px; height: 110px; border-radius: 50%; border: 14px solid var(--gold); margin: 0 auto; box-shadow: 0 0 40px rgba(238,194,90,0.4); }
+      #live-name { font-size: 46px; margin-top: 18px; }
+      #live-state { font-size: 20px; letter-spacing: 0.16em; color: var(--gold); margin-top: 6px; }
+      #wave { display: flex; justify-content: center; align-items: center; gap: 7px; height: 70px; margin-top: 20px; }
+      #wave i { display: block; width: 8px; height: 60px; border-radius: 4px; background: var(--gold-glow); transform-origin: 50% 50%; will-change: transform; }
+      #bubbles { margin-top: 26px; display: flex; flex-direction: column; gap: 16px; }
+      .bubble { max-width: 340px; padding: 18px 22px; border-radius: 26px; font-size: 24px; line-height: 1.3; opacity: 0; will-change: transform; }
+      .bubble.cara { background: #243766; align-self: flex-start; border-bottom-left-radius: 8px; }
+      .bubble.her { background: #eef0f6; color: #16264d; align-self: flex-end; border-bottom-right-radius: 8px; }
+
+      .side { position: absolute; left: 150px; top: 300px; width: 960px; }
+      .side .eyebrow { font-size: 26px; letter-spacing: 0.2em; color: var(--gold); margin-bottom: 30px; }
+      .side h2 { font-size: 128px; line-height: 1.14; letter-spacing: -0.02em; }
+      .side h2 .gold { color: var(--yellow); }
+      .side p { margin-top: 38px; font-size: 40px; color: var(--mist); line-height: 1.35; max-width: 900px; }
+      .line { display: block; opacity: 0; will-change: transform; }
+      #example-chip { position: absolute; left: 0; right: 0; bottom: 22px; z-index: 2; text-align: center; font-size: 18px; letter-spacing: 0.18em; color: var(--mist); }
+
+      #flag-card {
+        position: absolute; left: 150px; top: 690px; width: 760px; padding: 34px 38px;
+        border-radius: 34px; background: #fff7e3; color: #3b2a17;
+        box-shadow: 0 40px 100px rgba(0,0,0,0.5); opacity: 0; will-change: transform;
+      }
+      #flag-card .k { font-size: 20px; letter-spacing: 0.18em; color: #744208; font-weight: 700; }
+      #flag-card .t { font-size: 50px; margin-top: 12px; line-height: 1.05; }
+      #flag-card .d { font-size: 26px; margin-top: 14px; line-height: 1.35; color: #5c4d3b; }
+      #flag-card .tag { display: inline-block; margin-top: 18px; padding: 8px 18px; border-radius: 999px; background: #16264d; color: #ffd166; font-size: 20px; letter-spacing: 0.1em; }
+
+      /* Scene 4: reasoning */
+      #reason-title { position: absolute; left: 150px; top: 150px; font-size: 100px; letter-spacing: -0.02em; line-height: 1.12; max-width: 1600px; }
+      #reason-title .gold { color: var(--yellow); }
+      #gauge { position: absolute; left: 190px; top: 380px; width: 560px; height: 560px; }
+      #gauge svg { position: absolute; inset: 0; width: 560px; height: 560px; }
+      #gauge-track { fill: none; stroke: rgba(185,195,220,0.16); stroke-width: 34; }
+      #gauge-fill { fill: none; stroke: var(--gold); stroke-width: 34; stroke-linecap: round; }
+      #gauge-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+      #gauge-num { font-size: 150px; font-variant-numeric: tabular-nums; width: 360px; text-align: center; display: block; will-change: transform; }
+      #gauge-lab { font-size: 22px; letter-spacing: 0.16em; color: var(--mist); margin-top: 4px; }
+      #gauge-alert { margin-top: 20px; padding: 10px 26px; border-radius: 999px; background: var(--yellow); color: #16264d; font-weight: 700; font-size: 24px; letter-spacing: 0.08em; opacity: 0; will-change: transform; }
+
+      #week { position: absolute; left: 900px; top: 420px; display: flex; gap: 22px; }
+      .day { width: 100px; text-align: center; opacity: 0; will-change: transform; }
+      .day .n { font-size: 24px; letter-spacing: 0.14em; color: var(--mist); }
+      .day .pip { width: 64px; height: 64px; border-radius: 50%; margin: 14px auto 0; display: flex; align-items: center; justify-content: center; font-size: 30px; font-weight: 700; }
+      .pip.ok { background: rgba(185,195,220,0.2); color: var(--cream); }
+      .pip.unsure { background: var(--gold); color: #16264d; }
+      .pip.none { border: 3px dashed rgba(185,195,220,0.35); }
+
+      #reasons { position: absolute; left: 900px; top: 610px; width: 860px; display: flex; flex-direction: column; gap: 22px; }
+      .reason { display: flex; align-items: center; gap: 26px; font-size: 36px; line-height: 1.2; opacity: 0; will-change: transform; }
+      .tick { flex: 0 0 auto; width: 52px; height: 52px; border-radius: 50%; border: 4px solid var(--gold); position: relative; }
+      .tick b { position: absolute; inset: 6px; border-radius: 50%; background: var(--gold); display: block; }
+
+      /* Scene 5: decide + lockup */
+      #decide { position: absolute; left: 150px; right: 150px; top: 290px; }
+      #decide h2 { font-size: 116px; line-height: 1.14; letter-spacing: -0.02em; }
+      #decide h2 .gold { color: var(--yellow); }
+      #notes { margin-top: 70px; display: flex; gap: 40px; }
+      .note { flex: 1; padding: 36px 40px; border-radius: 34px; background: #16264d; border: 3px solid rgba(238,194,90,0.35); opacity: 0; will-change: transform; }
+      .note .to { font-size: 22px; letter-spacing: 0.16em; color: var(--gold); }
+      .note .msg { font-size: 42px; margin-top: 14px; line-height: 1.2; }
+
+      #lockup { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+      #lock-row { display: flex; align-items: center; gap: 44px; }
+      #lock-mark { width: 200px; height: 200px; }
+      #lock-ring { fill: none; stroke: var(--gold); stroke-width: 26; stroke-linecap: round; }
+      #lock-word { font-size: 210px; letter-spacing: -0.02em; opacity: 0; will-change: transform; }
+      #lock-tag { margin-top: 26px; font-size: 52px; color: var(--mist); opacity: 0; will-change: transform; }
+      #lock-meta { margin-top: 44px; font-size: 24px; letter-spacing: 0.2em; color: var(--gold); opacity: 0; }
+      #lock-flash { position: absolute; left: 50%; top: 50%; width: 900px; height: 900px; margin: -450px 0 0 -450px; border-radius: 50%;
+        background: radial-gradient(circle, rgba(238,194,90,0.35) 0%, rgba(238,194,90,0) 60%); opacity: 0; will-change: transform; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="30" data-width="1920" data-height="1080">
+
+      <!-- ============================================ atmosphere, whole piece -->
+      <div id="atmos" class="layer clip" data-start="0" data-duration="30" data-track-index="0">
+        <div id="grid"></div>
+        <div id="glow-a"></div>
+        <div id="glow-b"></div>
+      </div>
+
+      <div id="chrome" class="layer clip" data-start="0.3" data-duration="23.7" data-track-index="9">
+        <div id="frame-meta" class="mono">
+          <div class="brand serif"><span class="dot"></span>CareLoop</div>
+          <div id="meta-right">AGENTIC CARE · DAILY CHECK-IN</div>
+        </div>
+        <div id="progress-rail"><span id="progress-fill"></span></div>
+      </div>
+
+      <!-- ============================================ 1. hook -->
+      <section id="scene-hook" class="scene clip" data-start="0" data-duration="5.2" data-track-index="1">
+        <div id="hook-loop"></div>
+        <div id="hook-loop-inner"></div>
+        <div id="hook-wrap">
+          <div id="hook-label" class="mono">WHAT SHE SAYS ON THE PHONE</div>
+          <div style="position: relative; height: 180px;">
+            <div id="quote-a" class="quote serif">
+              <span class="w">“I</span> <span class="w" id="took">took</span> <span class="w">my</span> <span class="w">tablets.”</span>
+            </div>
+            <span id="strike"></span>
+            <div id="quote-b" class="quote serif" style="opacity: 0;">
+              “I <span class="gold">think</span> I took them.”
+            </div>
+          </div>
+          <div id="hook-sub">A reminder app hears the same thing twice. <b>Cara hears the difference.</b></div>
+        </div>
+      </section>
+
+      <!-- ============================================ 2 + 3. the phone -->
+      <section id="scene-phone" class="scene clip" data-start="4.9" data-duration="12.4" data-track-index="2">
+        <div id="side-call" class="side">
+          <div class="eyebrow mono line">NOT A REMINDER APP</div>
+          <h2 class="serif"><span class="line">CareLoop doesn't</span><span class="line">remind. <span class="gold">It calls.</span></span></h2>
+          <p class="line">Every morning, at the time she chose, her phone rings like a real call.</p>
+        </div>
+
+        <div id="side-listen" class="side">
+          <div class="eyebrow mono line">MID-CALL</div>
+          <h2 class="serif"><span class="line">It listens.</span><span class="line">And it <span class="gold">checks.</span></span></h2>
+          <p class="line">She mentions a new tablet. Cara checks it against everything she takes while she's still talking.</p>
+        </div>
+
+        <div id="phone">
+          <div class="notch"></div>
+          <div id="example-chip" class="mono">EXAMPLE CALL</div>
+
+          <div id="ring-screen" class="screen">
+            <div id="call-label" class="mono">INCOMING CALL</div>
+            <div id="call-loop">
+              <span class="ripple" id="rip-1"></span>
+              <span class="ripple" id="rip-2"></span>
+              <span class="ripple" id="rip-3"></span>
+              <span class="core"></span>
+            </div>
+            <div id="call-name" class="serif">Cara</div>
+            <div id="call-sub">Your daily check-in</div>
+            <div id="call-buttons">
+              <div class="btn" id="btn-decline">Decline</div>
+              <div class="btn" id="btn-answer">Answer</div>
+            </div>
+          </div>
+
+          <div id="live-screen" class="screen">
+            <div id="live-top">
+              <div id="live-loop"></div>
+              <div id="live-name" class="serif">Cara</div>
+              <div id="live-state" class="mono">LISTENING</div>
+            </div>
+            <div id="wave">
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            </div>
+            <div id="bubbles">
+              <div class="bubble cara" id="b1">Morning, Margaret. Did you take your warfarin today?</div>
+              <div class="bubble her" id="b2">I think so. And ibuprofen for my knee.</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="flag-card">
+          <div class="k mono">INTERACTION FOUND</div>
+          <div class="t serif">Warfarin + ibuprofen</div>
+          <div class="d">Together they raise the risk of bleeding. Worth asking her pharmacist.</div>
+          <div class="tag mono">CHECKED MID-SENTENCE</div>
+        </div>
+
+      </section>
+
+      <!-- ============================================ 4. reasoning across days -->
+      <section id="scene-reason" class="scene clip" data-start="17" data-duration="7.2" data-track-index="3">
+        <h2 id="reason-title" class="serif"><span class="line">Then it weighs the <span class="gold">pattern,</span></span><span class="line">not the moment.</span></h2>
+
+        <div id="gauge">
+          <svg viewBox="0 0 560 560">
+            <circle id="gauge-track" cx="280" cy="280" r="240"></circle>
+            <circle id="gauge-fill" cx="280" cy="280" r="240" style="transform-origin: 280px 280px; transform: rotate(-90deg);"></circle>
+          </svg>
+          <div id="gauge-center">
+            <span id="gauge-num" class="serif">0.00</span>
+            <div id="gauge-lab" class="mono">CONCERN · FAMILY AT 1.00</div>
+            <div id="gauge-alert" class="mono">TELL THE FAMILY</div>
+          </div>
+        </div>
+
+        <div id="week">
+          <div class="day"><div class="n mono">MON</div><div class="pip ok">✓</div></div>
+          <div class="day" id="d-tue"><div class="n mono">TUE</div><div class="pip unsure">?</div></div>
+          <div class="day"><div class="n mono">WED</div><div class="pip ok">✓</div></div>
+          <div class="day" id="d-thu"><div class="n mono">THU</div><div class="pip unsure">?</div></div>
+          <div class="day"><div class="n mono">FRI</div><div class="pip none"></div></div>
+          <div class="day"><div class="n mono">SAT</div><div class="pip none"></div></div>
+          <div class="day"><div class="n mono">SUN</div><div class="pip none"></div></div>
+        </div>
+
+        <div id="reasons">
+          <div class="reason" id="r1"><span class="tick"><b></b></span>Warfarin missed Tuesday and Thursday</div>
+          <div class="reason" id="r2"><span class="tick"><b></b></span>Unsure both times, not a clean miss</div>
+          <div class="reason" id="r3"><span class="tick"><b></b></span>A blood thinner: waiting carries real risk</div>
+        </div>
+      </section>
+
+      <!-- ============================================ 5. decision + lockup -->
+      <section id="scene-decide" class="scene clip" data-start="24" data-duration="6" data-track-index="4">
+        <div id="decide">
+          <h2 class="serif"><span class="line">So it decides, on its own,</span><span class="line">to tell <span class="gold">Sarah.</span></span></h2>
+          <div id="notes">
+            <div class="note" id="n1"><div class="to mono">TO SARAH</div><div class="msg serif">Margaret has missed her warfarin twice this week.</div></div>
+            <div class="note" id="n2"><div class="to mono">TO MARGARET, SAME MOMENT</div><div class="msg serif">I told Sarah, in exactly these words. Never behind your back.</div></div>
+          </div>
+        </div>
+
+        <div id="lockup">
+          <div id="lock-flash"></div>
+          <div id="lock-row">
+            <svg id="lock-mark" viewBox="0 0 200 200"><circle id="lock-ring" cx="100" cy="100" r="80" style="transform-origin: 100px 100px; transform: rotate(-90deg);"></circle></svg>
+            <div id="lock-word" class="serif">CareLoop</div>
+          </div>
+          <div id="lock-tag">The companion that actually checks in.</div>
+          <div id="lock-meta" class="mono">AN AGENTIC AI COMPANION · DDS AGENTIC AI CHALLENGE</div>
+        </div>
+      </section>
+
+      <!-- ============================================ sound design -->
+      <audio id="sfx-pop" src="assets/sfx/pop.mp3" data-start="0.35" data-duration="0.7" data-track-index="20" data-volume="0.55"></audio>
+      <audio id="sfx-strike" src="assets/sfx/whoosh-short.mp3" data-start="1.95" data-duration="0.57" data-track-index="21" data-volume="0.8"></audio>
+      <audio id="sfx-hit1" src="assets/sfx/impact-bass-1.mp3" data-start="3.05" data-duration="2.1" data-track-index="22" data-volume="0.55"></audio>
+      <audio id="sfx-swoosh1" src="assets/sfx/whoosh.mp3" data-start="4.85" data-duration="0.57" data-track-index="23" data-volume="0.7"></audio>
+      <audio id="sfx-ring" src="assets/sfx/notification.mp3" data-start="5.6" data-duration="2.45" data-track-index="24" data-volume="0.6"></audio>
+      <audio id="sfx-answer" src="assets/sfx/click-soft.mp3" data-start="8.15" data-duration="0.36" data-track-index="25" data-volume="0.9"></audio>
+      <audio id="sfx-b1" src="assets/sfx/pop.mp3" data-start="9.25" data-duration="0.7" data-track-index="26" data-volume="0.4"></audio>
+      <audio id="sfx-b2" src="assets/sfx/pop.mp3" data-start="11.4" data-duration="0.7" data-track-index="27" data-volume="0.4"></audio>
+      <audio id="sfx-flag" src="assets/sfx/ping.mp3" data-start="12.9" data-duration="1.32" data-track-index="28" data-volume="0.75"></audio>
+      <audio id="sfx-swoosh2" src="assets/sfx/whoosh-cinematic.mp3" data-start="16.4" data-duration="2.2" data-track-index="29" data-volume="0.5"></audio>
+      <audio id="sfx-riser" src="assets/sfx/riser.mp3" data-start="18.6" data-duration="3.4" data-media-start="6.6" data-track-index="30" data-volume="0.45"></audio>
+      <audio id="sfx-r1" src="assets/sfx/click-soft.mp3" data-start="20.1" data-duration="0.36" data-track-index="31" data-volume="0.7"></audio>
+      <audio id="sfx-r2" src="assets/sfx/click-soft.mp3" data-start="20.8" data-duration="0.36" data-track-index="32" data-volume="0.7"></audio>
+      <audio id="sfx-r3" src="assets/sfx/click-soft.mp3" data-start="21.5" data-duration="0.36" data-track-index="33" data-volume="0.7"></audio>
+      <audio id="sfx-alert" src="assets/sfx/impact-bass-2.mp3" data-start="22.0" data-duration="2.5" data-track-index="34" data-volume="0.6"></audio>
+      <audio id="sfx-chime" src="assets/sfx/chime.mp3" data-start="24.7" data-duration="2.5" data-track-index="35" data-volume="0.5"></audio>
+      <audio id="sfx-swoosh3" src="assets/sfx/whoosh-cinematic.mp3" data-start="26.7" data-duration="1.8" data-track-index="36" data-volume="0.45"></audio>
+      <audio id="sfx-lock" src="assets/sfx/impact-bass-1.mp3" data-start="27.35" data-duration="2.1" data-track-index="37" data-volume="0.6"></audio>
+      <audio id="sfx-sparkle" src="assets/sfx/sparkle.mp3" data-start="27.9" data-duration="1.8" data-track-index="38" data-volume="0.35"></audio>
+
+      <!-- ============================================ music bed (original, synthesized) -->
+      <audio id="bgm" src="assets/music/bed.mp3" data-start="0" data-duration="30" data-track-index="19" data-volume="0.4"></audio>
+    </div>
+
+    <script>
+      const tl = gsap.timeline({ paused: true });
+      const q = (s) => document.querySelector(s);
+      const qa = (s) => Array.from(document.querySelectorAll(s));
+
+      // ------------------------------------------------------------ atmosphere
+      tl.fromTo("#glow-a", { x: 0, y: 0, scale: 1 }, { x: 180, y: 120, scale: 1.18, duration: 30, ease: "sine.inOut" }, 0);
+      tl.fromTo("#glow-b", { x: 0, y: 0, scale: 1.1 }, { x: -220, y: -160, scale: 0.95, duration: 30, ease: "sine.inOut" }, 0);
+      tl.fromTo("#grid", { x: 0, y: 0 }, { x: -120, y: -60, duration: 30, ease: "none" }, 0);
+      tl.fromTo("#frame-meta", { opacity: 0, y: -16 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 0.4);
+      tl.fromTo("#progress-fill", { scaleX: 0 }, { scaleX: 1, duration: 23.3, ease: "none" }, 0.4);
+      tl.to("#chrome", { opacity: 0, duration: 0.4, ease: "power2.in" }, 23.5);
+
+      // ------------------------------------------------------------ 1. hook
+      tl.fromTo("#hook-loop", { scale: 0.7, opacity: 0, rotation: 0 }, { scale: 1, opacity: 1, rotation: 25, duration: 4.6, ease: "expo.out" }, 0.1);
+      tl.fromTo("#hook-loop-inner", { scale: 1.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 2.2, ease: "expo.out" }, 0.5);
+      tl.to(["#hook-loop", "#hook-loop-inner"], { scale: 2.2, opacity: 0, duration: 0.5, ease: "power3.in" }, 4.7);
+      tl.fromTo("#hook-label", { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.5, ease: "power3.out" }, 0.2);
+      (function () {
+        const F = 1 / 30;
+        let t = 0.45;
+        const words = qa("#quote-a .w");
+        const ys = [80, 50, 44, 70];
+        const ds = [0.2, 0.16, 0.14, 0.2];
+        words.forEach((w, i) => {
+          tl.set(w, { opacity: 1, y: ys[i] }, t);
+          tl.to(w, { y: 0, duration: ds[i], ease: "power4.out" }, t);
+          t += ds[i] - F;
+        });
+      })();
+      tl.fromTo("#strike", { scaleX: 0 }, { scaleX: 1, duration: 0.35, ease: "power3.inOut" }, 1.95);
+      tl.to("#quote-a", { opacity: 0, y: -40, filter: "blur(10px)", duration: 0.3, ease: "power2.in" }, 2.35);
+      tl.to("#strike", { opacity: 0, duration: 0.2 }, 2.4);
+      tl.fromTo("#quote-b", { opacity: 0, y: 60, filter: "blur(10px)" }, { opacity: 1, y: 0, filter: "blur(0px)", duration: 0.5, ease: "expo.out" }, 2.55);
+      tl.fromTo("#hook-sub", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 3.1);
+      tl.to("#hook-wrap", { scale: 1.08, opacity: 0, filter: "blur(14px)", duration: 0.45, ease: "power3.in", transformOrigin: "30% 50%" }, 4.7);
+
+      // ------------------------------------------------------------ 2. ring
+      tl.set("#phone", { y: 900, x: 0, rotation: 8, scale: 0.9 }, 0);
+      tl.set("#flag-card", { opacity: 0, y: 0 }, 0);
+      tl.set("#gauge", { opacity: 0, scale: 0.6, rotation: -40 }, 0);
+      tl.fromTo("#phone", { y: 900, rotation: 8, scale: 0.9 }, { y: 0, rotation: 0, scale: 1, duration: 1.0, ease: "expo.out" }, 5.0);
+      qa("#side-call .line").forEach((el, i) => {
+        tl.fromTo(el, { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 5.35 + i * 0.28);
+      });
+      // Ringing: a finite vibration on the phone and ripples off the Loop.
+      tl.fromTo("#phone", { x: 0 }, { x: 6, duration: 0.05, ease: "sine.inOut", yoyo: true, repeat: 29, immediateRender: false }, 5.8);
+      ["#rip-1", "#rip-2", "#rip-3"].forEach((r, i) => {
+        tl.fromTo(r, { scale: 1, opacity: 0.7 }, { scale: 1.9, opacity: 0, duration: 1.2, ease: "power2.out", repeat: 1 }, 5.6 + i * 0.4);
+      });
+      // Answer press.
+      tl.to("#btn-answer", { scale: 0.88, duration: 0.12, ease: "power2.in" }, 8.05);
+      tl.to("#btn-answer", { scale: 1, duration: 0.35, ease: "power3.out" }, 8.17);
+      tl.to("#ring-screen", { opacity: 0, scale: 0.94, duration: 0.3, ease: "power2.in" }, 8.3);
+      tl.fromTo("#live-screen", { opacity: 0, scale: 1.05 }, { opacity: 1, scale: 1, duration: 0.45, ease: "power3.out" }, 8.5);
+
+      // ------------------------------------------------------------ 3. listen + check
+      qa("#wave i").forEach((bar, i) => {
+        const base = 0.25 + ((i * 37) % 10) / 20;
+        tl.fromTo(bar, { scaleY: base }, { scaleY: 1, duration: 0.22 + (i % 4) * 0.05, ease: "sine.inOut", yoyo: true, repeat: 23 }, 8.6 + (i % 5) * 0.04);
+      });
+      tl.fromTo("#b1", { opacity: 0, y: 30, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.45, ease: "power3.out" }, 9.25);
+      qa("#side-call .line").forEach((el, i) => {
+        tl.to(el, { opacity: 0, y: -40, duration: 0.35, ease: "power2.in" }, 10.4 + i * 0.06);
+      });
+      qa("#side-listen .line").forEach((el, i) => {
+        tl.fromTo(el, { opacity: 0, y: 50 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 10.8 + i * 0.28);
+      });
+      tl.fromTo("#b2", { opacity: 0, y: 30, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.45, ease: "power3.out" }, 11.4);
+      tl.to("#live-state", { color: "#ffd166", duration: 0.2 }, 12.6);
+      tl.to("#side-listen p", { opacity: 0, y: -20, duration: 0.3, ease: "power2.in" }, 12.55);
+      tl.fromTo("#flag-card", { opacity: 0, scale: 0.7, rotation: 6, x: 520 }, { opacity: 1, scale: 1, rotation: -1.5, x: 0, duration: 0.75, ease: "expo.out" }, 12.9);
+      tl.fromTo("#flag-card", { y: 0 }, { y: -14, duration: 1.4, ease: "sine.inOut", yoyo: true, repeat: 1, immediateRender: false }, 13.6);
+      tl.fromTo("#example-chip", { opacity: 0 }, { opacity: 1, duration: 0.4 }, 6.0);
+      // Exit: everything pushes away into the reasoning.
+      tl.to("#flag-card", { x: 700, rotation: 12, opacity: 0, duration: 0.5, ease: "power3.in" }, 16.5);
+      tl.to("#phone", { y: -1100, rotation: -6, duration: 0.7, ease: "power3.in" }, 16.55);
+      tl.to("#side-listen", { x: -300, opacity: 0, filter: "blur(10px)", duration: 0.5, ease: "power3.in" }, 16.6);
+      tl.to("#example-chip", { opacity: 0, duration: 0.3 }, 16.5);
+      tl.set("#flag-card", { opacity: 0 }, 17.0);
+
+      // ------------------------------------------------------------ 4. reasoning
+      qa("#reason-title .line").forEach((el, i) => {
+        tl.fromTo(el, { opacity: 0, y: 60 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 17.15 + i * 0.22);
+      });
+      const fill = q("#gauge-fill");
+      const C = 2 * Math.PI * 240;
+      fill.style.strokeDasharray = `${C}`;
+      tl.fromTo("#gauge", { scale: 0.6, opacity: 0, rotation: -40 }, { scale: 1, opacity: 1, rotation: 0, duration: 0.9, ease: "expo.out" }, 17.35);
+      tl.fromTo(fill, { strokeDashoffset: C }, { strokeDashoffset: C, duration: 0.01 }, 17.3);
+      qa("#week .day").forEach((d, i) => {
+        tl.fromTo(d, { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 17.8 + i * 0.06);
+      });
+      const score = { v: 0 };
+      const num = q("#gauge-num");
+      const setNum = () => { num.textContent = score.v.toFixed(2); };
+      // Tuesday: the first unsure miss lands.
+      tl.fromTo("#d-tue", { scale: 1 }, { scale: 1.25, duration: 0.25, ease: "power2.out", yoyo: true, repeat: 1 }, 18.6);
+      tl.fromTo(score, { v: 0 }, { v: 0.35, duration: 0.9, ease: "power3.out", onUpdate: setNum }, 18.6);
+      tl.fromTo(fill, { strokeDashoffset: C }, { strokeDashoffset: C * (1 - 0.35), duration: 0.9, ease: "power3.out" }, 18.6);
+      // Thursday: the second, and the pattern crosses the line.
+      tl.fromTo("#d-thu", { scale: 1 }, { scale: 1.25, duration: 0.25, ease: "power2.out", yoyo: true, repeat: 1 }, 19.7);
+      tl.fromTo(score, { v: 0.35 }, { v: 1.0, duration: 2.2, ease: "power2.inOut", onUpdate: setNum, immediateRender: false }, 19.8);
+      tl.fromTo(fill, { strokeDashoffset: C * (1 - 0.35) }, { strokeDashoffset: 0, duration: 2.2, ease: "power2.inOut", immediateRender: false }, 19.8);
+      tl.fromTo(num, { scale: 0.8 }, { scale: 1, duration: 2.2, ease: "power2.inOut" }, 19.8);
+      ["#r1", "#r2", "#r3"].forEach((r, i) => {
+        const at = 20.1 + i * 0.7;
+        tl.fromTo(r, { opacity: 0, x: 60 }, { opacity: 1, x: 0, duration: 0.45, ease: "power3.out" }, at - 0.25);
+        tl.fromTo(`${r} .tick b`, { scale: 0 }, { scale: 1, duration: 0.3, ease: "power3.out" }, at);
+      });
+      tl.to(fill, { stroke: "#ffd166", duration: 0.2 }, 22.0);
+      tl.fromTo("#gauge-alert", { opacity: 0, scale: 0.4 }, { opacity: 1, scale: 1, duration: 0.5, ease: "expo.out" }, 22.0);
+      tl.fromTo("#gauge", { scale: 1 }, { scale: 1.06, duration: 0.18, ease: "power2.out", yoyo: true, repeat: 1, immediateRender: false }, 22.0);
+      tl.to("#scene-reason", { opacity: 0, scale: 1.04, filter: "blur(12px)", duration: 0.45, ease: "power3.in" }, 23.75);
+
+      // ------------------------------------------------------------ 5. decide + lockup
+      qa("#decide h2 .line").forEach((el, i) => {
+        tl.fromTo(el, { opacity: 0, y: 60 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 24.15 + i * 0.25);
+      });
+      tl.fromTo("#n1", { opacity: 0, y: 80, rotation: -2 }, { opacity: 1, y: 0, rotation: 0, duration: 0.6, ease: "expo.out" }, 24.7);
+      tl.fromTo("#n2", { opacity: 0, y: 80, rotation: 2 }, { opacity: 1, y: 0, rotation: 0, duration: 0.6, ease: "expo.out" }, 25.2);
+      tl.to("#decide", { opacity: 0, y: -60, filter: "blur(12px)", duration: 0.5, ease: "power3.in" }, 26.8);
+
+      const ring = q("#lock-ring");
+      const RC = 2 * Math.PI * 80;
+      ring.style.strokeDasharray = `${RC}`;
+      tl.fromTo(ring, { strokeDashoffset: RC }, { strokeDashoffset: 0, duration: 0.8, ease: "power2.inOut" }, 27.0);
+      tl.fromTo("#lock-mark", { scale: 0.6, rotation: -90 }, { scale: 1, rotation: 0, duration: 0.9, ease: "expo.out" }, 26.95);
+      tl.fromTo("#lock-flash", { opacity: 0, scale: 0.4 }, { opacity: 1, scale: 1.2, duration: 0.7, ease: "expo.out" }, 27.35);
+      tl.to("#lock-flash", { opacity: 0.35, scale: 1.0, duration: 1.8, ease: "sine.inOut" }, 28.05);
+      tl.fromTo("#lock-word", { opacity: 0, x: -40, filter: "blur(10px)" }, { opacity: 1, x: 0, filter: "blur(0px)", duration: 0.7, ease: "expo.out" }, 27.4);
+      tl.fromTo("#lock-tag", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 27.9);
+      tl.fromTo("#lock-meta", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "power1.out" }, 28.4);
+      tl.fromTo("#lock-row", { scale: 1 }, { scale: 1.03, duration: 2.2, ease: "sine.out" }, 27.8);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
