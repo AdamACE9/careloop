@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import { useLinkedPatients } from '@/lib/careloop-service';
 import { LoopGlyph } from '@/components/SiteHeader';
 import CheckNowButton from './CheckNowButton';
+import EscalationAlerts from './EscalationAlerts';
 
 /**
  * The dashboard shell: navigation, patient context, and the one action that
@@ -218,6 +219,18 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
       )}
 
       <main className="mx-auto max-w-7xl px-6 py-10 md:px-10">
+        {/*
+          Lives in the shell rather than on one page, because an escalation is
+          news wherever the caretaker happens to be standing. It renders nothing
+          once the question has been answered either way.
+        */}
+        {patient && (
+          <EscalationAlerts
+            patientId={patient.id}
+            patientName={patient.firstName}
+            isExample={showingExampleData}
+          />
+        )}
         {notLinked && !onSettings ? <NotLinkedYet /> : children}
       </main>
     </div>

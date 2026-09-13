@@ -717,8 +717,22 @@ here so nobody rediscovers them:
   onboarding and the caretaker redeems it on the dashboard. This was wired
   backwards before: the dashboard called generateLinkingCode, which the backend
   only ever permits from the patient themselves, so it could not have worked.
-- Escalations are not yet pushed to the caretaker (no email or web push). They
-  appear on the dashboard when it is open.
+- ~~Escalations are not yet pushed to the caretaker.~~ **Partly done.** The
+  dashboard now raises a real browser notification the moment an escalation
+  arrives on its live listener, carrying Cara's own headline, offered from a
+  button rather than an unprompted permission dialog. That covers a tab left
+  open in the background, which is the ordinary case.
+
+  It does **not** cover a closed browser, and that is the one piece still
+  missing from the product's headline claim. Real push needs an FCM web-push
+  certificate, and those are generated in the Firebase console
+  (Project settings -> Cloud Messaging -> Web configuration -> Generate key
+  pair). That cannot be minted from here, and a fabricated one would be worse
+  than none. **Adam: that is a one-minute click.** With the key in hand the
+  remaining work is a service worker, storing the caretaker's token on their
+  user document, and sending from the same place `writeEscalation` already
+  writes. Email is not an alternative: every provider needs an API key we do
+  not have.
 - ~~Agent threads are rendered by neither dashboard.~~ Both render them now. The
   web dashboard already did, on `/dashboard/reasoning`; the elder's phone did
   not, which meant the agent kept notes on a person that only that person's
