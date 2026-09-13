@@ -739,6 +739,12 @@ here so nobody rediscovers them:
 - **The website is live** at https://careloop--careloop-adam.europe-west4.hosted.app
   with automatic builds from main, and `/careloop.apk` redirects to a real
   downloadable APK that needs no login.
+- **Declining a call reaches the server.** Pressed Decline on the real
+  notification; `reportCallOutcome` logged
+  `{"outcome":"declined","callAttemptId":"3OXZk05eZEe5ACRPchiz"}` seven seconds
+  later. Before this, declining was a local log line and nothing else: the
+  attempt sat pending until the stale sweep eventually wrote it off as
+  "missed", so choosing not to answer and not being there became the same fact.
 - **Firestore rules**: 31 cases green on CI. **Evaluation harness**: 16 green.
 
 ### Not verified
@@ -774,3 +780,24 @@ established. The disconnect that reported failure after succeeding.
 The screen is not the evidence. For the call loop the evidence is the Cloud
 Functions log chain; for the rules it is the exact query the app runs; for
 adherence it is what was actually confirmed, not what was merely not missed.
+
+### And the same rule pointed the other two ways
+
+The later pass found the same fault rotated, twice, which is worth keeping
+because neither looks like the original at first glance.
+
+**A screen that reports a fault while the server is fine.** Every failed manual
+call request said "Cara could not be reached just now". The failure actually
+hit was the backend's own rate limit, six manual calls an hour, working exactly
+as designed and deliberately holding the request off. The app announced an
+outage. It is the same bug as a screen that looks right over a broken backend:
+the screen inventing its own account of events rather than repeating the
+server's.
+
+**Blank space that reads as a fact.** The caretaker dashboard drew something
+for a confirmed escalation, something for a disputed one that carried a note,
+and nothing at all for the other two states. Nothing, rendered directly beneath
+Cara's account of what happened, does not read as "no information yet". It
+reads as nobody objected. An absence in a position where the reader expects an
+answer is not neutral, and on this product the absent answer was whether the
+person it is about agrees with what was said about her.
