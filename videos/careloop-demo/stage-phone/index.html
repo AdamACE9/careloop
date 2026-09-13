@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>CareLoop demo stage, phone</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Instrument Serif"; font-style: normal; font-weight: 400; src: url("assets/fonts/instrument-serif-latin.woff2") format("woff2"); }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #111c3f; }
+      body { font-family: "Segoe UI", Inter, sans-serif; color: #fffbf3; }
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden;
+        background: linear-gradient(135deg, #0f1a3d 0%, #1b2459 48%, #2b1f55 100%); }
+      .layer { position: absolute; inset: 0; }
+      .blob { position: absolute; border-radius: 50%; will-change: transform; }
+      #b1 { width: 1300px; height: 1300px; left: -420px; top: -560px; background: radial-gradient(circle, rgba(236,172,58,0.62) 0%, rgba(236,172,58,0) 62%); }
+      #b2 { width: 1300px; height: 1300px; right: -460px; top: -520px; background: radial-gradient(circle, rgba(124,99,255,0.60) 0%, rgba(124,99,255,0) 62%); }
+      #b3 { width: 1400px; height: 1400px; left: -520px; bottom: -760px; background: radial-gradient(circle, rgba(32,182,170,0.55) 0%, rgba(32,182,170,0) 62%); }
+      #b4 { width: 1300px; height: 1300px; right: -420px; bottom: -720px; background: radial-gradient(circle, rgba(255,120,104,0.50) 0%, rgba(255,120,104,0) 62%); }
+      #dots { position: absolute; inset: -40px; background-image: radial-gradient(rgba(255,255,255,0.09) 1.6px, transparent 1.8px); background-size: 30px 30px; }
+      #vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(8,12,32,0) 55%, rgba(8,12,32,0.55) 100%); }
+
+      /* Copy column */
+      #copy { position: absolute; left: 190px; top: 250px; width: 860px; }
+      #eyebrow { display: inline-flex; align-items: center; gap: 12px; height: 48px; padding: 0 22px 0 16px; border-radius: 999px;
+        background: rgba(12,18,44,0.55); border: 2px solid rgba(255,255,255,0.16); font-size: 21px; font-weight: 600; }
+      #eyebrow svg { width: 24px; height: 24px; display: block; }
+      h1 { margin-top: 34px; font-family: "Instrument Serif", Georgia, serif; font-weight: 400; font-size: 104px; line-height: 1.02; letter-spacing: -0.02em; }
+      h1 .gold { color: #ffd166; }
+      #points { margin-top: 44px; display: flex; flex-direction: column; gap: 22px; }
+      .point { display: flex; align-items: center; gap: 18px; font-size: 32px; color: #eef1fb; }
+      .point svg { width: 30px; height: 30px; flex: none; }
+
+      /* Phone. The recording is composited into the screen at
+         left 1196, top 80, 414 x 920, so these numbers must not move. */
+      #phone { position: absolute; left: 1180px; top: 64px; width: 446px; height: 952px; border-radius: 64px; background: #05070f;
+        box-shadow: 0 70px 140px -40px rgba(3,6,20,0.9), 0 0 0 3px rgba(255,255,255,0.18), inset 0 0 0 2px rgba(255,255,255,0.06); }
+      #screen { position: absolute; left: 16px; top: 16px; width: 414px; height: 920px; border-radius: 48px; background: #0b1226; }
+      #btn1, #btn2 { position: absolute; right: -6px; width: 6px; border-radius: 0 4px 4px 0; background: #1a2140; }
+      #btn1 { top: 210px; height: 90px; }
+      #btn2 { top: 330px; height: 150px; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="12" data-width="1920" data-height="1080">
+      <div id="bg" class="layer clip" data-start="0" data-duration="12" data-track-index="0">
+        <div class="blob" id="b1"></div>
+        <div class="blob" id="b2"></div>
+        <div class="blob" id="b3"></div>
+        <div class="blob" id="b4"></div>
+        <div id="dots"></div>
+        <div id="vignette"></div>
+      </div>
+
+      <div id="stage" class="layer clip" data-start="0" data-duration="12" data-track-index="1">
+        <div id="copy">
+          <div id="eyebrow">
+            <svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="13" fill="none" stroke="#ffd166" stroke-width="5" /></svg>
+            The Android app
+          </div>
+          <h1>A <span class="gold">real call</span>,<br />from Cara.</h1>
+          <div id="points">
+            <div class="point"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="13" fill="none" stroke="#ffd166" stroke-width="5" /></svg>Rings like a real phone call</div>
+            <div class="point"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="13" fill="none" stroke="#ffd166" stroke-width="5" /></svg>A live voice conversation</div>
+            <div class="point"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="13" fill="none" stroke="#ffd166" stroke-width="5" /></svg>Saved the moment you hang up</div>
+          </div>
+        </div>
+
+        <div id="phone">
+          <div id="btn1"></div>
+          <div id="btn2"></div>
+          <div id="screen"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#b1", { x: 0, y: 0, scale: 1 }, { x: 180, y: 120, scale: 1.12, duration: 6, ease: "sine.inOut", yoyo: true, repeat: 1 }, 0);
+      tl.fromTo("#b2", { x: 0, y: 0, scale: 1 }, { x: -200, y: 160, scale: 0.92, duration: 6, ease: "sine.inOut", yoyo: true, repeat: 1 }, 0);
+      tl.fromTo("#b3", { x: 0, y: 0, scale: 1 }, { x: 220, y: -140, scale: 1.08, duration: 6, ease: "sine.inOut", yoyo: true, repeat: 1 }, 0);
+      tl.fromTo("#b4", { x: 0, y: 0, scale: 1 }, { x: -180, y: -120, scale: 1.1, duration: 6, ease: "sine.inOut", yoyo: true, repeat: 1 }, 0);
+      tl.fromTo("#dots", { x: 0, y: 0 }, { x: 30, y: 30, duration: 6, ease: "sine.inOut", yoyo: true, repeat: 1 }, 0);
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
