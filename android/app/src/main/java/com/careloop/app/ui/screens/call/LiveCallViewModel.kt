@@ -327,9 +327,18 @@ class LiveCallViewModel(
 
         if (!args.has("value")) return JSONObject().put("recorded", false)
 
+        // Blood sugar said aloud in mg/dL is converted to the mmol/L everything
+        // else stores. Cara is told which unit to report; see cara.ts.
+        val raw = args.optDouble("value").toFloat()
+        val value = if (type == VitalType.BLOOD_SUGAR && args.optString("unit") == "mg_dl") {
+            Math.round(raw / 18.0f * 10f) / 10f
+        } else {
+            raw
+        }
+
         vitals += RecordedVital(
             type = type,
-            value = args.optDouble("value").toFloat(),
+            value = value,
             secondaryValue = if (args.has("secondaryValue")) {
                 args.optDouble("secondaryValue").toFloat()
             } else {

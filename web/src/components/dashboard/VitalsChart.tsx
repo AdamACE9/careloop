@@ -111,6 +111,9 @@ export default function VitalsChart({ readings, type, days = 14 }: VitalsChartPr
   const high = Math.max(...values, ...band);
   // A flat series would otherwise collapse to a zero-height axis.
   const pad = Math.max((high - low) * 0.12, high * 0.02, 0.5);
+  // No reading is below zero, so neither is the axis. Padding a wide range
+  // used to push it to -7.5 on a blood sugar chart.
+  const axisLow = Math.max(0, low - pad);
 
   // A numeric time axis, not a category axis of date strings.
   //
@@ -126,6 +129,23 @@ export default function VitalsChart({ readings, type, days = 14 }: VitalsChartPr
     sameDay
       ? new Date(ms).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
       : new Date(ms).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  // Explicit ticks with no repeated label. Recharts picks evenly spaced tick
+  // values, and two readings a minute apart produced "4:18 PM, 4:18 PM".
+  const ticks = (() => {
+    if (last === first) return [first];
+    const out: number[] = [];
+    const seen = new Set<string>();
+    for (let i = 0; i <= 4; i++) {
+      const t = first + ((last - first) * i) / 4;
+      const label = formatTick(t);
+      if (!seen.has(label)) {
+        seen.add(label);
+        out.push(t);
+      }
+    }
+    return out;
+  })();
+
   const formatFull = (ms: number) =>
     new Date(ms).toLocaleString(undefined, {
       weekday: "short",
@@ -174,12 +194,12 @@ export default function VitalsChart({ readings, type, days = 14 }: VitalsChartPr
             tick={{ fontSize: 12, fill: "#5a6173" }}
             tickLine={false}
             axisLine={{ stroke: "#1a1f2e", strokeOpacity: 0.12 }}
-            tickCount={5}
+            ticks={ticks}
             minTickGap={36}
             padding={{ left: 12, right: 12 }}
           />
           <YAxis
-            domain={[low - pad, high + pad]}
+            domain={[axisLow, high + pad]}
             tickCount={5}
             tick={{ fontSize: 12, fill: "#5a6173" }}
             tickLine={false}

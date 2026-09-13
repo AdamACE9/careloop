@@ -105,10 +105,40 @@ private fun RecordVitalScreenContent(
     var secondaryText by remember(selectedType) { mutableStateOf("") }
 
     val needsSecondary = selectedType == VitalType.BLOOD_PRESSURE
-    val primaryValue = primaryText.toFloatOrNull()
+
+    // Blood sugar has two units in real use, and which one a meter shows
+    // depends on the country it was sold in. Everything is stored in mmol/L,
+    // so a reading in mg/dL is converted here, once, where the person told us
+    // which unit it was, rather than guessed at later.
+    //
+    // This existed because it went wrong on the first real account: a reading
+    // of about 100 from a mg/dL meter was saved as 100 mmol/L, a number no
+    // living person has, and the chart stretched to fit it.
+    var sugarInMgDl by remember { mutableStateOf(defaultsToMgDl()) }
+    val isSugar = selectedType == VitalType.BLOOD_SUGAR
+
+    val typedValue = primaryText.toFloatOrNull()
+    val primaryValue = if (isSugar && sugarInMgDl && typedValue != null) {
+        Math.round(typedValue / MG_DL_PER_MMOL_L * 10f) / 10f
+    } else {
+        typedValue
+    }
     val secondaryValue = secondaryText.toFloatOrNull()
+
+    // A value that cannot be real in the unit chosen is almost always the other
+    // unit. Saying so beats saving it.
+    val implausible = when {
+        typedValue == null -> null
+        isSugar && !sugarInMgDl && typedValue > 35f ->
+            "That is far too high for mmol/L. If your meter shows mg/dL, choose mg/dL above."
+        isSugar && sugarInMgDl && typedValue < 20f ->
+            "That is too low for mg/dL. If your meter shows mmol/L, choose mmol/L above."
+        else -> null
+    }
+
     val canSave = selectedType != null &&
         primaryValue != null &&
+        implausible == null &&
         (!needsSecondary || secondaryValue != null) &&
         !isSaving
 
@@ -180,6 +210,39 @@ private fun RecordVitalScreenContent(
                 Text("Diastolic (the lower number)", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(CareDimens.SpaceSm))
                 NumberField(value = secondaryText, onValueChange = { secondaryText = it }, placeholder = "e.g. 82")
+            } else if (isSugar) {
+                Text("What does your meter show?", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(CareDimens.SpaceSm))
+                Row(horizontalArrangement = Arrangement.spacedBy(CareDimens.SpaceSm)) {
+                    UnitOption("mg/dL", selected = sugarInMgDl, modifier = Modifier.weight(1f)) {
+                        sugarInMgDl = true
+                    }
+                    UnitOption("mmol/L", selected = !sugarInMgDl, modifier = Modifier.weight(1f)) {
+                        sugarInMgDl = false
+                    }
+                }
+                Spacer(Modifier.height(CareDimens.SpaceLg))
+                Text(
+                    "Your reading, in ${if (sugarInMgDl) "mg/dL" else "mmol/L"}",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Spacer(Modifier.height(CareDimens.SpaceSm))
+                NumberField(
+                    value = primaryText,
+                    onValueChange = { primaryText = it },
+                    placeholder = if (sugarInMgDl) "e.g. 100" else "e.g. 5.6",
+                )
+                if (implausible != null) {
+                    Spacer(Modifier.height(CareDimens.SpaceSm))
+                    Text(implausible, style = MaterialTheme.typography.bodyLarge, color = CareColors.Concern)
+                } else if (sugarInMgDl && primaryValue != null) {
+                    Spacer(Modifier.height(CareDimens.SpaceSm))
+                    Text(
+                        "Saved as $primaryValue mmol/L",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             } else {
                 Text("Your reading, in ${type.unit}", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(CareDimens.SpaceSm))
@@ -236,6 +299,39 @@ private fun NumberField(
             .fillMaxWidth()
             .heightIn(min = CareDimens.LargeTouchTarget),
     )
+}
+
+/** mg/dL = mmol/L × 18.0 for glucose. */
+private const val MG_DL_PER_MMOL_L = 18.0f
+
+/**
+ * mg/dL where meters are mostly sold in mg/dL: the US, the Gulf, South Asia,
+ * much of Latin America and Europe's south. mmol/L elsewhere. Only a starting
+ * point: the person picks what their own meter shows.
+ */
+private fun defaultsToMgDl(): Boolean {
+    val country = java.util.Locale.getDefault().country.uppercase()
+    return country in setOf(
+        "US", "AE", "SA", "QA", "KW", "BH", "OM", "EG", "JO", "LB", "IN", "PK", "BD",
+        "JP", "KR", "TW", "FR", "IT", "ES", "PT", "BE", "AT", "DE", "IL", "BR", "MX",
+        "AR", "CO", "CL", "PE", "PH", "TH", "VN", "ID", "TR",
+    )
+}
+
+@Composable
+private fun UnitOption(
+    label: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    CareCard(onClick = onClick, selected = selected, modifier = modifier) {
+        Text(
+            // A tick as well as the highlight, so the choice is not colour alone.
+            text = if (selected) "$label  ✓" else label,
+            style = MaterialTheme.typography.titleMedium,
+        )
+    }
 }
 
 private fun examplePlaceholder(type: VitalType): String = when (type) {

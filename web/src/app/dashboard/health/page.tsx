@@ -171,7 +171,7 @@ function RefillNotice({
         Running low
       </p>
       <h3 className="mt-3 font-display text-xl text-ink">
-        {first.name} runs out in about {first.daysRemaining} days
+        {first.name} runs out in about {first.daysRemaining} {first.daysRemaining === 1 ? 'day' : 'days'}
       </h3>
       {rest.length > 0 && (
         <p className="mt-2 text-sm text-ink/70">
@@ -216,7 +216,7 @@ function MedicationCard({
         )}
         {typeof med.daysRemaining === 'number' ? (
           <span className={`text-xs ${low ? 'font-semibold text-concern' : 'text-slate-ink'}`}>
-            {med.daysRemaining} days of supply left
+            {med.daysRemaining} {med.daysRemaining === 1 ? 'day' : 'days'} of supply left
           </span>
         ) : (
           <span className="text-xs text-slate-ink">Supply not tracked</span>

@@ -56,7 +56,9 @@ export default function CheckNowButton({
       ? 'Calling…'
       : state.kind === 'sent'
         ? `Cara is calling ${patientName}`
-        : 'Check on her now';
+        // The name, never a pronoun. The dashboard does not know how the person
+        // it is about is referred to, and "her" was on the button for a boy.
+        : `Check on ${patientName || 'them'} now`;
 
   return (
     <div className="flex flex-col items-start gap-2 sm:items-end">

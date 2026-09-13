@@ -378,6 +378,12 @@ export const CARA_TOOLS = [
               type: 'NUMBER',
               description: 'Diastolic, for blood pressure only.',
             },
+            unit: {
+              type: 'STRING',
+              enum: ['mmol_l', 'mg_dl'],
+              description:
+                'Blood sugar only: the unit the number was given in. A number above about 35 is mg/dL; a number like 5.6 is mmol/L. If unsure, ask which unit their meter shows.',
+            },
           },
           required: ['type', 'value'],
         },
