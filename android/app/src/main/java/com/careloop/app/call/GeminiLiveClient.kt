@@ -107,9 +107,16 @@ class GeminiLiveClient(
 
     private var webSocket: WebSocket? = null
     private var captureJob: Job? = null
-    private var audioTrack: AudioTrack? = null
-    private var playbackStarted = false
-    private var bufferedBytes = 0
+    // Playback state. Everything that touches the AudioTrack lives on the
+    // playback thread; the socket thread only ever enqueues. See playAudio.
+    private val playbackQueue = java.util.concurrent.LinkedBlockingQueue<ByteArray>()
+    private val queuedBytes = java.util.concurrent.atomic.AtomicInteger(0)
+    @Volatile private var playbackThread: Thread? = null
+    @Volatile private var playbackRunning = false
+    /** Generation for this turn is complete: play out what is queued, then idle. */
+    @Volatile private var turnFinished = false
+    /** Interruption: drop everything queued and in the track, immediately. */
+    @Volatile private var flushRequested = false
     private var sessionStartedAt = 0L
     private var reconnectAttempts = 0
 
@@ -297,6 +304,23 @@ class GeminiLiveClient(
                 // model, not the request.
                 put("inputAudioTranscription", JSONObject())
                 put("outputAudioTranscription", JSONObject())
+
+                // Less eager to decide someone has started or stopped talking.
+                //
+                // On a real phone Cara was being cut off mid-sentence. The
+                // default start-of-speech detection is tuned for a quiet desk,
+                // and treats a cough, a television or the tail of her own voice
+                // leaking past echo cancellation as the person taking their
+                // turn, which interrupts her. LOW end-of-speech sensitivity also
+                // waits longer before deciding a slow speaker has finished, so a
+                // pause to remember something is not taken as the end of the
+                // answer.
+                put("realtimeInputConfig", JSONObject().apply {
+                    put("automaticActivityDetection", JSONObject().apply {
+                        put("startOfSpeechSensitivity", "START_SENSITIVITY_LOW")
+                        put("endOfSpeechSensitivity", "END_SENSITIVITY_LOW")
+                    })
+                })
             })
         }
         socket.send(setup.toString())
@@ -660,6 +684,23 @@ class GeminiLiveClient(
                 return@launch
             }
 
+            // Asked for explicitly as well as implied by the VOICE_COMMUNICATION
+            // source. Several devices only engage them when requested, and
+            // without echo cancellation Cara hears herself through the speaker
+            // and interrupts her own sentences.
+            val echoCanceller = if (android.media.audiofx.AcousticEchoCanceler.isAvailable()) {
+                android.media.audiofx.AcousticEchoCanceler.create(recorder.audioSessionId)
+                    ?.also { it.enabled = true }
+            } else {
+                null
+            }
+            val noiseSuppressor = if (android.media.audiofx.NoiseSuppressor.isAvailable()) {
+                android.media.audiofx.NoiseSuppressor.create(recorder.audioSessionId)
+                    ?.also { it.enabled = true }
+            } else {
+                null
+            }
+
             recorder.startRecording()
             val buffer = ByteArray(INPUT_CHUNK_BYTES)
 
@@ -719,6 +760,8 @@ class GeminiLiveClient(
                 }
             } finally {
                 runCatching { recorder.stop() }
+                echoCanceller?.release()
+                noiseSuppressor?.release()
                 recorder.release()
             }
         }
@@ -733,58 +776,128 @@ class GeminiLiveClient(
     // =========================================================================
 
     /**
-     * Plays a chunk of Cara's audio.
+     * Queues a chunk of Cara's audio. Never blocks, never touches the track.
      *
-     * Note the output rate differs from the input rate. Reusing one configuration
-     * for both is the classic bug here, and it makes her sound wrong in a way that
-     * is instantly obvious but easy to misdiagnose.
-     */
-    /**
-     * Buffers the start of a turn before letting it play.
+     * ## What was wrong
      *
-     * AudioTrack starts consuming the instant play() is called. Writing chunks
-     * straight through as they arrive meant playback was always racing the
-     * network: it caught up, underran, and repeated whatever was in the buffer,
-     * which is the stuttering "ehehehe" at the end of Cara's sentences. A bigger
-     * buffer alone did not fix it, because an empty big buffer underruns exactly
-     * like an empty small one.
+     * On a real phone her voice broke up mid-sentence. Two causes, both here.
      *
-     * So the first fifth of a second of each turn is accumulated before playback
-     * starts. After that the buffer stays ahead of the stream and the rest plays
-     * continuously. The cost is 200ms of latency at the start of a turn, which
-     * on a phone call is imperceptible.
+     * 1. **The end of every turn was thrown away.** `generationComplete` arrives
+     *    when the model has finished GENERATING, which is before the phone has
+     *    finished PLAYING, because generation runs faster than speech. It called
+     *    `stop()` and then `release()` straight away, and release discards
+     *    whatever is still buffered. The last half second of what she said was
+     *    cut, every time.
+     * 2. **Playback raced the network.** Chunks were written to the track from
+     *    the socket thread as they arrived, with a 200ms head start once per
+     *    turn. Any wifi hiccup longer than the track's buffer emptied it mid-word,
+     *    and an underrunning track stutters rather than pausing.
+     *
+     * ## What it does now
+     *
+     * The socket thread enqueues. A dedicated thread owns the track for the whole
+     * call and writes from the queue. It holds back ~300ms at the start of each
+     * turn, and if the queue runs dry mid-turn it PAUSES the track and re-buffers
+     * before continuing, so a slow network produces a short silence, which on a
+     * phone call sounds like a person pausing, instead of broken syllables. The
+     * track is never released between turns, so nothing queued is ever lost.
      */
     private fun playAudio(pcm: ByteArray) {
-        val track = audioTrack ?: createAudioTrack().also { audioTrack = it }
+        // Audio after a finished turn is the start of the next one.
+        if (turnFinished) turnFinished = false
+        ensurePlaybackThread()
+        playbackQueue.offer(pcm)
+        queuedBytes.addAndGet(pcm.size)
+    }
 
-        runCatching { track.write(pcm, 0, pcm.size) }
-            .onFailure { Log.w(TAG, "Audio write failed") }
+    /** The model has finished this turn. Let the queue play out; do not cut it. */
+    private fun drainPlayback() {
+        turnFinished = true
+    }
 
-        if (!playbackStarted) {
-            bufferedBytes += pcm.size
-            if (bufferedBytes >= PREBUFFER_BYTES) {
-                playbackStarted = true
-                runCatching { track.play() }
+    /** Barge-in: the person is talking, so Cara stops now. */
+    private fun flushPlayback() {
+        playbackQueue.clear()
+        queuedBytes.set(0)
+        flushRequested = true
+    }
+
+    private fun releasePlayback() {
+        playbackRunning = false
+        playbackQueue.clear()
+        queuedBytes.set(0)
+        playbackThread?.interrupt()
+        playbackThread = null
+    }
+
+    private fun ensurePlaybackThread() {
+        if (playbackThread != null) return
+        synchronized(this) {
+            if (playbackThread != null) return
+            playbackRunning = true
+            playbackThread = Thread({ runPlayback() }, "CaraPlayback").apply {
+                priority = Thread.MAX_PRIORITY
+                start()
             }
         }
     }
 
-    /**
-     * Lets the tail of a turn play out instead of being cut off or looped.
-     *
-     * stop() on a streaming track plays what is already written and then stops,
-     * which is exactly what should happen when Cara finishes a sentence. Leaving
-     * the track running instead leaves it starved, and a starved track repeats
-     * its last buffer.
-     */
-    private fun drainPlayback() {
-        audioTrack?.let { track ->
+    private fun runPlayback() {
+        android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO)
+        var track = createAudioTrack()
+        var buffering = true
+        var framesWritten = 0L
+
+        try {
+            while (playbackRunning) {
+                if (flushRequested) {
+                    flushRequested = false
+                    // A new track rather than pause/flush on the old one: head
+                    // position semantics after a flush vary by device, and an
+                    // interruption is rare enough that certainty beats thrift.
+                    runCatching { track.pause(); track.flush(); track.release() }
+                    track = createAudioTrack()
+                    buffering = true
+                    framesWritten = 0L
+                    continue
+                }
+
+                if (buffering) {
+                    val ready = queuedBytes.get() >= PREBUFFER_BYTES ||
+                        (turnFinished && queuedBytes.get() > 0)
+                    if (!ready) {
+                        Thread.sleep(10)
+                        continue
+                    }
+                    buffering = false
+                    runCatching { track.play() }
+                }
+
+                val chunk = playbackQueue.poll(30, java.util.concurrent.TimeUnit.MILLISECONDS)
+                if (chunk == null) {
+                    // Queue empty. Wait for what is already in the track to play
+                    // out before deciding anything, then pause and go back to
+                    // buffering. Pausing only once the track has caught up is what
+                    // avoids cutting off audio that was already written.
+                    val played = runCatching { track.playbackHeadPosition.toLong() and 0xFFFFFFFFL }
+                        .getOrDefault(framesWritten)
+                    if (played >= framesWritten) {
+                        runCatching { track.pause() }
+                        buffering = true
+                    }
+                    continue
+                }
+
+                queuedBytes.addAndGet(-chunk.size)
+                val written = track.write(chunk, 0, chunk.size)
+                if (written > 0) framesWritten += written / 2
+            }
+        } catch (_: InterruptedException) {
+            // Call ended.
+        } finally {
             runCatching { track.stop() }
+            track.release()
         }
-        audioTrack?.release()
-        audioTrack = null
-        playbackStarted = false
-        bufferedBytes = 0
     }
 
     private fun createAudioTrack(): AudioTrack {
@@ -798,8 +911,9 @@ class GeminiLiveClient(
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     // VOICE_COMMUNICATION routes through the earpiece and engages
-                    // the platform's call audio path, so this sounds like a phone
-                    // call rather than a video playing out loud.
+                    // the platform's call audio path, including its echo
+                    // cancellation reference, so this sounds like a phone call
+                    // rather than a video playing out loud.
                     .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                     .build(),
@@ -811,48 +925,12 @@ class GeminiLiveClient(
                     .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                     .build(),
             )
-            // Roughly half a second of audio, and never less than four times
-            // the platform minimum.
-            //
-            // The old buffer was a few chunks deep, which underran constantly:
-            // the log filled with "track disabled due to previous underrun,
-            // restarting" and Cara came out as stuttering syllables rather than
-            // speech. Audio is written from the socket thread, so any hesitation
-            // in the network or the decoder empties a small buffer immediately.
-            //
-            // Half a second of buffer costs half a second of extra latency at
-            // the very start of a turn, which on a phone call nobody notices,
-            // and buys speech that does not break up.
-            .setBufferSizeInBytes(
-                maxOf(minBuffer * 4, OUTPUT_SAMPLE_RATE /* bytes: 0.5s at 16-bit */),
-            )
+            // Half a second of track buffer, never less than four times the
+            // platform minimum. The queue in front of it absorbs network jitter;
+            // this absorbs scheduling jitter on the playback thread.
+            .setBufferSizeInBytes(maxOf(minBuffer * 4, OUTPUT_SAMPLE_RATE))
             .setTransferMode(AudioTrack.MODE_STREAM)
             .build()
-        // Deliberately not played here. playAudio starts it once enough of the
-        // turn has been buffered to survive a slow frame.
-    }
-
-    /** Drops queued audio so an interruption takes effect immediately. */
-    private fun flushPlayback() {
-        audioTrack?.let { track ->
-            runCatching {
-                track.pause()
-                track.flush()
-                // Back to buffering: after a flush the track is empty, and
-                // playing an empty track is what caused the stutter in the
-                // first place.
-                playbackStarted = false
-                bufferedBytes = 0
-            }
-        }
-    }
-
-    private fun releasePlayback() {
-        audioTrack?.let { track ->
-            runCatching { track.stop() }
-            track.release()
-        }
-        audioTrack = null
     }
 
     private companion object {
@@ -862,8 +940,8 @@ class GeminiLiveClient(
         const val INPUT_SAMPLE_RATE = 16_000
         const val OUTPUT_SAMPLE_RATE = 24_000
 
-        /** 200ms of 24kHz 16-bit mono, held back before playback starts. */
-        const val PREBUFFER_BYTES = 9_600
+        /** 300ms of 24kHz 16-bit mono, held back before playback starts or resumes. */
+        const val PREBUFFER_BYTES = 14_400
 
         /** ~64ms of audio per frame: small enough to feel responsive, large enough not to flood. */
         const val INPUT_CHUNK_BYTES = 2048

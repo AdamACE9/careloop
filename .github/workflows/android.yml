@@ -65,7 +65,7 @@ jobs:
 
       - name: Assemble debug APK
         working-directory: android
-        run: gradle assembleDebug --stacktrace
+        run: gradle assembleDebug --stacktrace -PciVersionCode=${{ github.run_number }}
 
       - name: Upload APK
         if: success()
@@ -94,7 +94,7 @@ jobs:
         run: |
           cp android/app/build/outputs/apk/debug/app-debug.apk careloop.apk
           gh release delete latest-apk --yes --cleanup-tag || true
-          gh release create latest-apk careloop.apk             --title "CareLoop debug build"             --notes "Built from ${{ github.sha }}. Debug-signed, so Android will warn about an unknown source before installing."
+          gh release create latest-apk careloop.apk             --title "CareLoop debug build"             --notes "Built from ${{ github.sha }}. Debug-signed, so Android will warn about an unknown source before installing. versionCode=${{ github.run_number }}"
 
       # On failure the build output is what matters, and scrolling the web log is
       # slower than having the report files in hand.

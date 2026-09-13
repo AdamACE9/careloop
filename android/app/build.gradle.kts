@@ -36,7 +36,9 @@ android {
         applicationId = "com.careloop.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
+        // The CI run number, so every published build is newer than the last and
+        // the app's update check can tell. Local builds stay at 1.
+        versionCode = (project.findProperty("ciVersionCode") as String?)?.toIntOrNull() ?: 1
         versionName = "0.2.0"
 
         buildConfigField("boolean", "FIREBASE_ENABLED", firebaseEnabled.toString())

@@ -497,12 +497,22 @@ private fun BloodSugarTrendChart(
         fun yFor(value: Float): Float =
             plotTop + plotHeight * (1f - (value - domainMin) / domainSpan)
 
-        // Maps a reading's position in the list to an x-pixel coordinate, spread evenly
-        // across the plot width. Guards against a single-point list (division by zero).
-        val lastIndex = (readings.size - 1).coerceAtLeast(1)
-        fun xFor(index: Int): Float = plotLeft + plotWidth * (index.toFloat() / lastIndex)
+        // Placed by WHEN each reading was taken, not by its position in the list.
+        //
+        // Spreading readings evenly by index drew three readings taken ten
+        // minutes apart exactly as far apart as three taken on three different
+        // days, so a morning of testing looked like a week-long trend and a gap
+        // of several days looked like nothing happened. Real data is irregular in
+        // exactly the ways example data never is.
+        val times = readings.map {
+            it.recordedAt.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+        }
+        val firstTime = times.first()
+        val timeSpan = (times.last() - firstTime).takeIf { it > 0L } ?: 1L
+        fun xForTime(millis: Long): Float =
+            plotLeft + plotWidth * ((millis - firstTime).toFloat() / timeSpan.toFloat())
 
-        val points = readings.mapIndexed { index, reading -> Offset(xFor(index), yFor(reading.value)) }
+        val points = readings.mapIndexed { index, reading -> Offset(xForTime(times[index]), yFor(reading.value)) }
 
         // ---- 3. The shaded "normal range" band ----
         val bandTop = yFor(normalRange.endInclusive)
@@ -604,8 +614,11 @@ private fun BloodSugarTrendChart(
         }
 
         // ---- 7. X-axis: just the start and end dates, to keep this legible at a glance ----
-        val startLabel = readings.first().recordedAt.toLocalDate().format(dateFormatter)
-        val endLabel = readings.last().recordedAt.toLocalDate().format(dateFormatter)
+        // Same day at both ends means the date says nothing, so show times.
+        val sameDay = readings.first().recordedAt.toLocalDate() == readings.last().recordedAt.toLocalDate()
+        val labelFormatter = if (sameDay) DateTimeFormatter.ofPattern("h:mm a") else dateFormatter
+        val startLabel = readings.first().recordedAt.format(labelFormatter)
+        val endLabel = readings.last().recordedAt.format(labelFormatter)
         val startMeasured = textMeasurer.measure(AnnotatedString(startLabel), axisLabelStyle)
         val endMeasured = textMeasurer.measure(AnnotatedString(endLabel), axisLabelStyle)
 

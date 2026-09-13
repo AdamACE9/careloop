@@ -63,7 +63,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.careloop.app.data.model.CaraActivity
 import com.careloop.app.di.AppContainer
+import com.careloop.app.ui.components.BirthYearPicker
 import com.careloop.app.ui.components.CarePrimaryButton
+import com.careloop.app.ui.components.ConditionPicker
 import com.careloop.app.ui.components.CareSecondaryButton
 import com.careloop.app.ui.components.LoopMark
 import com.careloop.app.ui.components.SectionHeader
@@ -101,7 +103,7 @@ import kotlinx.coroutines.launch
  * architecture.
  */
 
-private const val TOTAL_STEPS = 7
+private const val TOTAL_STEPS = 8
 
 /** Who is holding the phone during setup. See [WhoIsThisForStep]. */
 private enum class SetupAudience { SELF, HELPING_PARENT }
@@ -133,6 +135,12 @@ fun OnboardingScreen(
     // What Cara calls them out loud. The one piece of text entry in the whole
     // flow, and unavoidable: without it she has no name to use on the call.
     var preferredName by remember { mutableStateOf("") }
+
+    // Step 3: about you. Asked here because the account is written at the
+    // sharing step, and a birth year collected after that would need a second
+    // write racing the first.
+    var birthYear by remember { mutableStateOf<Int?>(null) }
+    var conditions by remember { mutableStateOf(emptySet<com.careloop.app.data.model.Condition>()) }
 
     val onboardingScope = rememberCoroutineScope()
 
@@ -193,7 +201,7 @@ fun OnboardingScreen(
             var accountStarted by rememberSaveable { mutableStateOf(false) }
 
             LaunchedEffect(step) {
-                if (step >= 5 && !accountStarted) {
+                if (step >= 6 && !accountStarted) {
                     accountStarted = true
                     val hour24 = when {
                         callIsAm && callHour12 == 12 -> 0
@@ -206,6 +214,8 @@ fun OnboardingScreen(
                         AppContainer.repository.ensureSignedInPatient(
                             preferredName = preferredName.trim().ifBlank { "there" },
                             dailyCheckInTime = "%02d:%02d".format(hour24, callMinute),
+                            birthYear = birthYear,
+                            conditions = conditions,
                         )
                     }
                 }
@@ -229,7 +239,16 @@ fun OnboardingScreen(
                         onNameChange = { preferredName = it },
                         onConfirm = ::goNext,
                     )
-                    3 -> CallTimeStep(
+                    3 -> AboutYouStep(
+                        birthYear = birthYear,
+                        onBirthYearChange = { birthYear = it },
+                        conditions = conditions,
+                        onToggleCondition = { c ->
+                            conditions = if (c in conditions) conditions - c else conditions + c
+                        },
+                        onConfirm = ::goNext,
+                    )
+                    4 -> CallTimeStep(
                         hour12 = callHour12,
                         minute = callMinute,
                         isAm = callIsAm,
@@ -238,7 +257,7 @@ fun OnboardingScreen(
                         onPeriodChange = { callIsAm = it },
                         onConfirm = ::goNext,
                     )
-                    4 -> RingPermissionStep(
+                    5 -> RingPermissionStep(
                         onAllow = {
                             fullScreenIntentAllowed = true
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -253,7 +272,7 @@ fun OnboardingScreen(
                             goNext()
                         },
                     )
-                    5 -> ShareWithFamilyStep(onContinue = ::goNext)
+                    6 -> ShareWithFamilyStep(onContinue = ::goNext)
                     else -> AllSetStep(
                         hour12 = callHour12,
                         minute = callMinute,
@@ -279,6 +298,55 @@ fun OnboardingScreen(
 // that has to be a real option rather than a dark pattern, so "Not now" is a
 // plain button rather than faint grey text.
 // ---------------------------------------------------------------------------
+
+@Composable
+private fun AboutYouStep(
+    birthYear: Int?,
+    onBirthYearChange: (Int?) -> Unit,
+    conditions: Set<com.careloop.app.data.model.Condition>,
+    onToggleCondition: (com.careloop.app.data.model.Condition) -> Unit,
+    onConfirm: () -> Unit,
+) {
+    // Scrolls, because seven condition rows at a large text size do not fit a
+    // phone screen, and a Continue button pushed off the bottom is a dead end.
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+    ) {
+        Text(
+            text = "A little about you",
+            style = MaterialTheme.typography.headlineMedium,
+            color = CareColors.Navy,
+        )
+        Spacer(Modifier.height(CareDimens.SpaceSm))
+        Text(
+            text = "So Cara asks about the right things. You can skip either part and change it later in Settings.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = CareColors.Slate,
+        )
+
+        Spacer(Modifier.height(CareDimens.SpaceLg))
+        Text("The year you were born", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(CareDimens.SpaceSm))
+        BirthYearPicker(birthYear = birthYear, onChange = onBirthYearChange)
+
+        Spacer(Modifier.height(CareDimens.SpaceLg))
+        Text("Anything you keep an eye on", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(CareDimens.SpaceXs))
+        Text(
+            "Tap any that apply. Leave them all if none do.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = CareColors.Slate,
+        )
+        Spacer(Modifier.height(CareDimens.SpaceSm))
+        ConditionPicker(selected = conditions, onToggle = onToggleCondition)
+
+        Spacer(Modifier.height(CareDimens.SpaceLg))
+        CarePrimaryButton(text = "Continue", onClick = onConfirm)
+        Spacer(Modifier.height(CareDimens.SpaceMd))
+    }
+}
 
 @Composable
 private fun NameStep(

@@ -154,6 +154,16 @@ fun SettingsScreen(
             )
         }
 
+        AboutYouCard(
+            birthYear = elder.birthYear,
+            conditions = elder.conditions.toSet(),
+            onSave = { year, chosen ->
+                AppContainer.applicationScope.launch {
+                    AppContainer.repository.updateAboutYou(year, chosen)
+                }
+            },
+        )
+
         CallTimeCard(
             caretakerName = carer,
             checkInTime = elder.dailyCheckInTime,
@@ -186,6 +196,59 @@ fun SettingsScreen(
 
         // Trailing breathing room so the last card never sits flush with the bottom edge.
         Spacer(Modifier.height(CareDimens.SpaceMd))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 0. About you
+// ---------------------------------------------------------------------------
+
+/**
+ * Birth year and conditions, for everyone who set up before onboarding asked.
+ *
+ * Saves on every change, like the call time, rather than behind a Save button
+ * that is easy to miss. Local state mirrors the record so taps feel immediate,
+ * and is re-seeded whenever the record changes underneath, which is what
+ * happens when Cara learns a condition on a call.
+ */
+@Composable
+private fun AboutYouCard(
+    birthYear: Int?,
+    conditions: Set<com.careloop.app.data.model.Condition>,
+    onSave: (Int?, Set<com.careloop.app.data.model.Condition>) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var year by remember(birthYear) { mutableStateOf(birthYear) }
+    var chosen by remember(conditions) { mutableStateOf(conditions) }
+
+    CareCard(modifier = modifier) {
+        Text("About you", style = MaterialTheme.typography.titleLarge)
+        Spacer(Modifier.height(CareDimens.SpaceSm))
+        Text(
+            "Cara uses this to ask about the right things. When you tell her about a condition on a call, it appears here too.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(CareDimens.SpaceLg))
+        Text("The year you were born", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(CareDimens.SpaceSm))
+        com.careloop.app.ui.components.BirthYearPicker(
+            birthYear = year,
+            onChange = {
+                year = it
+                onSave(it, chosen)
+            },
+        )
+        Spacer(Modifier.height(CareDimens.SpaceLg))
+        Text("Anything you keep an eye on", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(CareDimens.SpaceSm))
+        com.careloop.app.ui.components.ConditionPicker(
+            selected = chosen,
+            onToggle = { c ->
+                chosen = if (c in chosen) chosen - c else chosen + c
+                onSave(year, chosen)
+            },
+        )
     }
 }
 

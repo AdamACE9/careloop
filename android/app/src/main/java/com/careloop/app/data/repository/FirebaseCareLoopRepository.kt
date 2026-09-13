@@ -4,6 +4,7 @@ import android.util.Log
 import com.careloop.app.data.model.*
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
@@ -227,6 +228,37 @@ class FirebaseCareLoopRepository(
         }.onFailure { Log.w(TAG, "Could not update check-in time") }
     }
 
+    override suspend fun updateAboutYou(birthYear: Int?, conditions: Set<Condition>): Result<Unit> =
+        runCatching {
+            val path = patientPath() ?: error("not signed in")
+            db.document(path).update(
+                mapOf(
+                    "profile.birthYear" to birthYear,
+                    // Kept in step for older readers that only know `age`.
+                    "profile.age" to ageFrom(birthYear),
+                    "profile.conditions" to conditions.map { it.name.lowercase() },
+                    "updatedAt" to java.time.Instant.now().toString(),
+                ),
+            ).await()
+            Unit
+        }.onFailure { Log.w(TAG, "Could not save about-you details") }
+
+    override suspend fun addHealthCondition(conditionId: String): Result<Unit> = runCatching {
+        val path = patientPath() ?: error("not signed in")
+        // Only ids the app itself understands. The model is constrained to an
+        // enum, but a value this app cannot display would sit in the record as
+        // something the person can neither see nor remove.
+        val condition = Condition.entries.firstOrNull { it.name.equals(conditionId, ignoreCase = true) }
+            ?: error("unknown condition")
+        db.document(path).update(
+            mapOf(
+                "profile.conditions" to FieldValue.arrayUnion(condition.name.lowercase()),
+                "updatedAt" to java.time.Instant.now().toString(),
+            ),
+        ).await()
+        Unit
+    }.onFailure { Log.w(TAG, "Could not record a condition") }
+
     override suspend fun updateSharingPreferences(preferences: SharingPreferences) {
         val path = patientPath() ?: return
         runCatching {
@@ -443,6 +475,8 @@ class FirebaseCareLoopRepository(
     override suspend fun ensureSignedInPatient(
         preferredName: String,
         dailyCheckInTime: String,
+        birthYear: Int?,
+        conditions: Set<Condition>,
     ): Result<Unit> = runCatching {
         val user = auth.currentUser ?: auth.signInAnonymously().await().user
         ?: error("anonymous sign-in returned no user")
@@ -461,6 +495,9 @@ class FirebaseCareLoopRepository(
             ref.update(
                 mapOf(
                     "profile.preferredName" to preferredName,
+                    "profile.birthYear" to birthYear,
+                    "profile.age" to ageFrom(birthYear),
+                    "profile.conditions" to conditions.map { it.name.lowercase() },
                     "dailyCheckInTime" to dailyCheckInTime,
                     "updatedAt" to now,
                 ),
@@ -472,8 +509,9 @@ class FirebaseCareLoopRepository(
                         "firstName" to preferredName,
                         "lastName" to "",
                         "preferredName" to preferredName,
-                        "age" to 0,
-                        "conditions" to emptyList<String>(),
+                        "age" to ageFrom(birthYear),
+                        "birthYear" to birthYear,
+                        "conditions" to conditions.map { it.name.lowercase() },
                     ),
                     // Empty, and the rules enforce that it is empty on create.
                     // A client that could seed this could grant anyone read
@@ -639,15 +677,21 @@ class FirebaseCareLoopRepository(
 // where the exception would be swallowed and the screen would simply stay empty.
 // =============================================================================
 
+/** 0 when unknown, which every reader already treats as "not known". */
+private fun ageFrom(birthYear: Int?): Int =
+    birthYear?.let { (java.time.Year.now().value - it).coerceIn(0, 120) } ?: 0
+
 private fun DocumentSnapshot.toElderProfile(): ElderProfile? {
     val profile = get("profile") as? Map<*, *> ?: return null
+    val birthYear = (profile["birthYear"] as? Number)?.toInt()
     return ElderProfile(
+        birthYear = birthYear,
         id = id,
         firstName = profile["firstName"] as? String ?: "",
         lastName = profile["lastName"] as? String ?: "",
         preferredName = profile["preferredName"] as? String
             ?: profile["firstName"] as? String ?: "",
-        age = (profile["age"] as? Number)?.toInt() ?: 0,
+        age = birthYear?.let { ageFrom(it) } ?: (profile["age"] as? Number)?.toInt() ?: 0,
         conditions = (profile["conditions"] as? List<*>).orEmpty().mapNotNull { value ->
             Condition.entries.firstOrNull { it.name.equals(value as? String, ignoreCase = true) }
         },

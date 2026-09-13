@@ -92,6 +92,19 @@ class MockCareLoopRepository : CareLoopRepository {
         elderState.value = elderState.value.copy(dailyCheckInTime = time)
     }
 
+    override suspend fun updateAboutYou(birthYear: Int?, conditions: Set<Condition>): Result<Unit> {
+        elderState.value = elderState.value.copy(birthYear = birthYear, conditions = conditions.toList())
+        return Result.success(Unit)
+    }
+
+    override suspend fun addHealthCondition(conditionId: String): Result<Unit> {
+        val condition = Condition.entries.firstOrNull { it.name.equals(conditionId, ignoreCase = true) }
+            ?: return Result.success(Unit)
+        val current = elderState.value.conditions
+        if (condition !in current) elderState.value = elderState.value.copy(conditions = current + condition)
+        return Result.success(Unit)
+    }
+
     override suspend fun updateSharingPreferences(preferences: SharingPreferences) {
         sharingPrefsState.value = preferences
     }
@@ -295,6 +308,8 @@ class MockCareLoopRepository : CareLoopRepository {
     override suspend fun ensureSignedInPatient(
         preferredName: String,
         dailyCheckInTime: String,
+        birthYear: Int?,
+        conditions: Set<Condition>,
     ): Result<Unit> = Result.success(Unit)
 
     override fun observeAgentThreads(): Flow<List<AgentThread>> =

@@ -30,6 +30,8 @@ data class ElderProfile(
     /** User-adjustable. The elder owns this, not the caretaker. */
     val dailyCheckInTime: LocalTime,
     val caretaker: Caretaker,
+    /** Stored instead of an age, which is wrong a year after it is written. */
+    val birthYear: Int? = null,
 ) {
     val fullName: String get() = "$firstName $lastName"
 }
@@ -48,26 +50,53 @@ data class Caretaker(
  */
 enum class Condition(
     val displayName: String,
+    /** How a person would say it. What the pickers show. */
+    val plainName: String,
     val plainDescription: String,
     val tracksVital: VitalType?,
 ) {
-    TYPE_2_DIABETES(
-        "Type 2 diabetes",
-        "Cara will ask for your blood sugar reading during check-ins.",
-        VitalType.BLOOD_SUGAR,
-    ),
-    ATRIAL_FIBRILLATION(
-        "Atrial fibrillation",
-        "Cara pays extra attention to your heart medication.",
-        VitalType.HEART_RATE,
-    ),
+    // The enum NAME, lower-cased, is the id stored in Firestore and the value
+    // Cara's record_health_condition tool sends. Renaming an entry is a data
+    // migration, not a refactor.
     HYPERTENSION(
+        "High blood pressure",
         "High blood pressure",
         "Cara will ask for your blood pressure reading when you take it.",
         VitalType.BLOOD_PRESSURE,
     ),
+    TYPE_2_DIABETES(
+        "Type 2 diabetes",
+        "Diabetes or blood sugar",
+        "Cara will ask for your blood sugar reading during check-ins.",
+        VitalType.BLOOD_SUGAR,
+    ),
+    HEART_DISEASE(
+        "Heart condition",
+        "A heart condition",
+        "Cara will ask how your breathing and energy have been.",
+        VitalType.HEART_RATE,
+    ),
+    ATRIAL_FIBRILLATION(
+        "Atrial fibrillation",
+        "Irregular heartbeat (AF)",
+        "Cara pays extra attention to your heart medication.",
+        VitalType.HEART_RATE,
+    ),
+    COPD_OR_ASTHMA(
+        "COPD or asthma",
+        "Breathing (COPD or asthma)",
+        "Cara will ask how your breathing has been.",
+        null,
+    ),
+    ARTHRITIS(
+        "Arthritis",
+        "Arthritis or joint pain",
+        "Cara will ask how your joints have been.",
+        null,
+    ),
     ANAEMIA(
         "Iron-deficiency anaemia",
+        "Low iron (anaemia)",
         "Cara will help you time your iron tablets around meals.",
         null,
     ),

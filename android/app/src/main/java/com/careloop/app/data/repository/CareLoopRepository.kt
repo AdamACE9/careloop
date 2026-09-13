@@ -68,6 +68,15 @@ interface CareLoopRepository {
     // ---- Writes ------------------------------------------------------------
 
     suspend fun updateCheckInTime(time: java.time.LocalTime)
+
+    /** Birth year and conditions, from onboarding or Settings. */
+    suspend fun updateAboutYou(birthYear: Int?, conditions: Set<Condition>): Result<Unit>
+
+    /**
+     * One condition Cara was told about on a call. Added, never replacing the
+     * list, so a call can only ever teach her something, not make her forget.
+     */
+    suspend fun addHealthCondition(conditionId: String): Result<Unit>
     suspend fun updateSharingPreferences(preferences: SharingPreferences)
 
     // ---- Medications (add / edit / remove) ----------------------------------
@@ -203,6 +212,8 @@ interface CareLoopRepository {
     suspend fun ensureSignedInPatient(
         preferredName: String,
         dailyCheckInTime: String,
+        birthYear: Int?,
+        conditions: Set<Condition>,
     ): Result<Unit>
 }
 

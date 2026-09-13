@@ -98,6 +98,9 @@ fun HomeScreen(
 
         Spacer(Modifier.height(CareDimens.SpaceLg))
 
+        // Renders nothing unless a newer build has been published.
+        UpdateBanner(modifier = Modifier.padding(bottom = CareDimens.SpaceLg))
+
         // --- Today ---
         CareCard {
             Row(verticalAlignment = Alignment.CenterVertically) {

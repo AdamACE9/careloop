@@ -259,6 +259,7 @@ class LiveCallViewModel(
             "report_urgent_concern" -> reportUrgent(args)
             "remember_for_next_time" -> rememberForNextTime(args)
             "close_open_thread" -> closeThread(args)
+            "record_health_condition" -> recordHealthCondition(args)
             else -> {
                 Log.w(TAG, "Unknown tool requested: $name")
                 JSONObject().put("error", "unknown_tool")
@@ -356,6 +357,16 @@ class LiveCallViewModel(
             why = args.optString("why"),
             followUpInDays = args.optInt("follow_up_in_days", 2),
         ).isSuccess
+        return JSONObject().put("saved", saved)
+    }
+
+    /**
+     * Cara remembering a condition she was just told about. Returns whether it
+     * was saved, so that if it was not she can say so rather than claim to have
+     * remembered something she did not.
+     */
+    private suspend fun recordHealthCondition(args: JSONObject): JSONObject {
+        val saved = repository.addHealthCondition(args.optString("condition")).isSuccess
         return JSONObject().put("saved", saved)
     }
 
