@@ -47,8 +47,19 @@ import { getFirebaseAuth, isFirebaseConfigured, getDb } from './firebase';
 
 export interface AuthState {
   user: User | null;
-  /** True when running without Firebase, on the bundled demo dataset. */
-  isDemo: boolean;
+  /**
+   * True when the app is built with no Firebase config at all, so there is no
+   * auth backend to sign in to.
+   *
+   * Renamed from `isDemo`. `useLinkedPatients` also returned an `isDemo`,
+   * meaning "the figures on screen are the example household", and the two are
+   * NOT the same question: on the deployed site Firebase is configured, so this
+   * is false, while a signed-out visitor is still shown Margaret. Three
+   * separate bugs came from reading one and meaning the other, including a
+   * settings row that told every signed-out visitor it was "Reading from your
+   * account" over an invented medical record. Two flags cannot share a name.
+   */
+  firebaseUnconfigured: boolean;
   loading: boolean;
   displayName: string;
   signIn: (email: string, password: string) => Promise<void>;
@@ -88,13 +99,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AuthState>(() => {
-    const isDemo = !isFirebaseConfigured;
+    const firebaseUnconfigured = !isFirebaseConfigured;
 
     return {
       user,
-      isDemo,
+      firebaseUnconfigured,
       loading,
-      displayName: user?.displayName ?? (isDemo ? DEMO_NAME : (user?.email ?? '')),
+      displayName:
+        user?.displayName ?? (firebaseUnconfigured ? DEMO_NAME : (user?.email ?? '')),
 
       async signIn(email, password) {
         const auth = getFirebaseAuth();

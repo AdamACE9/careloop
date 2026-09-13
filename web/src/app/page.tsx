@@ -98,7 +98,7 @@ export default function Home() {
                 <MagneticButton href="/download" variant="gold">
                   Set it up for a parent
                 </MagneticButton>
-                <MagneticButton href="/dashboard" variant="ghost">
+                <MagneticButton href="/dashboard?example=1" variant="ghost">
                   See the family dashboard
                 </MagneticButton>
               </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   collection,
   doc,
@@ -82,12 +82,31 @@ const DEMO_PATIENT: LinkedPatient = {
  * list and blood sugar, presented as their mother's. It looked like the product
  * working and was the opposite.
  */
+/**
+ * Reads `?example=1` without a hydration mismatch.
+ *
+ * `useSearchParams` would drag a Suspense boundary into every consumer of this
+ * hook; the value only changes on navigation, and the server genuinely cannot
+ * know it, which is exactly what `useSyncExternalStore`'s third argument is
+ * for.
+ */
+const noSubscribe = () => () => {};
+const readExampleRequested = () =>
+  new URLSearchParams(window.location.search).get('example') === '1';
+
 export function useLinkedPatients(): {
   patients: LinkedPatient[];
   loading: boolean;
   /** True when what is on screen is the example household, not real data. */
   isDemo: boolean;
+  /** Signed out, and not asking to see the example. */
+  signedOut: boolean;
 } {
+  const exampleRequested = useSyncExternalStore(
+    noSubscribe,
+    readExampleRequested,
+    () => false,
+  );
   // Taken from the auth context rather than read off auth.currentUser inside an
   // effect with no dependencies. That older form ran exactly once, on mount, so
   // signing in from the dashboard left this hook looking at the signed-out
@@ -105,11 +124,24 @@ export function useLinkedPatients(): {
 
   const current = snapshot?.uid === uid ? snapshot : null;
 
-  // Not signed in, or no Firebase at all: the example household is the right
-  // thing to show a visitor, and the wrong thing to show an account holder.
-  const isDemo = !isFirebaseConfigured || uid === null;
+  // The example household is now opt-in, not the default for anyone signed out.
+  //
+  // It used to appear for every signed-out visitor, which meant the ordinary
+  // way to arrive at this dashboard was to be shown a complete invented
+  // medical record: a name, an age, days of warfarin remaining, doses missed
+  // this week. Labelling it helped. Defaulting to it was still wrong. A
+  // dashboard's default state should be the real one, and the real one for
+  // somebody who is not signed in is an invitation to sign in.
+  //
+  // It is still one click away, because a judge landing cold on an empty
+  // dashboard learns nothing about the product, and `?example=1` says plainly
+  // in the address bar what is being looked at.
+  const isDemo = !isFirebaseConfigured || (uid === null && exampleRequested);
   const patients = isDemo ? [DEMO_PATIENT] : (current?.patients ?? []);
-  const loading = !isDemo && current === null;
+  // Signed out and not asking for the example is not "loading": nothing is
+  // coming, because the effect below never subscribes without a uid. Without
+  // the uid check this spun forever on a page that had nothing to wait for.
+  const loading = !isDemo && uid !== null && current === null;
 
   useEffect(() => {
     const db = getDb();
@@ -156,7 +188,7 @@ export function useLinkedPatients(): {
     );
   }, [uid]);
 
-  return { patients, loading, isDemo };
+  return { patients, loading, isDemo, signedOut: isFirebaseConfigured && uid === null && !isDemo };
 }
 
 // -----------------------------------------------------------------------------

@@ -20,8 +20,12 @@ import { isFirebaseConfigured } from '@/lib/firebase';
  * same reason.
  */
 export default function SettingsPage() {
-  const { displayName, isDemo, signOut } = useAuth();
-  const { patients } = useLinkedPatients();
+  const { displayName, signOut } = useAuth();
+  // `showingExampleData` is whether the FIGURES on screen are Margaret's, which
+  // is a different question from useAuth's `isDemo` ("no Firebase configured").
+  // Confusing the two is what made this page assert "Reading from your account"
+  // to a signed-out visitor looking at an invented household.
+  const { patients, isDemo: showingExampleData } = useLinkedPatients();
   const patient = patients[0];
 
   // Their name where we have it, "them" where we do not. Never "her": the
@@ -57,15 +61,38 @@ export default function SettingsPage() {
       {/* ------------------------------------------------------- Account */}
       <section className="rounded-3xl border border-ink/10 bg-white p-7 md:p-8">
         <h3 className="font-display text-xl text-ink">Your account</h3>
-        <p className="mt-3 text-slate-ink">
-          Signed in as <span className="font-medium text-ink">{displayName}</span>
-        </p>
-        <button
-          onClick={() => void signOut()}
-          className="mt-5 rounded-xl border border-ink/20 px-5 py-3 text-sm font-semibold text-ink transition hover:bg-cloud"
-        >
-          Sign out
-        </button>
+        {/*
+          A signed-out visitor has no display name, and this rendered as the
+          words "Signed in as" followed by nothing, above a Sign out button
+          that had nothing to sign out of. Say which of the two situations
+          they are actually in.
+        */}
+        {displayName ? (
+          <>
+            <p className="mt-3 text-slate-ink">
+              Signed in as <span className="font-medium text-ink">{displayName}</span>
+            </p>
+            <button
+              onClick={() => void signOut()}
+              className="mt-5 rounded-xl border border-ink/20 px-5 py-3 text-sm font-semibold text-ink transition hover:bg-cloud"
+            >
+              Sign out
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="mt-3 max-w-xl leading-relaxed text-slate-ink">
+              You are not signed in. You are looking at the example household, so
+              nothing here belongs to anybody.
+            </p>
+            <a
+              href="/login"
+              className="mt-5 inline-block rounded-xl bg-navy px-5 py-3 text-sm font-semibold text-white transition hover:bg-navy-deep"
+            >
+              Sign in
+            </a>
+          </>
+        )}
       </section>
 
       {/* --------------------------------------------------- Linking code */}
@@ -156,15 +183,25 @@ export default function SettingsPage() {
             okText="Connected"
             offText="Running on demo data"
           />
+          {/*
+            Keyed on the data, not on the config.
+
+            This read `ok={!isDemo}`, and isDemo means "no Firebase configured",
+            which is false on the deployed site. So this row told every
+            signed-out visitor "Reading from your account" on a page whose every
+            figure belonged to a person who does not exist. A row whose entire
+            job is to say whether the data is real, saying the wrong one, is
+            worse than not having the row.
+          */}
           <StatusRow
             label="Live data"
-            ok={!isDemo}
+            ok={!showingExampleData}
             okText="Reading from your account"
             offText="Example figures, nothing real"
           />
         </div>
 
-        {isDemo && (
+        {showingExampleData && (
           <p className="mt-5 rounded-2xl bg-cloud px-5 py-4 text-sm leading-relaxed text-ink/75">
             This is a fully working dashboard running on an example household, so
             you can see exactly how it behaves before connecting anything.

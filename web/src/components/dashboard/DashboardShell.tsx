@@ -54,7 +54,7 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
   // the data on screen is the example household, and confusing the two is what
   // hid the disclosure on the deployed site. Renamed on the way in so the two
   // cannot be mistaken for each other again.
-  const { patients, loading, isDemo: showingExampleData } = useLinkedPatients();
+  const { patients, loading, isDemo: showingExampleData, signedOut } = useLinkedPatients();
 
   const notLinked = !loading && !showingExampleData && patients.length === 0;
   const [menuOpen, setMenuOpen] = useState(false);
@@ -140,6 +140,44 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
+      {/*
+        Signed out, and not asking for the example.
+
+        Everything below this point describes one person: their name in the
+        header, their tabs, their readings. With nobody signed in there is no
+        person, and rendering the frame anyway produced a header reading a
+        blank name and "0 years old". Ask them in, and offer the example
+        explicitly rather than quietly substituting it.
+      */}
+      {signedOut ? (
+        <main className="mx-auto max-w-2xl px-6 py-20 md:px-10">
+          <div className="rounded-3xl border border-ink/10 bg-white p-10 text-center">
+            <h2 className="font-display text-3xl text-ink">
+              Sign in to see their check-ins
+            </h2>
+            <p className="mx-auto mt-4 max-w-md leading-relaxed text-slate-ink">
+              This dashboard reads live from the account you are linked to. Sign
+              in and it will show their real calls, readings and everything Cara
+              has decided.
+            </p>
+            <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+              <Link
+                href="/login"
+                className="rounded-xl bg-navy px-6 py-3.5 font-semibold text-white transition hover:bg-navy-deep"
+              >
+                Sign in
+              </Link>
+              <Link
+                href="/dashboard?example=1"
+                className="rounded-xl border border-ink/20 px-6 py-3.5 font-semibold text-ink transition hover:bg-cloud"
+              >
+                Look around an example first
+              </Link>
+            </div>
+          </div>
+        </main>
+      ) : (
+      <>
       {/* ------------------------------------------------- Patient + action */}
       <div className="border-b border-ink/10 bg-white">
         <div className="mx-auto max-w-7xl px-6 md:px-10">
@@ -173,7 +211,11 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
               return (
                 <Link
                   key={tab.href}
-                  href={tab.href}
+                  // Carry the example flag across tabs. Without it, the second
+                  // click while looking around the example dropped the query
+                  // string, which made the visitor signed-out again and threw
+                  // them back to the sign-in prompt mid-browse.
+                  href={showingExampleData ? `${tab.href}?example=1` : tab.href}
                   aria-current={active ? 'page' : undefined}
                   className={`relative whitespace-nowrap px-4 py-3 text-sm font-medium transition ${
                     active
@@ -208,12 +250,12 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
           <p className="mx-auto max-w-7xl px-6 py-3 text-sm leading-relaxed text-ink md:px-10">
             <span className="font-semibold">This is an example household.</span>{' '}
             Margaret is not a real person and none of these readings are real.
-            It is here so the dashboard shows what it does rather than an empty
-            page.{' '}
+            You asked to see it, so nothing here is being substituted for your
+            own data.{' '}
             <Link href="/login" className="font-semibold text-navy underline underline-offset-2">
               Sign in
             </Link>{' '}
-            and link to someone to see their actual check-ins.
+            to read live from the account you are linked to.
           </p>
         </div>
       )}
@@ -233,6 +275,8 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
         )}
         {notLinked && !onSettings ? <NotLinkedYet /> : children}
       </main>
+      </>
+      )}
     </div>
   );
 }
