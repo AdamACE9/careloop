@@ -32,7 +32,7 @@ import java.net.URL
 object UpdateChecker {
 
     private const val RELEASE_API =
-        "https://api.github.com/repos/AdamACE9/careloop/releases/tags/latest-apk"
+        "https://api.github.com/repos/AdamACE9/careloop/releases/latest"
 
     /** Served through the website, so it stays valid if the release host moves. */
     const val DOWNLOAD_URL = "https://careloop--careloop-adam.europe-west4.hosted.app/careloop.apk"

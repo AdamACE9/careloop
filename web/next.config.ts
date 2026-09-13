@@ -37,7 +37,7 @@ const nextConfig: NextConfig = {
       {
         source: '/careloop.apk',
         destination:
-          'https://github.com/AdamACE9/careloop/releases/download/latest-apk/careloop.apk',
+          'https://github.com/AdamACE9/careloop/releases/latest/download/careloop.apk',
         permanent: false,
       },
     ];

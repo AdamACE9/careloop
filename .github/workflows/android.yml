@@ -87,14 +87,21 @@ jobs:
       # One rolling tag rather than a new one per build, so the URL the site
       # links never changes:
       #   https://github.com/AdamACE9/careloop/releases/download/latest-apk/careloop.apk
+      # A NEW release per build, never delete-then-recreate.
+      #
+      # The old step deleted the rolling release and created it again, which
+      # left a window with no asset at all. A phone downloading in that window
+      # saved GitHub's error page as careloop.apk, and Android reported "App
+      # not installed: package appears to be invalid". The website links to
+      # /releases/latest/download/careloop.apk, which switches to this build
+      # only once it is fully published, so the link is never empty.
       - name: Publish the APK for the website
         if: success() && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cp android/app/build/outputs/apk/debug/app-debug.apk careloop.apk
-          gh release delete latest-apk --yes --cleanup-tag || true
-          gh release create latest-apk careloop.apk             --title "CareLoop debug build"             --notes "Built from ${{ github.sha }}. Debug-signed, so Android will warn about an unknown source before installing. versionCode=${{ github.run_number }}"
+          gh release create "apk-${{ github.run_number }}" careloop.apk --latest --title "CareLoop build ${{ github.run_number }}" --notes "Built from ${{ github.sha }}. Debug-signed, so Android will warn about an unknown source before installing. versionCode=${{ github.run_number }}"
 
       # On failure the build output is what matters, and scrolling the web log is
       # slower than having the report files in hand.
