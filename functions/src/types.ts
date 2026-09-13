@@ -116,7 +116,10 @@ export interface PatientProfile {
   lastName: string;
   /** What Cara calls them out loud. Often not their legal first name. */
   preferredName: string;
+  /** Legacy. Prefer birthYear; 0 means unknown. */
   age: number;
+  /** Stored instead of an age, which is wrong a year after it is written. */
+  birthYear?: number | null;
   /** Condition ids — drive which vitals Cara asks about. */
   conditions: string[];
 }
@@ -199,7 +202,30 @@ export interface CheckInDoc {
   toneSignals: ToneSignals | null;
   /** Cara's plain-language read. Shown to BOTH the elder and the family. */
   caraSummary: string;
+  /**
+   * What the conversation was about, beyond the pill box. Cara's memory for
+   * the next call. Null when nothing beyond a routine check was said, or when
+   * summarising failed. Never read by the reasoning engine.
+   */
+  conversationSummary?: string | null;
+  /**
+   * What the agent decided after this call, and why, including the decision
+   * NOT to tell anyone. Before this existed a missed dose that fell below the
+   * escalation threshold produced no record of any judgement at all.
+   */
+  agentDecision?: AgentDecisionDoc | null;
   callAttemptId: string | null;
+}
+
+export interface AgentDecisionDoc {
+  action: AgentAction;
+  headline: string;
+  explanation: string;
+  concernScore: number;
+  /** The score at which family would have been told, for context. */
+  threshold: number;
+  /** When Cara decided to ring back, if she did. */
+  followUpAt: string | null;
 }
 
 /** `/patients/{patientId}/vitals/{vitalId}` */

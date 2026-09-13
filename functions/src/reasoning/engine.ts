@@ -106,7 +106,16 @@ export interface ReasoningOutcome {
   relatedMedication: string | null;
   /** Minutes to wait before retrying, when the action is a retry. */
   retryInMinutes: number | null;
+  /**
+   * Minutes until Cara rings back on her own initiative after an answered call,
+   * because something that matters was missed today. Distinct from a retry,
+   * which is about a call nobody answered.
+   */
+  followUpInMinutes?: number | null;
 }
+
+/** Exported so the check-in record can show how close a decision was. */
+export const ESCALATION_SCORE_THRESHOLD = 1.0;
 
 // -----------------------------------------------------------------------------
 // Evidence gathering
@@ -351,17 +360,25 @@ export function reason(input: ReasoningInput): ReasoningOutcome {
 
   // ---- Normal path ----
   if (concernScore < ESCALATION_THRESHOLD) {
+    // Deciding NOT to tell anyone is a decision too, and it used to leave no
+    // trace. A missed dose below the threshold returned an empty headline and
+    // explanation, so the person who said "no, I didn't take it" saw nothing
+    // happen and had no way to know whether Cara had weighed it at all. An
+    // agent whose restraint is invisible is indistinguishable from one that
+    // was not listening.
+    const held = worst ? explainHoldingBack(input, worst) : null;
     return {
       action: 'no_action',
       concernScore,
       confidence: 'high',
       severity: 'fyi',
-      headline: '',
-      explanation: '',
+      headline: held?.headline ?? '',
+      explanation: held?.explanation ?? '',
       reasoning: [],
       alternativesConsidered: [],
       relatedMedication: worst?.medication.name ?? null,
       retryInMinutes: null,
+      followUpInMinutes: held?.followUpInMinutes ?? null,
     };
   }
 
@@ -687,6 +704,62 @@ function formatDates(dates: string[]): string {
   if (formatted.length === 1) return formatted[0]!;
   if (formatted.length === 2) return `${formatted[0]} and ${formatted[1]}`;
   return `${formatted.slice(0, -1).join(', ')} and ${formatted[formatted.length - 1]}`;
+}
+
+/**
+ * The account of a decision not to escalate, and what Cara will do instead.
+ *
+ * Templated for the same reason escalations are (D11): it is the stated reason
+ * for an autonomous decision about someone's health, so it must say what the
+ * engine actually weighed, not a fluent paraphrase of it.
+ *
+ * The follow-up call is where restraint becomes agency. For a medication where
+ * missing a dose genuinely matters, and a miss that happened today, Cara rings
+ * back later on her own initiative rather than only noting it for tomorrow.
+ * Routine medication gets no callback: calling someone twice in a day about a
+ * vitamin is nagging, and the product is supposed to know the difference.
+ */
+function explainHoldingBack(
+  input: ReasoningInput,
+  worst: ReturnType<typeof gatherMedicationEvidence>[number],
+): { headline: string; explanation: string; followUpInMinutes: number | null } {
+  const med = worst.medication.name;
+  const name = input.patientName;
+  const days = worst.missedDates.length;
+  const missedToday = worst.missedDates.some((d) => formatDate(d) === 'today');
+  const criticality = worst.medication.criticality;
+
+  const kind = criticality === 'critical'
+    ? 'one where a missed dose matters most'
+    : criticality === 'high'
+      ? 'an important medication'
+      : criticality === 'medium'
+        ? 'a medication where the occasional missed dose is usually not serious'
+        : 'a routine medication';
+
+  const occurrence = days <= 1
+    ? 'the only missed day in the past week'
+    : `the ${days === 2 ? 'second' : days === 3 ? 'third' : `${days}th`} missed day in the past week`;
+
+  const unsure = worst.uncertainDates.length > 0
+    ? ` ${name} was not sure whether it had been taken, which Cara weighs more heavily than a clear miss.`
+    : '';
+
+  const followUpInMinutes = missedToday && criticality === 'critical'
+    ? 120
+    : missedToday && criticality === 'high'
+      ? 180
+      : null;
+
+  const next = followUpInMinutes
+    ? `Because missing ${med} matters, Cara will ring back in about ${followUpInMinutes / 60} hours to see how things are. If it keeps happening, she will let ${input.caretakerName} know.`
+    : `Cara will ask about it on the next call, and if it keeps happening she will let ${input.caretakerName} know.`;
+
+  return {
+    headline: `Noted ${med}, not telling family yet`,
+    explanation: `${capitalise(name)} missed ${med} ${datePhrase(worst.missedDates)}. It is ${occurrence}, and ${med} is ${kind}, so on its own this is not yet a pattern worth a message.${unsure} ${next}`,
+    followUpInMinutes,
+  };
 }
 
 function countWord(n: number): string {

@@ -295,6 +295,64 @@ check('R12', 'Two misses in one day are one day of evidence, not two', () => {
   return null;
 });
 
+check('R13', 'Holding back on a missed dose always says why, and what happens next', () => {
+  // A real call: someone said they had not taken a medication, the engine
+  // decided it was not yet worth telling family, and nothing anywhere recorded
+  // that a decision had been made. Restraint that leaves no trace is
+  // indistinguishable from not listening.
+  const out = reason(
+    input({ recentCheckIns: [checkIn(0, { missed: ['Atorvastatin'], confirmed: ['Warfarin'] })] }),
+  );
+  if (out.action !== 'no_action') return `expected no_action, got ${out.action}`;
+  if (!out.headline.trim()) return 'held back on a missed dose with no headline';
+  if (!out.explanation.includes('Atorvastatin')) return 'explanation does not name the medication';
+  if (!/next call|ring back/.test(out.explanation)) return 'explanation does not say what Cara will do next';
+  return null;
+});
+
+check('R14', 'A same-day callback is reserved for medication where missing it matters', () => {
+  // Calling someone back twice in a day about a routine tablet is nagging. Not
+  // calling back about one that matters is the agent noting a risk and doing
+  // nothing about it. The line between them must hold in both directions.
+  const routine = reason(
+    input({
+      medications: [med('Vitamin D', 'low')],
+      recentCheckIns: [checkIn(0, { missed: ['Vitamin D'] })],
+    }),
+  );
+  if (routine.followUpInMinutes) return 'scheduled a same-day callback about a routine medication';
+
+  const important = reason(
+    input({
+      medications: [med('Metformin', 'high')],
+      recentCheckIns: [checkIn(0, { missed: ['Metformin'] })],
+    }),
+  );
+  if (important.action === 'no_action' && !important.followUpInMinutes) {
+    return 'noted a missed important medication today and did not follow it up';
+  }
+
+  const yesterday = reason(
+    input({
+      medications: [med('Metformin', 'high')],
+      recentCheckIns: [checkIn(1, { missed: ['Metformin'] })],
+    }),
+  );
+  if (yesterday.followUpInMinutes) return 'scheduled a callback about a dose missed yesterday, which is too late to help';
+  return null;
+});
+
+check('R15', 'A clean call produces no decision text at all', () => {
+  // The opposite failure: explaining a non-event. A day where everything was
+  // taken does not need a paragraph about why nobody was told.
+  const out = reason(
+    input({ recentCheckIns: [checkIn(0, { confirmed: ['Warfarin', 'Atorvastatin'] })] }),
+  );
+  return out.headline || out.followUpInMinutes
+    ? 'wrote a decision or scheduled a callback for a call where nothing was missed'
+    : null;
+});
+
 check('R10', 'Never escalates without naming an alternative it considered', () => {
   const out = reason(input({ recentCheckIns: [checkIn(0, { missed: ['Warfarin'] })] }));
   if (out.action !== 'escalate') return 'precondition failed: did not escalate';

@@ -72,11 +72,17 @@ export function buildCaraSystemInstruction(context: CaraContext): string {
 
   const contextLines = recentContext.length
     ? recentContext.map((c) => `- ${c}`).join('\n')
-    : '- This is your first call with them.';
+    : '- This is your first call with them. You know nothing about them yet beyond their name, so part of this call is getting to know them.';
 
-  return `You are Cara, a companion who telephones ${name} once a day to check how they are getting on with their medication.
+  // Only state an age that is actually known. This line used to interpolate
+  // profile.age unconditionally, and onboarding never asked for one, so Cara
+  // was told "Adam is 0 years old" on every call.
+  const age = ageOf(patient);
+  const ageLine = age ? ` ${name} is ${age} years old.` : '';
 
-You are speaking out loud on a phone call. ${name} is ${patient.profile.age} years old.
+  return `You are Cara, a companion who telephones ${name} once a day to check how they are getting on with their medication and how they are doing generally.
+
+You are speaking out loud on a phone call.${ageLine}
 
 # Who you are
 
@@ -90,21 +96,23 @@ Call them ${name}. Never "love", "dear", "sweetie", or anything similar. They ar
 
 - Short sentences. Pause between ideas. You are being heard through a phone speaker by someone whose hearing may not be sharp.
 - One question at a time. Wait for the answer.
-- Plain words. Say "your heart pill", not "your anticoagulant".
+- Plain words. Name a medication the way the person would, using what it is for from the list below, rather than its clinical class. Never refer to a medication that is not on that list.
 - Never rush them. Silence is fine.
 - If they want to chat for a moment, let them. This is a call from someone who cares, not a survey.
 
 # What you are checking
 
-${medicationLines}
+${describeMedications(medicationLines, name)}
 
-Ask whether they have taken these. Listen to *how* they answer, not just what they say. "Yes" and "I think so" are different answers, and the second one matters.
+# Getting to know them
 
-If they sound unsure, say so kindly and give them a way to check: "Is the Thursday box empty, or is the tablet still in it?" Never silently note that they seemed confused. If you noticed something, tell them you noticed it.
+${describeGettingToKnow(patient, name)}
 
-# Recent context
+# Your previous calls with ${name}
 
 ${contextLines}
+
+This is your memory of them. Use it the way a person who rang yesterday would: "Last time you said your knee was playing up. How is it today?" Refer back to what they told you rather than starting from nothing each day, but do not recite this list at them, and never mention that you keep notes.
 
 # What you said you would come back to
 
@@ -134,6 +142,10 @@ They see everything you share, in their own app, and they can add their side of 
 
 If everything is fine, say so, and say you will not be bothering ${carer}. Being told when you are *not* being reported on is what makes the rest believable.
 
+# If a dose was missed
+
+Say plainly that you have noted it, without making them feel told off. Never tell them to take a missed dose late, double up, or skip one: that depends on the medication, so point them to the leaflet or their pharmacist. Tell them honestly what happens next: that you will ask about it again, and whether it is the kind of thing you would let ${carer} know about if it kept happening. If it matters, use remember_for_next_time so you genuinely do come back to it.
+
 # Ending
 
 Confirm anything they said they would do. Say when you will next call. Keep it brief and warm.
@@ -144,6 +156,74 @@ Confirm anything they said they would do. Say when you will next call. Keep it b
 - Never recommend a dose change.
 - If they describe something urgent, chest pain, difficulty breathing, a fall they cannot get up from, sudden weakness or confusion, stop the check-in immediately, tell them clearly to call emergency services, and call report_urgent_concern.
 - Never claim to have information you do not have. If you do not know, say so.`;
+}
+
+/**
+ * Age from birth year where we have one, falling back to a stored age, and
+ * null when neither is known. Birth year is what onboarding stores, because an
+ * age written once is wrong a year later.
+ */
+export function ageOf(patient: PatientDoc): number | null {
+  const birthYear = patient.profile.birthYear;
+  if (typeof birthYear === 'number' && birthYear > 1900) {
+    const age = new Date().getUTCFullYear() - birthYear;
+    if (age > 0 && age < 120) return age;
+  }
+  return patient.profile.age > 0 ? patient.profile.age : null;
+}
+
+/**
+ * The medication section, including the case with nothing in it.
+ *
+ * An empty list used to render as a blank section immediately followed by "Ask
+ * whether they have taken these", under a style rule whose worked example was
+ * "your heart pill". Given nothing real to ask about, the model asked about
+ * the example: a person who had added no medications at all was asked, on
+ * their first call, whether they had taken their heart pill. An agent inventing
+ * a medication for someone is the most dangerous thing this prompt can
+ * produce, so the empty case is spelled out rather than left to inference.
+ */
+function describeMedications(medicationLines: string, name: string): string {
+  if (!medicationLines.trim()) {
+    return `${name} has not added any medications to CareLoop yet, so there is nothing on record for you to check.
+
+Do NOT ask whether they have taken any tablet, pill or medicine, by name or by description. You do not know what they take, and guessing would be dangerous.
+
+Instead, ask whether they take any regular medication. If they do, ask what it is and what it is for, and tell them they can add it in the Medicine tab of the CareLoop app so you can help keep track of it. Do not call record_medication_status for anything they mention: it is not on their list. If something they mention could interact with something else they said, you may still call check_interaction.`;
+  }
+
+  return `${medicationLines}
+
+Ask whether they have taken these, and only these. Listen to *how* they answer, not just what they say. "Yes" and "I think so" are different answers, and the second one matters. Call record_medication_status for each one as you establish it.
+
+If they sound unsure, say so kindly and give them a way to check: "Is today's slot in your pill organiser empty, or is the tablet still in it?" Never silently note that they seemed confused. If you noticed something, tell them you noticed it.`;
+}
+
+/**
+ * The part of the call about the person rather than the pill box.
+ *
+ * Without it every call was a medication checklist, and the conditions list
+ * was never filled in because nothing ever asked. That meant the vitals section
+ * always said there was nothing to ask about, so Cara never once asked anyone
+ * about their blood pressure or blood sugar.
+ */
+function describeGettingToKnow(patient: PatientDoc, name: string): string {
+  const lines: string[] = [];
+
+  if (!patient.profile.conditions.length) {
+    lines.push(
+      `You do not yet know whether ${name} has any long-term health conditions. At a natural point, ask once, gently, whether there is anything they keep an eye on, for example their blood pressure, blood sugar, heart, breathing, or joints. If they tell you, call record_health_condition for each one so you remember. If they would rather not say, accept that and do not ask again on this call.`,
+    );
+  }
+
+  lines.push(
+    'Ask about one or two things beyond medication, choosing whatever fits the conversation and your previous calls rather than going through a list: how they slept, whether anything is hurting, whether they are eating and drinking properly, whether they have been out or seen anyone. Loneliness and poor sleep matter to their health as much as a missed tablet.',
+  );
+  lines.push(
+    'If they mention something worth following up another day, a new pain, a worry, a change coming up, use remember_for_next_time.',
+  );
+
+  return lines.join('\n\n');
 }
 
 function describeVitalsAsk(patient: PatientDoc): string {
@@ -160,6 +240,19 @@ function describeVitalsAsk(patient: PatientDoc): string {
       '- They have high blood pressure. If they have taken a reading recently, ask what it was.',
     );
   }
+  if (conditions.includes('heart_disease')) {
+    asks.push(
+      '- They have a heart condition. Ask how their breathing and energy have been, and whether they have had any chest discomfort or swollen ankles.',
+    );
+  }
+  if (conditions.includes('copd_or_asthma')) {
+    asks.push(
+      '- They have a breathing condition. Ask how their breathing has been, and whether they have needed their inhaler more than usual.',
+    );
+  }
+  if (conditions.includes('arthritis')) {
+    asks.push('- They have arthritis. Ask how their joints have been.');
+  }
   if (conditions.includes('atrial_fibrillation')) {
     asks.push(
       '- They have an irregular heart rhythm. Their anticoagulant is the medication that matters most; treat a missed dose seriously.',
@@ -167,7 +260,7 @@ function describeVitalsAsk(patient: PatientDoc): string {
   }
 
   if (!asks.length) {
-    return 'No specific readings to ask about. Just ask generally how they are feeling.';
+    return 'No known conditions to ask for readings about yet. If they mention that they take readings of any kind, ask for the latest one and record it with record_vital.';
   }
   asks.push('Record any number they give you with record_vital. Never guess or round.');
   return asks.join('\n');
@@ -287,6 +380,34 @@ export const CARA_TOOLS = [
             },
           },
           required: ['type', 'value'],
+        },
+      },
+      {
+        // Written to the person's own profile by their phone, and shown to
+        // them in the app. Learned by asking, never inferred: someone on a
+        // statin has not thereby told anyone they have heart disease.
+        name: 'record_health_condition',
+        description:
+          'Remember a long-term health condition the person has just told you they have. Only call this when they have said it themselves. Never infer a condition from a medication.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            condition: {
+              type: 'STRING',
+              enum: [
+                'hypertension',
+                'type_2_diabetes',
+                'atrial_fibrillation',
+                'heart_disease',
+                'copd_or_asthma',
+                'arthritis',
+                'anaemia',
+              ],
+              description:
+                'hypertension = high blood pressure; type_2_diabetes = diabetes or blood sugar problems; atrial_fibrillation = irregular heartbeat; heart_disease = any other heart condition; copd_or_asthma = a breathing condition; arthritis = joint pain; anaemia = low iron.',
+            },
+          },
+          required: ['condition'],
         },
       },
       {

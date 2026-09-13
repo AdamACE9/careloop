@@ -9,6 +9,7 @@ import {
   GEMINI_API_KEY,
   OPENFDA_API_KEY,
   GEMINI_LIVE_MODEL,
+  GEMINI_TEXT_MODEL,
   GEMINI_API_HOST,
   GEMINI_LIVE_WS_PATH,
   REGION,
@@ -31,7 +32,8 @@ import { mintLiveToken, GeminiTokenError, reserveLiveSessionSlot } from './gemin
 import { buildCaraSystemInstruction, CARA_TOOLS, CARA_VOICE_CONFIG } from './gemini/cara.js';
 import { checkDrugInteractions } from './interactions/drugs.js';
 import { findFoodInteractionsByFood, findFoodInteractionsForList } from './interactions/foodRules.js';
-import { reason, type ReasoningInput } from './reasoning/engine.js';
+import { reason, ESCALATION_SCORE_THRESHOLD, type ReasoningInput } from './reasoning/engine.js';
+import { summariseConversation } from './gemini/summary.js';
 import type {
   CheckInDoc,
   MedicationDoc,
@@ -43,6 +45,7 @@ import type {
   SharedItemDoc,
   VitalType,
   AgentThreadDoc,
+  AgentDecisionDoc,
 } from './types.js';
 
 initializeApp();
@@ -97,7 +100,10 @@ export const mintLiveSessionToken = onCall(
     const patientId = requireString(request.data?.patientId, 'patientId', { max: 128 });
     requirePatientSelf(caller, patientId);
 
-    await enforceRateLimit(`live:${caller.uid}`, { limit: 12, windowSeconds: 3600 });
+    // Loose on purpose. Every answered call and every reconnect mints a token,
+    // and this limit refusing one means a ringing phone that Cara cannot speak
+    // on. It exists to stop a runaway client, not to ration care.
+    await enforceRateLimit(`live:${caller.uid}`, { limit: 40, windowSeconds: 3600 });
 
     // Free-tier concurrency is tight. Better to know now than to have the person
     // answer the phone and find Cara cannot speak.
@@ -119,10 +125,10 @@ export const mintLiveSessionToken = onCall(
       // was dead code and the model ran with no persona at all: the whole
       // character, every research-backed rule in it, and the tool declarations
       // reached nothing. The call worked and Cara was a stranger.
-      const [patient, medications, recentContext, openThreads] = await Promise.all([
-        loadPatient(patientId),
+      const patient = await loadPatient(patientId);
+      const [medications, recentContext, openThreads] = await Promise.all([
         loadMedications(patientId),
-        loadRecentContext(patientId),
+        loadRecentContext(patientId, patient.timezone),
         loadOpenThreads(patientId),
       ]);
 
@@ -186,16 +192,45 @@ async function loadMedications(patientId: string): Promise<MedicationDoc[]> {
  * words back into a prompt days later, which is a different and worse privacy
  * bargain than a one-line summary they can read on their own screen.
  */
-async function loadRecentContext(patientId: string): Promise<string[]> {
+async function loadRecentContext(patientId: string, timezone?: string): Promise<string[]> {
   const snap = await db()
     .collection(`patients/${patientId}/checkIns`)
     .orderBy('startedAt', 'desc')
-    .limit(4)
+    .limit(6)
     .get();
 
+  // Dated, and in the person's own timezone. Undated notes gave Cara no way to
+  // tell "missed this morning" from "missed last week", so she could not say
+  // "earlier today you told me" on a follow-up call, or know that a worry was
+  // from yesterday rather than a month ago.
+  const tz = timezone || 'UTC';
+  const now = new Date();
+  const dayKey = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: tz });
+
   return snap.docs
-    .map((d) => (d.data() as CheckInDoc).caraSummary)
-    .filter((summary): summary is string => Boolean(summary && summary.trim()));
+    .map((d) => {
+      const c = d.data() as CheckInDoc;
+      const at = new Date(c.startedAt);
+      const days = Math.round(
+        (Date.parse(dayKey(now)) - Date.parse(dayKey(at))) / 86_400_000,
+      );
+      const day = days === 0
+        ? 'Earlier today'
+        : days === 1
+          ? 'Yesterday'
+          : at.toLocaleDateString('en-GB', { weekday: 'long', timeZone: tz });
+      const time = at.toLocaleTimeString('en-GB', {
+        hour: '2-digit', minute: '2-digit', timeZone: tz,
+      });
+
+      const parts = [c.caraSummary, c.conversationSummary]
+        .filter((p): p is string => Boolean(p && p.trim()));
+      if (!parts.length) return null;
+      return `${day} at ${time}: ${parts.join(' ')}`;
+    })
+    .filter((line): line is string => line !== null)
+    // Oldest first, so it reads as a history rather than backwards.
+    .reverse();
 }
 
 /** Threads Cara opened herself and has not closed. */
@@ -210,6 +245,20 @@ async function loadOpenThreads(patientId: string): Promise<AgentThreadDoc[]> {
   return snap.docs.map((d) => ({ ...(d.data() as AgentThreadDoc), id: d.id }));
 }
 
+/**
+ * Calls CARA made today on her own initiative: scheduled ones and retries.
+ *
+ * Manual calls are excluded, and that is the whole point of this function. The
+ * daily cap exists so an agent does not harass someone who is not picking up.
+ * It was counting calls the person asked for themselves, so a few taps of
+ * "have Cara call me now" used up the day's allowance and the next request was
+ * refused with "this is the fourth call today". A person asking to be called,
+ * or a worried family member pressing "check on her now", is never harassment,
+ * and on a care product a refused call can be the one that mattered.
+ *
+ * Filtered in memory rather than with a second where clause, to avoid needing
+ * a composite index for a query that returns a handful of documents.
+ */
 async function countAttemptsToday(patientId: string): Promise<number> {
   const since = new Date();
   since.setHours(0, 0, 0, 0);
@@ -217,7 +266,7 @@ async function countAttemptsToday(patientId: string): Promise<number> {
     .collection(`patients/${patientId}/callAttempts`)
     .where('sentAt', '>=', since.toISOString())
     .get();
-  return snap.size;
+  return snap.docs.filter((d) => (d.data() as CallAttemptDoc).trigger !== 'manual').length;
 }
 
 /**
@@ -239,13 +288,21 @@ export const triggerCall = onCall(async (request: CallableRequest) => {
 
   // A caretaker may request a call; only the server schedules one.
   await requireLinkedOrSelf(caller, patientId);
-  await enforceRateLimit(`call:${patientId}`, { limit: 6, windowSeconds: 3600 });
+
+  // Loose, and only a guard against a runaway client. It used to be six an
+  // hour, which a person testing the app, or a family member worried enough to
+  // press the button repeatedly, hit within minutes, and the phone then simply
+  // did not ring. Refusing a requested call is the wrong failure for a product
+  // whose reason to exist is that someone might need it.
+  await enforceRateLimit(`call:${patientId}`, { limit: 30, windowSeconds: 3600 });
 
   const attemptsToday = await countAttemptsToday(patientId);
-  if (attemptsToday >= MAX_CALL_ATTEMPTS_PER_DAY) {
+  // The daily cap applies to calls Cara decides to make, never to calls a
+  // person asks for. See countAttemptsToday.
+  if (trigger !== 'manual' && attemptsToday >= MAX_CALL_ATTEMPTS_PER_DAY) {
     throw new HttpsError(
       'resource-exhausted',
-      'DAILY_LIMIT: this is the fourth call today. Give them a bit of space.',
+      'DAILY_LIMIT: Cara has already called four times today. Give them a bit of space.',
     );
   }
 
@@ -592,7 +649,7 @@ export const getDietGuidance = onCall(async (request: CallableRequest) => {
  * each medication is, and independently decides whether to say nothing, call back,
  * or tell the family — writing down its reasoning either way.
  */
-export const submitCheckIn = onCall(async (request: CallableRequest) => {
+export const submitCheckIn = onCall({ secrets: [GEMINI_API_KEY] }, async (request: CallableRequest) => {
   const caller = requireAuth(request);
   const patientId = requireString(request.data?.patientId, 'patientId', { max: 128 });
   requirePatientSelf(caller, patientId);
@@ -711,11 +768,70 @@ export const submitCheckIn = onCall(async (request: CallableRequest) => {
     await checkInRef.update({ status: 'escalated' });
   }
 
+  // --- Cara acting on her own judgement -----------------------------------
+  //
+  // A follow-up call for something that matters, missed today. Only if Cara
+  // has not already used her calls for the day and nothing is queued, so this
+  // can never stack into a string of calls.
+  let followUpAt: string | null = null;
+  if (outcome.action === 'no_action' && outcome.followUpInMinutes) {
+    const [attemptsToday, patientSnap] = await Promise.all([
+      countAttemptsToday(patientId),
+      db().doc(`patients/${patientId}`).get(),
+    ]);
+    const alreadyQueued = Boolean(patientSnap.get('pendingRetryAt'));
+    if (!alreadyQueued && attemptsToday < MAX_CALL_ATTEMPTS_PER_DAY) {
+      followUpAt = new Date(Date.now() + outcome.followUpInMinutes * 60_000).toISOString();
+      await db().doc(`patients/${patientId}`).set(
+        { pendingRetryAt: followUpAt },
+        { merge: true },
+      );
+    }
+  }
+
+  // The decision, written onto the call it came from, including the decision
+  // to do nothing. Only when there was something to decide about: a call where
+  // everything was fine does not need a paragraph explaining why nobody was
+  // told, and the summary already says it went fine.
+  const headline = outcome.headline;
+  if (headline) {
+    const decision: AgentDecisionDoc = {
+      action: outcome.action,
+      headline,
+      explanation: followUpAt || outcome.action !== 'no_action'
+        ? outcome.explanation
+        // The explanation promised a callback that could not be scheduled.
+        // Say what will actually happen instead of what was intended.
+        : outcome.explanation.replace(
+            /Because missing .*? Cara will ring back in about [\d.]+ hours to see how things are\. /,
+            'Cara will ask about it on the next call. ',
+          ),
+      concernScore: Math.round(outcome.concernScore * 100) / 100,
+      threshold: ESCALATION_SCORE_THRESHOLD,
+      followUpAt,
+    };
+    await checkInRef.update({ agentDecision: decision });
+  }
+
+  // --- Memory ---------------------------------------------------------------
+  // Last, and allowed to fail: see gemini/summary.ts.
+  const conversationSummary = await summariseConversation(
+    GEMINI_API_KEY.value(),
+    GEMINI_TEXT_MODEL.value(),
+    patient.profile.preferredName,
+    transcript,
+  );
+  if (conversationSummary) {
+    await checkInRef.update({ conversationSummary });
+  }
+
   logEvent('checkin.submitted', {
     patientHash: hashId(patientId),
     action: outcome.action,
     missedCount: medicationsMissed.length,
     escalated: escalationId !== null,
+    followUpScheduled: followUpAt !== null,
+    remembered: conversationSummary !== null,
   });
 
   return {
