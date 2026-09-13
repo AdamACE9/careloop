@@ -47,9 +47,12 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
   // had just signed up could not link to anybody at all, which is the one thing
   // a new account needs to do.
   const onSettings = pathname?.startsWith('/dashboard/settings') ?? false;
-  const { displayName, isDemo, signOut } = useAuth();
-  // Renamed: useAuth already exports an isDemo meaning demo AUTH, which is a
-  // different question from whether the DATA on screen is the example household.
+  const { displayName, signOut } = useAuth();
+  // useAuth also exports an `isDemo`, and it is deliberately NOT used here. It
+  // means "no Firebase configured", which is a different question from whether
+  // the data on screen is the example household, and confusing the two is what
+  // hid the disclosure on the deployed site. Renamed on the way in so the two
+  // cannot be mistaken for each other again.
   const { patients, loading, isDemo: showingExampleData } = useLinkedPatients();
 
   const notLinked = !loading && !showingExampleData && patients.length === 0;
@@ -71,9 +74,26 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
             </Link>
 
             <div className="flex items-center gap-3">
-              {isDemo && (
-                <span className="hidden rounded-full border border-gold/40 px-3 py-1 text-xs font-medium text-gold sm:inline">
-                  Demo data
+              {/*
+                Keyed on whether the DATA is the example household, not on
+                whether Firebase is configured.
+
+                It used to be `isDemo`, which means `!isFirebaseConfigured`.
+                On the deployed site Firebase IS configured, so that was false,
+                so the badge never rendered, while a signed-out visitor was
+                still being shown Margaret: her name, her age, how many days of
+                warfarin she has left, which doses she missed this week, and
+                Cara's reasoning about her. A complete invented medical record
+                with nothing anywhere saying it was invented. The single
+                element whose job was to say so was switched off by exactly the
+                condition that produced it.
+
+                It was also `hidden sm:inline`, so on a phone there was no
+                disclosure at any time, under any flag.
+              */}
+              {showingExampleData && (
+                <span className="rounded-full border border-gold/40 px-3 py-1 text-xs font-medium text-gold">
+                  Example data
                 </span>
               )}
 
@@ -173,6 +193,29 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
           </nav>
         </div>
       </div>
+
+      {/*
+        A pill in a corner is not enough weight for this claim.
+
+        Everything below it is a person's medication record, and a reader who
+        misses a small badge reads it as somebody's real one. Say it in a full
+        line, above the content it applies to, at every screen width, and say
+        what to do about it rather than only what it is.
+      */}
+      {showingExampleData && (
+        <div className="border-b border-gold/30 bg-gold/10">
+          <p className="mx-auto max-w-7xl px-6 py-3 text-sm leading-relaxed text-ink md:px-10">
+            <span className="font-semibold">This is an example household.</span>{' '}
+            Margaret is not a real person and none of these readings are real.
+            It is here so the dashboard shows what it does rather than an empty
+            page.{' '}
+            <Link href="/login" className="font-semibold text-navy underline underline-offset-2">
+              Sign in
+            </Link>{' '}
+            and link to someone to see their actual check-ins.
+          </p>
+        </div>
+      )}
 
       <main className="mx-auto max-w-7xl px-6 py-10 md:px-10">
         {notLinked && !onSettings ? <NotLinkedYet /> : children}

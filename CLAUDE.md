@@ -641,10 +641,27 @@ firestore.rules         two-sided access model
   names and over-long values, and `logError` deliberately does not log the error
   message or stack, because a Firestore or HTTP error routinely contains the
   document path or response body.
-- **D14 — Both clients degrade to demo data rather than erroring.** No Firebase
-  config, or an empty account, shows the example household. A freshly deployed
-  dashboard showing a blank page looks broken; showing Margaret communicates the
-  product instantly. Real data replaces it the moment any exists.
+- **D14 — REVISED. The two clients degrade differently, and the example
+  household must always say that it is one.** The original decision was that
+  both clients fall back to Margaret rather than show a blank page. Half of it
+  is gone and the other half needed a condition attached.
+
+  **The phone falls back to empty, never to demo data.** An elder's own record
+  showing a stranger's medications is not a nice empty state, it is wrong about
+  the one thing it exists to be right about.
+
+  **The dashboard still shows the example household**, because a freshly
+  deployed dashboard rendering a blank page looks broken and Margaret
+  communicates the product in a second. But it renders a full-width banner
+  above the content, at every screen width, saying she is not real. This was
+  discovered switched off in production: the badge keyed on
+  `!isFirebaseConfigured`, which is false on the deployed site, while the
+  example data keyed on `uid === null`, which was true for every signed-out
+  visitor. So an anonymous visitor saw a complete invented medical record,
+  with the one element whose job was to say so suppressed by exactly the
+  condition that produced it. A fallback that cannot be told apart from real
+  data is not a fallback, it is a fabrication, and on a health product it is
+  the most damaging thing on this list.
 
 ### The reasoning engine, briefly
 
