@@ -514,6 +514,32 @@ The working script converts oklab to linear sRGB via the standard matrices and i
 worth keeping; an earlier version of it is preserved in this session's scratchpad.
 `text-white/40` on navy is about 3.5:1, not the 4.5:1 it looks like by eye.
 
+### What the first call on a real phone found
+
+Adam installed the APK on his own phone and talked to Cara. Every one of these
+was invisible on the emulator and in the eval harness.
+
+- **An empty list plus a worked example is an instruction.** With no
+  medications, the prompt's "What you are checking" section rendered blank,
+  directly under a style rule whose example was "your heart pill". Cara asked
+  a person with no medications whether he had taken his heart pill. Every
+  section of a prompt that can be empty needs its empty case written out, and
+  examples in style rules must not name things that could be mistaken for data.
+- **`generationComplete` is not "finished speaking".** Generation runs faster
+  than speech. The client released the AudioTrack on that frame and threw away
+  the rest of every turn; measured on the emulator, 3.8 seconds of speech were
+  still to play when it arrived. Audio is owned by one playback thread with a
+  jitter queue, and the track is never released between turns.
+- **Blood sugar has two units in real use.** A mg/dL reading of ~100 was saved
+  as 100 mmol/L and stretched the chart axis from -7.5 to 111. Units are asked
+  at entry and converted once, and impossible values are refused.
+- **Rate limits must never refuse a requested call.** Manual calls counted
+  toward the four-a-day anti-nagging cap, so a person asking to be rung was
+  told no. The cap applies only to calls Cara initiates.
+- **Charts built on one-reading-a-day example data break on real data.**
+  Category axes of date strings drew several same-day readings as repeated
+  labels at even spacing. Both charts now place readings by time.
+
 ### Other environment notes
 
 - Android SDK is installed but **not on `PATH`** and `ANDROID_HOME` is unset. Point at
@@ -778,12 +804,25 @@ here so nobody rediscovers them:
   "missed", so choosing not to answer and not being there became the same fact.
 - **Firestore rules**: 31 cases green on CI. **Evaluation harness**: 16 green.
 
+- **Talking back to Cara, on a real phone.** Adam called her from his own
+  handset: she heard him, recorded a missed dose, and opened a memory thread on
+  her own (`agent.thread_opened`).
+- **The rebuilt audio path is accepted by Gemini** (`Setup acknowledged` with
+  the new `realtimeInputConfig`) and plays a full turn through
+  `generationComplete` without being cut.
+- **In-app update prompt, end to end.** Build 59 detected published build 60
+  and offered it; builds install over each other and keep the account.
+- **About you persists** to the profile and reads back after a restart.
+- **Eval harness: 19 green**, including R13 to R15 on visible restraint and
+  same-day follow-up calls.
+
 ### Not verified
 
-- **Talking back to Cara.** The emulator cannot capture microphone audio, so she
-  speaks and is transcribed but has never heard an answer. The call screen says
-  so plainly rather than appearing broken. This is the single largest remaining
-  gap and it needs ten minutes on a real handset.
+- **The new audio path on a real phone.** It is accepted and plays on the
+  emulator; whether it fixes the break-up Adam heard needs his handset.
+- **Conversation memory on a real conversation.** Summaries only run when the
+  person actually spoke, which the emulator cannot do.
+- **Cara's own follow-up call** firing live after a missed important dose.
 - **The agent-threads screen with data in it.** The empty state is verified on
   device; the populated state is not, because threads can only be written for the
   account the phone is signed into and there is no way to seed that account from
