@@ -126,6 +126,25 @@ function EscalationCard({
             ))}
           </div>
 
+          {/*
+            All three states render, including the one that used to render
+            nothing.
+
+            Before, only "confirmed" and "disputed with a note" drew anything.
+            An escalation she had not opened yet, and a dispute she filed
+            without typing a reason, both came out as blank space directly
+            below Cara's account of what happened. Blank space in that
+            position does not read as "no information". It reads as nobody
+            objected, which is the one thing it must never be allowed to mean
+            here: the entire symmetry promise is that the family knows whether
+            she has seen this and what she said about it.
+
+            The disputed branch no longer depends on the note existing. The
+            phone app will not currently submit a dispute without one, but a
+            rule that lives only in one client's button-enabled state is not a
+            rule, and the cost of being wrong is that her objection is
+            displayed as silence.
+          */}
           {escalation.elderResponse === 'confirmed' && (
             <div className="mt-8 rounded-2xl bg-good-surface px-5 py-4">
               <p className="text-sm font-semibold text-good">She confirmed this</p>
@@ -135,11 +154,31 @@ function EscalationCard({
             </div>
           )}
 
-          {escalation.elderResponse === 'disputed' && escalation.elderNote && (
+          {escalation.elderResponse === 'disputed' && (
             <div className="mt-8 rounded-2xl bg-concern-surface px-5 py-4">
               <p className="text-sm font-semibold text-concern">She added something</p>
-              <p className="mt-2 leading-relaxed text-ink">
-                &ldquo;{escalation.elderNote}&rdquo;
+              {escalation.elderNote ? (
+                <p className="mt-2 leading-relaxed text-ink">
+                  &ldquo;{escalation.elderNote}&rdquo;
+                </p>
+              ) : (
+                <p className="mt-1 text-sm leading-relaxed text-ink/70">
+                  She saw this in her own app and does not agree with it. She did
+                  not say why.
+                </p>
+              )}
+            </div>
+          )}
+
+          {escalation.elderResponse === 'not_yet_seen' && (
+            <div className="mt-8 rounded-2xl border border-ink/10 px-5 py-4">
+              <p className="text-sm font-semibold text-slate-ink">
+                She has not opened this yet
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-ink/70">
+                The same message is waiting in her app. When she reads it she can
+                agree with it or add her own account, and whichever she does will
+                appear here.
               </p>
             </div>
           )}

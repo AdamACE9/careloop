@@ -66,7 +66,68 @@ export default function LenisScroll() {
     }
     document.addEventListener("click", onAnchorClick);
 
+    // ARRIVING with a hash is a different problem from clicking one, and the
+    // handler above does nothing for it.
+    //
+    // The footer links to `/#how` from every page, so that is the normal way
+    // in from /download or /login, as well as any shared or bookmarked link.
+    // The browser performs its jump against the document as it measures at
+    // first paint. The pinned section then creates its pin spacer, which adds
+    // roughly 2400px of scroll height, and the offset the browser already
+    // committed to now points somewhere else entirely. Measured on the live
+    // site: #how sits at y=1567, and loading /#how left the visitor at 6346,
+    // near the bottom of the page, looking at the final call to action.
+    //
+    // So re-aim after the layout has stopped moving, rather than before. Once
+    // now, once when ScrollTrigger finishes its first refresh (when the pin
+    // spacer exists), and once after load (when fonts and the hero canvas have
+    // settled). `immediate` because this is arrival, not a journey: animating
+    // a 6000px scroll on page load is not a nice touch, it is motion sickness.
+    const requestedHash = window.location.hash.slice(1);
+    let cancelHashScroll = () => {};
+
+    if (requestedHash && document.getElementById(requestedHash)) {
+      // Otherwise a back navigation restores the same wrong offset and undoes
+      // all of this on the way in.
+      if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+
+      // If the visitor has already started scrolling for themselves, they have
+      // taken over and yanking them back to an anchor is the page fighting the
+      // person using it.
+      let userHasScrolled = false;
+      const surrender = () => {
+        userHasScrolled = true;
+      };
+      window.addEventListener("wheel", surrender, { passive: true, once: true });
+      window.addEventListener("touchstart", surrender, { passive: true, once: true });
+      window.addEventListener("keydown", surrender, { once: true });
+
+      const settle = () => {
+        if (userHasScrolled) return;
+        const el = document.getElementById(requestedHash);
+        if (el) lenis.scrollTo(el, { offset: -88, immediate: true });
+      };
+
+      const onRefresh = () => {
+        settle();
+        ScrollTrigger.removeEventListener("refresh", onRefresh);
+      };
+
+      settle();
+      ScrollTrigger.addEventListener("refresh", onRefresh);
+      window.addEventListener("load", settle, { once: true });
+
+      cancelHashScroll = () => {
+        ScrollTrigger.removeEventListener("refresh", onRefresh);
+        window.removeEventListener("load", settle);
+        window.removeEventListener("wheel", surrender);
+        window.removeEventListener("touchstart", surrender);
+        window.removeEventListener("keydown", surrender);
+      };
+    }
+
     return () => {
+      cancelHashScroll();
       document.removeEventListener("click", onAnchorClick);
       if (rafCallbackRef.current) gsap.ticker.remove(rafCallbackRef.current);
       lenis.destroy();

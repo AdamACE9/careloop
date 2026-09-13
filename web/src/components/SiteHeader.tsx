@@ -83,7 +83,23 @@ export default function SiteHeader() {
           >
             <LoopGlyph />
           </motion.span>
-          <span className="font-display text-xl tracking-tight transition-colors group-hover:text-gold">
+          {/*
+            The glyph carries the brand alone on the narrowest screens.
+
+            At 320px the four header items measured 354px wide, so the Download
+            button hung 34px off the right edge and the whole page scrolled
+            sideways: 320 is a real width (an SE, a folded phone, a desktop
+            browser zoomed in), and sideways scroll is a thing this project
+            audits for everywhere else. 375px fitted, but with nothing to
+            spare, which is the same bug one longer word away.
+
+            Dropping the wordmark rather than a link is the right nine-tenths
+            of the trade. The Loop is deliberately one mark doing three jobs,
+            app icon included, so it reads as the brand without the text beside
+            it. Hiding "Dashboard" instead would take the caretaker's way in
+            off every phone.
+          */}
+          <span className="hidden font-display text-xl tracking-tight transition-colors group-hover:text-gold min-[380px]:inline">
             CareLoop
           </span>
         </Link>
