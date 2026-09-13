@@ -194,7 +194,7 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
                   {patient?.firstName} {patient?.lastName}
                 </h1>
                 <p className="mt-0.5 text-sm text-slate-ink">
-                  {patient?.age} years old · Cara calls at {patient?.checkInTime}
+                  {patient?.age ? `${patient.age} years old · ` : ''}Cara calls at {patient?.checkInTime}
                 </p>
               </div>
             </div>

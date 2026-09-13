@@ -173,7 +173,12 @@ export function useLinkedPatients(): {
               firstName: String(profile.firstName ?? ''),
               lastName: String(profile.lastName ?? ''),
               preferredName: String(profile.preferredName ?? profile.firstName ?? ''),
-              age: Number(profile.age ?? 0),
+              // Birth year first: an age written once is wrong a year later.
+              // 0 means unknown, and the header omits it rather than printing
+              // "0 years old", which every real account used to show.
+              age: typeof profile.birthYear === 'number' && profile.birthYear > 1900
+                ? new Date().getFullYear() - Number(profile.birthYear)
+                : Number(profile.age ?? 0),
               conditions: (profile.conditions as unknown as string[]) ?? [],
               checkInTime: String(data.dailyCheckInTime ?? '09:00'),
             };

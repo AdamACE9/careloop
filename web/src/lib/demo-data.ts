@@ -56,6 +56,19 @@ export interface CheckIn {
   medicationsConfirmed: string[];
   medicationsMissed: string[];
   caraSummary: string;
+  /** What was talked about beyond the pill box. Cara's memory for next time. */
+  conversationSummary?: string | null;
+  /** What Cara decided after this call, including deciding not to tell anyone. */
+  agentDecision?: AgentDecision | null;
+}
+
+export interface AgentDecision {
+  action: "no_action" | "retry_soon" | "retry_later" | "escalate";
+  headline: string;
+  explanation: string;
+  concernScore: number;
+  threshold: number;
+  followUpAt: string | null;
 }
 
 export interface Medication {

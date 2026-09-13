@@ -51,7 +51,8 @@ export interface VitalsChartProps {
 }
 
 interface Point {
-  label: string;
+  /** Epoch milliseconds. The x axis is time, not a list of labels. */
+  at: number;
   value: number;
   secondary: number | null;
 }
@@ -76,10 +77,7 @@ export default function VitalsChart({ readings, type, days = 14 }: VitalsChartPr
       .filter(({ at }) => Number.isFinite(at) && at >= cutoff)
       .sort((a, b) => a.at - b.at)
       .map(({ r, at }) => ({
-        label: new Date(at).toLocaleDateString(undefined, {
-          day: "numeric",
-          month: "short",
-        }),
+        at,
         value: r.value,
         secondary: r.secondaryValue,
       }));
@@ -114,6 +112,29 @@ export default function VitalsChart({ readings, type, days = 14 }: VitalsChartPr
   // A flat series would otherwise collapse to a zero-height axis.
   const pad = Math.max((high - low) * 0.12, high * 0.02, 0.5);
 
+  // A numeric time axis, not a category axis of date strings.
+  //
+  // Each reading used to be labelled with just its date and placed at the next
+  // evenly spaced slot. Real data broke both halves of that: several readings
+  // on one day drew as "13 Sep, 13 Sep, 13 Sep", and two readings three days
+  // apart sat exactly as close as two taken three minutes apart. Example data
+  // had one reading a day, so it never showed.
+  const first = points[0]!.at;
+  const last = points[points.length - 1]!.at;
+  const sameDay = new Date(first).toDateString() === new Date(last).toDateString();
+  const formatTick = (ms: number) =>
+    sameDay
+      ? new Date(ms).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })
+      : new Date(ms).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  const formatFull = (ms: number) =>
+    new Date(ms).toLocaleString(undefined, {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+
   return (
     <div className="h-[300px] w-full">
       <ResponsiveContainer width="100%" height="100%">
@@ -145,12 +166,17 @@ export default function VitalsChart({ readings, type, days = 14 }: VitalsChartPr
           )}
 
           <XAxis
-            dataKey="label"
+            dataKey="at"
+            type="number"
+            scale="time"
+            domain={[first, last]}
+            tickFormatter={formatTick}
             tick={{ fontSize: 12, fill: "#5a6173" }}
             tickLine={false}
             axisLine={{ stroke: "#1a1f2e", strokeOpacity: 0.12 }}
-            interval="preserveStartEnd"
-            minTickGap={24}
+            tickCount={5}
+            minTickGap={36}
+            padding={{ left: 12, right: 12 }}
           />
           <YAxis
             domain={[low - pad, high + pad]}
@@ -172,6 +198,7 @@ export default function VitalsChart({ readings, type, days = 14 }: VitalsChartPr
             // Recharts types the formatter value as ValueType (possibly
             // undefined), so annotating it as `number` does not typecheck.
             // Format defensively instead.
+            labelFormatter={(label) => formatFull(Number(label))}
             formatter={(value, name) =>
               [
                 `${value ?? "-"} ${range.unit}`,
@@ -264,16 +291,20 @@ export function describeTrend(
   const noun = range.label.toLowerCase();
 
   if (above === 0 && !moved) {
-    return `Her ${noun} has stayed inside the usual range across these ${series.length} readings, most recently ${unit}.`;
+    return `${capital(noun)} has stayed inside the usual range across these ${series.length} readings, most recently ${unit}.`;
   }
   if (above === 0 && moved) {
-    return `Her ${noun} has ${shift > 0 ? "risen" : "fallen"} over these ${series.length} readings but stayed inside the usual range, most recently ${unit}.`;
+    return `${capital(noun)} has ${shift > 0 ? "risen" : "fallen"} over these ${series.length} readings but stayed inside the usual range, most recently ${unit}.`;
   }
   if (moved && shift < 0) {
-    return `Her ${noun} went above the usual range ${above === 1 ? "once" : `${above} times`} and has been coming back down since, most recently ${unit}.`;
+    return `${capital(noun)} went above the usual range ${above === 1 ? "once" : `${above} times`} and has been coming back down since, most recently ${unit}.`;
   }
   if (moved && shift > 0) {
-    return `Her ${noun} has been climbing and sat above the usual range ${above === 1 ? "once" : `${above} times`}, most recently ${unit}. Worth mentioning at her next appointment.`;
+    return `${capital(noun)} has been climbing and sat above the usual range ${above === 1 ? "once" : `${above} times`}, most recently ${unit}. Worth mentioning at the next appointment.`;
   }
-  return `Her ${noun} has been above the usual range ${above === 1 ? "once" : `${above} times`} across these ${series.length} readings, most recently ${unit}.`;
+  return `${capital(noun)} has been above the usual range ${above === 1 ? "once" : `${above} times`} across these ${series.length} readings, most recently ${unit}.`;
+}
+
+function capital(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }

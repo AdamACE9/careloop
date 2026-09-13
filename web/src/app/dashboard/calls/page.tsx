@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useLinkedPatients, useCheckIns } from '@/lib/careloop-service';
+import type { AgentDecision } from '@/lib/demo-data';
 
 /**
  * Check-in history.
@@ -113,6 +114,12 @@ export default function CallsPage() {
                 />
                 <p className="mt-3 leading-relaxed text-slate-ink">{checkIn.caraSummary}</p>
 
+                {checkIn.conversationSummary && (
+                  <p className="mt-2 leading-relaxed text-ink">{checkIn.conversationSummary}</p>
+                )}
+
+                {checkIn.agentDecision && <DecisionNote decision={checkIn.agentDecision} />}
+
                 {(checkIn.missed?.length ?? 0) > 0 && (
                   <p className="mt-3 text-sm text-ink">
                     Missed:{' '}
@@ -124,6 +131,39 @@ export default function CallsPage() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * What Cara decided after the call, in her own words, with how close it was.
+ *
+ * This exists because deciding NOT to tell the family is a decision too, and
+ * it used to leave nothing behind. Someone who said "no, I didn't take it" on
+ * a call saw no sign anywhere that it had been weighed. The score is shown
+ * against the threshold so a reader can see the judgement rather than take it
+ * on trust.
+ */
+function DecisionNote({ decision }: { decision: AgentDecision }) {
+  const escalated = decision.action === 'escalate';
+  const follow = decision.followUpAt ? new Date(decision.followUpAt) : null;
+  return (
+    <div
+      className={`mt-4 rounded-2xl px-5 py-4 ${
+        escalated ? 'bg-concern-surface' : 'border border-ink/10 bg-cloud/60'
+      }`}
+    >
+      <p className={`text-sm font-semibold ${escalated ? 'text-concern' : 'text-ink'}`}>
+        {escalated ? 'Cara told you about this' : "Cara's decision"}: {decision.headline}
+      </p>
+      <p className="mt-1.5 text-sm leading-relaxed text-ink/80">{decision.explanation}</p>
+      <p className="mt-2 text-xs text-slate-ink">
+        Concern {decision.concernScore.toFixed(2)} of the {decision.threshold.toFixed(1)} at
+        which she tells family
+        {follow && Number.isFinite(follow.getTime())
+          ? ` · calling back around ${follow.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`
+          : ''}
+      </p>
     </div>
   );
 }
